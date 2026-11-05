@@ -216,7 +216,7 @@ export function QuickAmounts({ amounts, onPick }: { amounts: number[]; onPick: (
 }
 
 // ---------- PIN pad: big buttons, easier than a tiny keyboard ----------
-export function PinPad({ value, onChange, length = 4 }: { value: string; onChange: (v: string) => void; length?: number }) {
+export function PinPad({ value, onChange, length = 6 }: { value: string; onChange: (v: string) => void; length?: number }) {
   const press = (d: string) => value.length < length && onChange(value + d);
   return (
     <div className="mx-auto w-full max-w-xs">

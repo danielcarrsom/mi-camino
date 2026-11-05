@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { NewPin } from "@/components/NewPin";
 import { useHydrated } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 
@@ -13,6 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const applyPlans = useStore((s) => s.applyPlans);
   const syncDown = useStore((s) => s.syncDown);
   const syncUp = useStore((s) => s.syncUp);
+  const needsNewPin = useStore((s) => s.needsNewPin);
 
   // Savings plans add their bricks automatically when a new week/month arrives;
   // then bring in anything saved online from another device.
@@ -47,5 +49,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   if (!hydrated || !current) return <div className="min-h-dvh bg-cream" />;
+  if (needsNewPin) return <NewPin />;
   return <AppShell>{children}</AppShell>;
 }

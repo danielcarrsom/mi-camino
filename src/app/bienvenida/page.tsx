@@ -52,9 +52,9 @@ export default function Onboarding() {
   }, [step, hydrated, lang, voiceOn]);
 
   // PIN steps advance on the 4th digit
-  useEffect(() => { if (step === "pin" && pin.length === 4) setTimeout(() => go("pin2"), 250); }, [pin, step]);
+  useEffect(() => { if (step === "pin" && pin.length === 6) setTimeout(() => go("pin2"), 250); }, [pin, step]);
   useEffect(() => {
-    if (step !== "pin2" || pin2.length !== 4) return;
+    if (step !== "pin2" || pin2.length !== 6) return;
     if (pin2 === pin) { setPinError(false); setTimeout(() => go("modules"), 250); }
     else { setPinError(true); setTimeout(() => { setPin(""); setPin2(""); go("pin"); }, 1400); }
   }, [pin2, pin, step]);

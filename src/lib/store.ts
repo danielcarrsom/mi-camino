@@ -94,10 +94,12 @@ type State = {
   deviceLang: Lang;                   // chosen before signing in
   voiceOn: boolean;                   // read screens aloud automatically
   cloud: CloudStatus;                 // is this person's data saved online?
+  needsNewPin: boolean;               // signed in with an old 4-digit PIN
 
   setDeviceLang: (l: Lang) => void;
   setVoiceOn: (v: boolean) => void;
   syncUp: () => Promise<void>;
+  changePin: (newPin: string) => Promise<void>;
   syncDown: () => Promise<void>;
   register: (phone: string, pin: string, profile: Profile) => Promise<void>;
   login: (phone: string, pin: string) => Promise<boolean>;
@@ -142,7 +144,7 @@ function mutateCurrent(state: State, fn: (d: UserData) => UserData): Partial<Sta
 }
 
 export const DEMO_PHONE = "0000000000";
-export const DEMO_PIN = "1234";
+export const DEMO_PIN = "123456";
 
 function daysAgo(n: number) {
   const d = new Date();
@@ -206,6 +208,7 @@ export const useStore = create<State>()(
       deviceLang: "es",
       voiceOn: false,
       cloud: "off",
+      needsNewPin: false,
 
       setDeviceLang: (l) =>
         set((s) => ({ deviceLang: l, ...mutateCurrent(s, (d) => ({ ...d, profile: { ...d.profile, lang: l } })) })),
@@ -261,6 +264,11 @@ export const useStore = create<State>()(
         const acc = get().accounts[p];
         if (acc) {
           if ((await hashPin(p, pin)) !== acc.pinHash) return false;
+          if (pin.length < 6) {
+            // Account made with the old 4-digit PIN: let them in, then ask for a 6-digit one
+            set({ current: p, deviceLang: acc.data.profile.lang, cloud: "local", needsNewPin: true });
+            return true;
+          }
           set({ current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" });
           if (p === DEMO_PHONE) { set({ cloud: "off" }); return true; }
           // connect online in the background; accounts made before online saving get created now
@@ -284,7 +292,20 @@ export const useStore = create<State>()(
         set((s) => ({ accounts: { ...s.accounts, [p]: { pinHash: h, data } }, current: p, deviceLang: data.profile.lang, cloud: "saved" }));
         return true;
       },
-      logout: () => { void cloudSignOut(); set({ current: null, cloud: "off" }); },
+      logout: () => { void cloudSignOut(); set({ current: null, cloud: "off", needsNewPin: false }); },
+      changePin: async (newPin) => {
+        const { current, accounts } = get();
+        if (!current || !accounts[current]) return;
+        const h = await hashPin(current, newPin);
+        set((s) => ({ accounts: { ...s.accounts, [current]: { ...s.accounts[current], pinHash: h } }, needsNewPin: false, cloud: "syncing" }));
+        const profile = get().accounts[current].data.profile;
+        void (async () => {
+          let r = await cloudRegister(current, newPin, profile);
+          if (r === "exists") r = await cloudSignIn(current, newPin);
+          if (r === "ok") await get().syncDown();
+          else if (get().current === current) set({ cloud: "local" });
+        })();
+      },
       loadDemo: async () => {
         const pinHash = await hashPin(DEMO_PHONE, DEMO_PIN);
         const lang = get().deviceLang;

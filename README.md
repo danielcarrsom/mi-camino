@@ -20,7 +20,7 @@ Everything can be done three ways: **talking, typing (spelling mistakes are fine
 
 | Area | Status |
 | --- | --- |
-| Welcome, language picker, phone + 4-digit PIN | ✅ |
+| Welcome, language picker, phone + 6-digit PIN | ✅ |
 | Demo profile ("Probar con un ejemplo") | ✅ |
 | Mi Casita home: "Esta semana te quedan" | ✅ |
 | Goals: 10 ready-made goals + your own, bricks/coins, sounds, weekly plan, share on WhatsApp | ✅ |
@@ -68,7 +68,7 @@ Next.js · TypeScript · Tailwind · Claude API · ElevenLabs · Supabase.
 
 - Project **Mi Camino** (`hfdnzasqblxjdsenmpfc`, us-east-1).
 - Tables: `profiles` (name, language, modules) and `user_data` (each person's money data as one JSON document). Row level security: each person can only read and write their own rows.
-- Sign-up goes through the `registro` edge function, which creates a confirmed account from phone + 4-digit PIN (no email or SMS). The phone becomes an internal login name.
+- Sign-up goes through the `registro` edge function, which creates a confirmed account from phone + 6-digit PIN (no email or SMS). The phone becomes an internal login name.
 - The app saves on the device first and syncs online a moment after each change; on another device, signing in with the same phone + PIN brings the data back. If Supabase can't be reached, everything keeps working on the device.
 - The demo profile ("Probar con un ejemplo") never goes online.
 - `stats_overview` view: anonymous totals by language for the Consulate (no personal data).

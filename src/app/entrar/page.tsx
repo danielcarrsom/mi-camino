@@ -16,13 +16,16 @@ export default function Login() {
   const [stage, setStage] = useState<"phone" | "pin">("phone");
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (pin.length !== 4) return;
-    login(phone, pin).then((ok) => {
+  const tryLogin = (p: string) =>
+    login(phone, p).then((ok) => {
       if (ok) router.replace("/inicio");
       else { setError(true); setPin(""); }
     });
-  }, [pin, phone, login, router]);
+
+  useEffect(() => {
+    if (pin.length === 6) void tryLogin(pin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
 
@@ -56,6 +59,12 @@ export default function Login() {
           <>
             <PinPad value={pin} onChange={(v) => { setError(false); setPin(v); }} />
             {error && <p className="mt-5 text-center text-lg font-bold text-clay">{t("wrongLogin")}</p>}
+            {pin.length === 4 && (
+              <div className="mt-5 text-center">
+                <Button variant="soft" onClick={() => void tryLogin(pin)}>{t("enter")}</Button>
+                <p className="mt-2 text-base text-muted">{t("oldPinHint")}</p>
+              </div>
+            )}
           </>
         )}
       </main>
