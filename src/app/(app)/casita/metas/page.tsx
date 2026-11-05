@@ -2,13 +2,15 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Repeat } from "lucide-react";
 import { AmountInput, Button, Card, PageHeader, QuickAmounts, Sheet, Tile } from "@/components/ui";
 import { GoalVisual, unitsFor } from "@/components/GoalVisual";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
 import { goalSaved, useLang, useMe, useStore } from "@/lib/store";
-import { money } from "@/lib/money";
+import { money, toWeekly } from "@/lib/money";
+import { PlanEditor, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
+import { useSummary } from "@/lib/useSummary";
 import { GOAL_PRESETS, goalPresetById, pick, type GoalPreset } from "@/lib/catalog";
 import { speak } from "@/lib/voice";
 import { playSaved } from "@/lib/sound";
@@ -59,6 +61,11 @@ function Goals() {
                   {have} {t("of")} {units} {preset.visual === "house" ? t("bricks") : t("coins")}
                 </p>
                 <p className="mt-1 font-serif text-2xl font-semibold">{money(saved, lang)} <span className="text-lg text-muted">/ {money(g.target, lang)}</span></p>
+                {g.plan && saved < g.target && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-leaf-soft px-3 py-1 text-base font-bold text-leaf">
+                    <Repeat size={16} /> {money(g.plan.amount, lang)} {t(g.plan.every === "week" ? "weekly" : g.plan.every === "2weeks" ? "biweekly" : "monthly").toLowerCase()}
+                  </p>
+                )}
               </Link>
             );
           })}
@@ -78,13 +85,17 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const t = useT();
   const lang = useLang();
   const addGoal = useStore((s) => s.addGoal);
+  const setPlan = useStore((s) => s.setPlan);
   const router = useRouter();
+  const summary = useSummary();
   const [preset, setPreset] = useState<GoalPreset | "own" | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [step, setStep] = useState<"amount" | "plan">("amount");
+  const [plan, setPlanDraft] = useState<PlanDraft>({ amount: "", every: "week" });
 
   useEffect(() => {
-    if (open) { setPreset(null); setName(""); setAmount(""); speak(t("newGoalSay"), lang, "newGoal"); }
+    if (open) { setPreset(null); setName(""); setAmount(""); setStep("amount"); setPlanDraft({ amount: "", every: "week" }); speak(t("newGoalSay"), lang, "newGoal"); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -93,8 +104,16 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
     if (p !== "own") { setName(pick(p.label, lang)); setAmount(String(p.suggested)); speak(t("howMuchSay"), lang, "howMuch"); }
   };
 
-  const create = () => {
+  const toPlan = () => {
+    const target = Number(amount);
+    setPlanDraft({ amount: String(suggestAmounts(target, "week")[1] ?? suggestAmounts(target, "week")[0]), every: "week" });
+    setStep("plan");
+    speak(t("planAskSay"), lang, "planAsk");
+  };
+
+  const create = (withPlan: boolean) => {
     const id = addGoal({ preset: preset === "own" || !preset ? "propia" : preset.id, name: name.trim() || pick(goalPresetById("propia").label, lang), target: Number(amount) });
+    if (withPlan && Number(plan.amount) > 0) setPlan(id, { amount: Number(plan.amount), every: plan.every });
     playSaved();
     speak(t("goalCreated"), lang, "goalCreated");
     onClose();
@@ -102,8 +121,23 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title={preset ? t("howMuch") : t("newGoal")} wide={!preset}>
-      {!preset ? (
+    <Sheet open={open} onClose={onClose} title={!preset ? t("newGoal") : step === "plan" ? t("planAsk") : t("howMuch")} wide={!preset}>
+      {preset && step === "plan" ? (
+        <div className="space-y-5">
+          <p className="text-lg text-muted">{t("planHow")}</p>
+          <PlanEditor
+            value={plan}
+            onChange={setPlanDraft}
+            missing={Number(amount)}
+            tight={summary ? summary.weekIn > 0 && summary.weekLeft - toWeekly(Number(plan.amount) || 0, plan.every) < 0 : false}
+          />
+          <Button onClick={() => create(true)} disabled={!Number(plan.amount)} className="w-full">{t("planStart")}</Button>
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={() => setStep("amount")} className="flex-1">{t("back")}</Button>
+            <Button variant="soft" onClick={() => create(false)} className="flex-1">{t("planLater")}</Button>
+          </div>
+        </div>
+      ) : !preset ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {GOAL_PRESETS.map((p) => (
             <Tile key={p.id} icon={<Icon name={p.icon} size={28} />} label={pick(p.label, lang)} sub={pick(p.hint, lang)} onClick={() => choose(p)} />
@@ -128,7 +162,7 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
           <QuickAmounts amounts={[500, 1000, 5000, 10000]} onPick={(n) => setAmount(String(n))} />
           <div className="flex gap-3">
             <Button variant="soft" onClick={() => setPreset(null)} className="flex-1">{t("back")}</Button>
-            <Button onClick={create} disabled={!Number(amount) || (preset === "own" && !name.trim())} className="flex-[2]">{t("save")}</Button>
+            <Button onClick={toPlan} disabled={!Number(amount) || (preset === "own" && !name.trim())} className="flex-[2]">{t("next")}</Button>
           </div>
         </div>
       )}

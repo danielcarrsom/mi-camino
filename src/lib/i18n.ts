@@ -214,6 +214,18 @@ const es = {
   editEntry: "Cambiar",
   perMonthShort: "al mes",
   note: "Nota (opcional)",
+  planTitle: "Mi plan de ahorro",
+  planAsk: "¿Cuánto vas a apartar?",
+  planAskSay: "¿Cuánto vas a apartar para esta meta, y cada cuánto? Ese dinero se descuenta solo de tu semana y tu meta crece sola.",
+  planActive: "Apartas",
+  planHow: "Se descuenta solo de tu dinero y tu meta crece sola. No tienes que hacer nada.",
+  planStart: "Empezar mi plan",
+  planChange: "Cambiar mi plan",
+  planPause: "Pausar el plan",
+  planLater: "Lo decido después",
+  planTight: "Ojo: con este plan te pasas de lo que te queda en la semana.",
+  planNone: "Todavía no tienes un plan. Con un plan, tu meta crece sola.",
+  savingFor: "Ahorro para",
 } as const;
 
 export type TKey = keyof typeof es;
@@ -393,6 +405,18 @@ const en: Record<TKey, string> = {
   editEntry: "Change",
   perMonthShort: "a month",
   note: "Note (optional)",
+  planTitle: "My savings plan",
+  planAsk: "How much will you set aside?",
+  planAskSay: "How much will you set aside for this goal, and how often? That money comes out of your week automatically and your goal grows on its own.",
+  planActive: "You set aside",
+  planHow: "It comes out of your money automatically and your goal grows on its own. You don't have to do anything.",
+  planStart: "Start my plan",
+  planChange: "Change my plan",
+  planPause: "Pause the plan",
+  planLater: "I'll decide later",
+  planTight: "Careful: with this plan you go over what you have left each week.",
+  planNone: "You don't have a plan yet. With a plan, your goal grows on its own.",
+  savingFor: "Saving for",
 };
 
 const DICTS: Record<"es" | "en", Record<TKey, string>> = { es, en };

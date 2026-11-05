@@ -1,10 +1,11 @@
 "use client";
 import { useState } from "react";
-import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon } from "lucide-react";
+import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon, PiggyBank } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { useLang, useMe, type Entry, type Work } from "@/lib/store";
+import { planActive, useLang, useMe, type Entry, type Work } from "@/lib/store";
+import Link from "next/link";
 import { EntryEditSheet, WorkEditSheet } from "@/components/MoneyForms";
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate, toMonthly } from "@/lib/money";
@@ -27,6 +28,7 @@ export default function MoneyPage() {
   const onceOut = me.entries.filter((e) => e.kind === "out" && e.repeat === "once");
   const onceIn = me.entries.filter((e) => e.kind === "in" && e.repeat === "once");
   const fixedOutMonthly = fixedOut.reduce((a, e) => a + toMonthly(e.amount, e.repeat), 0);
+  const activePlans = me.goals.filter(planActive);
 
   const earn = view === "month" ? s.monthIn : s.weekIn;
   const spend = view === "month" ? s.monthOut : s.weekOut;
@@ -160,6 +162,25 @@ export default function MoneyPage() {
         </div>
         <p className="mb-3 flex items-center gap-2 text-base text-muted"><RepeatIcon size={18} className="shrink-0 text-leaf" /> {t("fixedHint")}</p>
         <EntryList items={fixedOut} onEdit={setEditEntry} total={fixedOutMonthly} empty={t("noEntries")} />
+        {activePlans.length > 0 && (
+          <Card className="mt-3 p-2 md:p-2">
+            <ul className="divide-y divide-sand">
+              {activePlans.map((g) => (
+                <li key={g.id}>
+                  <Link href={`/casita/metas/${g.id}`} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 hover:bg-cream">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sun-soft text-clay"><PiggyBank size={22} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{t("savingFor")} {g.name}</span>
+                      <span className="block text-sm text-muted">{t(REPEAT_KEY[g.plan!.every])} · {lang === "en" ? "set apart automatically" : "se aparta solo"}</span>
+                    </span>
+                    <span className="font-serif text-xl font-semibold">−{money(g.plan!.amount, lang)}</span>
+                    <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={19} /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </section>
 
       {fixedIn.length > 0 && (

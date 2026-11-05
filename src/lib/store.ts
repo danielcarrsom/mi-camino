@@ -40,7 +40,11 @@ export type Entry = {
   source: Source;
 };
 
-export type Deposit = { id: string; amount: number; date: string };
+export type Deposit = { id: string; amount: number; date: string; auto?: boolean };
+
+/** A savings plan: set apart `amount` every `every`. It is counted as money
+ *  leaving the budget each period, and a brick is added automatically. */
+export type Plan = { amount: number; every: "week" | "2weeks" | "month"; lastApplied: string };
 
 export type Goal = {
   id: string;
@@ -48,6 +52,7 @@ export type Goal = {
   name: string;
   target: number;
   deposits: Deposit[];
+  plan?: Plan | null;
   createdAt: string;
 };
 
@@ -84,6 +89,8 @@ type State = {
   updateGoal: (id: string, g: Partial<Pick<Goal, "name" | "target">>) => void;
   removeGoal: (id: string) => void;
   deposit: (goalId: string, amount: number) => void;
+  setPlan: (goalId: string, plan: { amount: number; every: Plan["every"] } | null) => void;
+  applyPlans: () => void;
 };
 
 export const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -135,8 +142,9 @@ function demoData(lang: Lang): UserData {
           { id: uid(), amount: 1200, date: daysAgo(50) },
           { id: uid(), amount: 1300, date: daysAgo(20) },
           { id: uid(), amount: 800, date: daysAgo(9) },
-          { id: uid(), amount: 120, date: daysAgo(1) },
+          { id: uid(), amount: 120, date: daysAgo(1), auto: true },
         ],
+        plan: { amount: 120, every: "week", lastApplied: daysAgo(1) },
       },
       {
         id: uid(), preset: "emergencias", name: "Dinero para emergencias", target: 1500, createdAt: daysAgo(40),
@@ -207,6 +215,48 @@ export const useStore = create<State>()(
       updateGoal: (id, g) =>
         set((s) => mutateCurrent(s, (d) => ({ ...d, goals: d.goals.map((x) => (x.id === id ? { ...x, ...g } : x)) }))),
       removeGoal: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, goals: d.goals.filter((x) => x.id !== id) }))),
+      setPlan: (goalId, plan) =>
+        set((s) =>
+          mutateCurrent(s, (d) => ({
+            ...d,
+            goals: d.goals.map((g) => {
+              if (g.id !== goalId) return g;
+              if (!plan) return { ...g, plan: null };
+              const now = new Date().toISOString();
+              // Starting a plan sets apart the first amount right away (this week).
+              const left = Math.max(0, g.target - goalSaved(g));
+              const first = Math.min(plan.amount, left);
+              const startingNew = !g.plan;
+              return {
+                ...g,
+                plan: { ...plan, lastApplied: startingNew ? now : g.plan!.lastApplied },
+                deposits: startingNew && first > 0 ? [...g.deposits, { id: uid(), amount: first, date: now, auto: true }] : g.deposits,
+              };
+            }),
+          })),
+        ),
+      applyPlans: () =>
+        set((s) =>
+          mutateCurrent(s, (d) => {
+            let changed = false;
+            const goals = d.goals.map((g) => {
+              if (!g.plan) return g;
+              let last = new Date(g.plan.lastApplied);
+              let saved = goalSaved(g);
+              const added: Deposit[] = [];
+              for (let next = nextPeriod(last, g.plan.every); next.getTime() <= Date.now() && saved < g.target && added.length < 60; next = nextPeriod(next, g.plan.every)) {
+                const amt = Math.min(g.plan.amount, g.target - saved);
+                added.push({ id: uid(), amount: amt, date: next.toISOString(), auto: true });
+                saved += amt;
+                last = next;
+              }
+              if (!added.length) return g;
+              changed = true;
+              return { ...g, deposits: [...g.deposits, ...added], plan: { ...g.plan, lastApplied: last.toISOString() } };
+            });
+            return changed ? { ...d, goals } : d;
+          }),
+        ),
       deposit: (goalId, amount) =>
         set((s) =>
           mutateCurrent(s, (d) => ({
@@ -220,6 +270,16 @@ export const useStore = create<State>()(
     { name: "mi-camino-v1" },
   ),
 );
+
+function nextPeriod(from: Date, every: Plan["every"]): Date {
+  const d = new Date(from);
+  if (every === "month") d.setMonth(d.getMonth() + 1);
+  else d.setDate(d.getDate() + (every === "2weeks" ? 14 : 7));
+  return d;
+}
+
+/** A plan only counts while the goal still needs money. */
+export const planActive = (g: Goal) => Boolean(g.plan && goalSaved(g) < g.target);
 
 /** The signed-in person's data, or null. */
 export function useMe(): UserData | null {
@@ -290,9 +350,14 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
     .filter((e) => { const dt = new Date(e.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
     .reduce((a, e) => a + e.amount, 0);
 
-  const allDeposits = d.goals.flatMap((g) => g.deposits);
-  const weekGoals = allDeposits.filter((x) => isThisWeek(x.date)).reduce((a, x) => a + x.amount, 0);
-  const monthGoals = allDeposits
+  // Savings plans are fixed money leaving the budget every period; money
+  // set apart by hand is added on top in the week/month it happened.
+  const plans = d.goals.filter(planActive).map((g) => g.plan!);
+  const planWeekly = plans.reduce((a, p) => a + toWeekly(p.amount, p.every), 0);
+  const planMonthly = plans.reduce((a, p) => a + toMonthly(p.amount, p.every), 0);
+  const manual = d.goals.flatMap((g) => g.deposits).filter((x) => !x.auto);
+  const weekGoals = planWeekly + manual.filter((x) => isThisWeek(x.date)).reduce((a, x) => a + x.amount, 0);
+  const monthGoals = planMonthly + manual
     .filter((x) => { const dt = new Date(x.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
     .reduce((a, x) => a + x.amount, 0);
 

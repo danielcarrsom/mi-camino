@@ -1,12 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { PiggyBank, Minus, Trash2, Share2, PartyPopper } from "lucide-react";
+import { PiggyBank, Minus, Trash2, Share2, PartyPopper, Repeat as RepeatIcon, Pencil, Pause } from "lucide-react";
 import { AmountInput, Button, Card, ListenButton, PageHeader, QuickAmounts, Sheet } from "@/components/ui";
 import { GoalVisual, unitsFor } from "@/components/GoalVisual";
 import { useT } from "@/lib/hooks";
-import { goalSaved, useLang, useMe, useStore } from "@/lib/store";
-import { money, moneySpoken, shortDate } from "@/lib/money";
+import { goalSaved, useLang, useMe, useStore, type Plan } from "@/lib/store";
+import { PlanEditor, finishText, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
+import { useSummary } from "@/lib/useSummary";
+import { money, moneySpoken, shortDate, toWeekly } from "@/lib/money";
 import { goalPresetById } from "@/lib/catalog";
 import { speak } from "@/lib/voice";
 import { playBrick, playGoal } from "@/lib/sound";
@@ -25,7 +27,6 @@ export default function GoalDetail() {
   const [amount, setAmount] = useState("");
   const [highlightFrom, setHighlightFrom] = useState<number | undefined>();
   const [celebrate, setCelebrate] = useState<null | "brick" | "done">(null);
-  const [weekly, setWeekly] = useState(50);
 
   if (!goal) {
     return (
@@ -44,7 +45,6 @@ export default function GoalDetail() {
   const have = Math.floor(progress * units + 1e-9);
   const missing = Math.max(0, goal.target - saved);
   const perUnit = goal.target / units;
-  const weeksLeft = weekly > 0 ? Math.ceil(missing / weekly) : Infinity;
 
   const say = `${goal.name}. ${t("saved")} ${moneySpoken(saved, lang)} ${t("of")} ${moneySpoken(goal.target, lang)}. ${have} ${t("of")} ${units} ${unitWord}. ${missing > 0 ? `${t("missing")} ${moneySpoken(missing, lang)}.` : t("goalDone")}`;
 
@@ -104,6 +104,13 @@ export default function GoalDetail() {
           <p className="mt-3 text-base text-muted">
             {lang === "en" ? `Each ${preset.visual === "house" ? "brick" : "coin"} = ${money(perUnit, lang)}` : `Cada ${preset.visual === "house" ? "ladrillo" : "moneda"} = ${money(perUnit, lang)}`}
           </p>
+          {missing > 0 && saved % perUnit > 0.01 && (
+            <p className="mt-1 text-base font-bold text-clay">
+              {lang === "en"
+                ? `${money(perUnit - (saved % perUnit), lang)} more for the next ${preset.visual === "house" ? "brick" : "coin"}`
+                : `Te faltan ${money(perUnit - (saved % perUnit), lang)} para ${preset.visual === "house" ? "el siguiente ladrillo" : "la siguiente moneda"}`}
+            </p>
+          )}
           <div className="mt-6 flex w-full max-w-sm flex-col gap-3">
             <Button onClick={() => setSheet("in")} className="min-h-16 text-xl"><PiggyBank size={26} /> {t("putAside")}</Button>
             <Button variant="soft" onClick={share}><Share2 size={22} /> {t("shareFamily")}</Button>
@@ -111,25 +118,7 @@ export default function GoalDetail() {
         </Card>
 
         <div className="space-y-5">
-          {missing > 0 && (
-            <Card>
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-2xl font-semibold">{t("perWeekToFinish")}</h2>
-                <ListenButton compact text={`${t("perWeekToFinish")} ${moneySpoken(weekly, lang)}, ${t("youFinishIn")} ${weeksLeft} ${t("weeks")}.`} />
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <button onClick={() => setWeekly((w) => Math.max(10, w - 10))} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sand/70 text-3xl font-bold" aria-label="-10">−</button>
-                <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
-                <button onClick={() => setWeekly((w) => w + 10)} className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sand/70 text-3xl font-bold" aria-label="+10">+</button>
-              </div>
-              <p className="mt-4 rounded-2xl bg-leaf-soft px-4 py-3 text-center text-lg">
-                {t("youFinishIn")} <b className="text-2xl">{weeksLeft}</b> {t("weeks")}
-                <span className="block text-base text-muted">
-                  {lang === "en" ? "about" : "más o menos"} {Math.max(1, Math.round(weeksLeft / 4.33))} {lang === "en" ? "months" : "meses"}
-                </span>
-              </p>
-            </Card>
-          )}
+          {missing > 0 && <PlanCard goalId={goal.id} plan={goal.plan ?? null} missing={missing} />}
 
           <Card>
             <h2 className="text-2xl font-semibold">{lang === "en" ? "What you've saved" : "Lo que has apartado"}</h2>
@@ -139,7 +128,7 @@ export default function GoalDetail() {
               <ul className="mt-3 divide-y divide-sand">
                 {[...goal.deposits].reverse().slice(0, 8).map((d) => (
                   <li key={d.id} className="flex items-center justify-between py-3 text-lg">
-                    <span className="text-muted">{shortDate(d.date, lang)}</span>
+                    <span className="flex items-center gap-2 text-muted">{shortDate(d.date, lang)}{d.auto && <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-sm font-bold text-leaf"><RepeatIcon size={14} /> {lang === "en" ? "plan" : "plan"}</span>}</span>
                     <span className={`font-serif text-xl font-semibold ${d.amount < 0 ? "text-clay" : "text-leaf"}`}>{d.amount < 0 ? "−" : "+"}{money(Math.abs(d.amount), lang)}</span>
                   </li>
                 ))}
@@ -171,4 +160,68 @@ export default function GoalDetail() {
 
 function confirm_(lang: string) {
   return window.confirm(lang === "en" ? "Delete this goal?" : "¿Borrar esta meta?");
+}
+
+/** The savings plan: fixed amount set apart every week/2 weeks/month. */
+function PlanCard({ goalId, plan, missing }: { goalId: string; plan: Plan | null; missing: number }) {
+  const t = useT();
+  const lang = useLang();
+  const setPlan = useStore((s) => s.setPlan);
+  const summary = useSummary();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<PlanDraft>(() => ({
+    amount: String(plan?.amount ?? suggestAmounts(missing, "week")[1] ?? 20),
+    every: plan?.every ?? "week",
+  }));
+  const everyWord = (e: Plan["every"]) => t(e === "week" ? "weekly" : e === "2weeks" ? "biweekly" : "monthly").toLowerCase();
+
+  if (plan && !editing) {
+    const finish = finishText(missing, plan.amount, plan.every, lang);
+    const say = `${t("planActive")} ${moneySpoken(plan.amount, lang)} ${everyWord(plan.every)}. ${t("planHow")} ${finish ?? ""}`;
+    return (
+      <Card dark>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-2xl font-semibold">{t("planTitle")}</h2>
+          <ListenButton compact light text={say} />
+        </div>
+        <p className="mt-3 text-lg text-paper/80">{t("planActive")}</p>
+        <p className="font-serif text-5xl font-semibold">{money(plan.amount, lang)} <span className="text-2xl text-paper/70">{everyWord(plan.every)}</span></p>
+        <p className="mt-4 flex items-start gap-2 text-base text-paper/80"><RepeatIcon size={20} className="mt-0.5 shrink-0 text-sun" /> {t("planHow")}</p>
+        {finish && <p className="mt-4 rounded-2xl bg-paper/10 px-4 py-3 text-center text-lg font-bold">{finish}</p>}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button onClick={() => { setDraft({ amount: String(plan.amount), every: plan.every }); setEditing(true); }} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-paper px-4 font-bold text-ink"><Pencil size={18} /> {t("planChange")}</button>
+          <button onClick={() => setPlan(goalId, null)} className="inline-flex h-12 items-center gap-2 rounded-2xl px-4 font-bold text-paper/80 hover:bg-paper/10"><Pause size={18} /> {t("planPause")}</button>
+        </div>
+      </Card>
+    );
+  }
+
+  // Changing an existing plan shouldn't count its own amount twice in the warning.
+  const currentWeekly = plan ? toWeekly(plan.amount, plan.every) : 0;
+  const tight = summary ? summary.weekIn > 0 && summary.weekLeft + currentWeekly - toWeekly(Number(draft.amount) || 0, draft.every) < 0 : false;
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-2xl font-semibold">{t("planTitle")}</h2>
+        <ListenButton compact text={t("planAskSay")} />
+      </div>
+      {!plan && <p className="mt-2 mb-4 text-lg text-muted">{t("planNone")}</p>}
+      {plan && <div className="mt-4" />}
+      <PlanEditor value={draft} onChange={setDraft} missing={missing} tight={tight} />
+      <div className="mt-4 flex gap-3">
+        {plan && <Button variant="soft" onClick={() => setEditing(false)} className="flex-1">{t("cancel")}</Button>}
+        <Button
+          onClick={() => {
+            setPlan(goalId, { amount: Number(draft.amount), every: draft.every });
+            setEditing(false);
+            if (!plan) { playBrick(); speak(`${t("planActive")} ${moneySpoken(Number(draft.amount), lang)} ${everyWord(draft.every)}. ${t("planHow")}`, lang); }
+          }}
+          disabled={!Number(draft.amount)}
+          className="flex-[2]"
+        >
+          {plan ? t("save") : t("planStart")}
+        </Button>
+      </div>
+    </Card>
+  );
 }
