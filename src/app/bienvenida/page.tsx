@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, House, Store, Check, ShieldCheck } from "lucide-react";
 import { Button, ListenButton, Logo, MicButton, PinPad, Tile, cx } from "@/components/ui";
 import { useHydrated, useT } from "@/lib/hooks";
-import { onlyDigits, useLang, useStore } from "@/lib/store";
+import { useLang, useStore } from "@/lib/store";
+import { PhoneInput } from "@/components/PhoneInput";
+import { phoneKey, type PhoneCountry } from "@/lib/phone";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { speak, stopSpeaking } from "@/lib/voice";
 
@@ -24,6 +26,7 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>("lang");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState<PhoneCountry>("us");
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -60,7 +63,9 @@ export default function Onboarding() {
   }, [pin2, pin, step]);
 
   async function finish() {
-    await register(phone, pin, {
+    const key = phoneKey(phone, country);
+    if (!key) return;
+    await register(key, pin, {
       name: name.trim() || "Amigo",
       lang,
       casita: modules !== "negocio",
@@ -71,7 +76,8 @@ export default function Onboarding() {
   }
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
-  const phoneOk = onlyDigits(phone).length >= 10;
+  const key = phoneKey(phone, country);
+  const phoneOk = !!key;
 
   return (
     <div className="flex min-h-dvh flex-col bg-cream">
@@ -134,19 +140,11 @@ export default function Onboarding() {
 
         {step === "phone" && (
           <div className="mx-auto max-w-md">
-            <input
-              value={phone}
-              onChange={(e) => { setPhone(e.target.value.replace(/[^\d\s()+-]/g, "")); setPhoneTaken(false); }}
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="(718) 555 0123"
-              className="h-20 w-full rounded-2xl border-2 border-sand bg-paper px-5 text-center font-serif text-4xl font-semibold tracking-wide outline-none focus:border-clay"
-              aria-label={t("askPhone")}
-            />
+            <PhoneInput value={phone} onChange={(v) => { setPhone(v); setPhoneTaken(false); }} country={country} onCountry={(c) => { setCountry(c); setPhoneTaken(false); }} label={t("askPhone")} />
             <p className="mt-3 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {t("phoneHelp")}</p>
             {phoneTaken && <p className="mt-3 text-base font-bold text-clay">{lang === "en" ? "This number already has an account. Sign in instead." : "Este número ya tiene cuenta. Mejor entra con tu clave."}</p>}
             <Button
-              onClick={() => (accounts[onlyDigits(phone)] ? setPhoneTaken(true) : go("pin"))}
+              onClick={() => (key && accounts[key] ? setPhoneTaken(true) : go("pin"))}
               disabled={!phoneOk}
               className="mt-6 w-full"
             >

@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button, ListenButton, Logo, PinPad } from "@/components/ui";
 import { useHydrated, useT } from "@/lib/hooks";
-import { onlyDigits, useStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
+import { PhoneInput } from "@/components/PhoneInput";
+import { phoneKey, type PhoneCountry } from "@/lib/phone";
 
 export default function Login() {
   const hydrated = useHydrated();
@@ -12,12 +14,13 @@ export default function Login() {
   const router = useRouter();
   const login = useStore((s) => s.login);
   const [phone, setPhone] = useState("");
+  const [country, setCountry] = useState<PhoneCountry>("us");
   const [pin, setPin] = useState("");
   const [stage, setStage] = useState<"phone" | "pin">("phone");
   const [error, setError] = useState(false);
 
   const tryLogin = (p: string) =>
-    login(phone, p).then((ok) => {
+    login(phoneKey(phone, country) ?? phone, p).then((ok) => {
       if (ok) router.replace("/inicio");
       else { setError(true); setPin(""); }
     });
@@ -44,16 +47,8 @@ export default function Login() {
         </div>
         {stage === "phone" ? (
           <>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/[^\d\s()+-]/g, ""))}
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="(718) 555 0123"
-              className="h-20 w-full rounded-2xl border-2 border-sand bg-paper px-5 text-center font-serif text-4xl font-semibold outline-none focus:border-clay"
-              aria-label={t("askPhone")}
-            />
-            <Button onClick={() => { setError(false); setStage("pin"); }} disabled={onlyDigits(phone).length < 10} className="mt-6 w-full">{t("next")}</Button>
+            <PhoneInput value={phone} onChange={setPhone} country={country} onCountry={setCountry} label={t("askPhone")} />
+            <Button onClick={() => { setError(false); setStage("pin"); }} disabled={!phoneKey(phone, country)} className="mt-6 w-full">{t("next")}</Button>
           </>
         ) : (
           <>
