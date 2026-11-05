@@ -1,0 +1,24 @@
+import { hasVoice } from "@/lib/server/ai";
+
+// Text → natural voice with ElevenLabs. The key stays on the server.
+export async function POST(req: Request) {
+  if (!hasVoice()) return new Response("voice not configured", { status: 501 });
+  const { text, locale } = (await req.json()) as { text?: string; locale?: string };
+  if (!text || text.length > 1200) return new Response("bad text", { status: 400 });
+
+  const voiceId =
+    (locale?.startsWith("en") ? process.env.ELEVENLABS_VOICE_ID_EN : undefined) ||
+    process.env.ELEVENLABS_VOICE_ID ||
+    "EXAVITQu4vr4xnSDxMaL";
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_64`, {
+    method: "POST",
+    headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY!, "Content-Type": "application/json", Accept: "audio/mpeg" },
+    body: JSON.stringify({
+      text,
+      model_id: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
+      voice_settings: { stability: 0.55, similarity_boost: 0.75, speed: 0.92 },
+    }),
+  });
+  if (!r.ok || !r.body) return new Response("tts failed", { status: 502 });
+  return new Response(r.body, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400" } });
+}

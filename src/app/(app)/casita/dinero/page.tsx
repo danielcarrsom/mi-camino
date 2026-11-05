@@ -1,0 +1,208 @@
+"use client";
+import { useState } from "react";
+import { Hammer, Plus, Trash2, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
+import { Icon } from "@/components/Icon";
+import { useT } from "@/lib/hooks";
+import { useLang, useMe, useStore } from "@/lib/store";
+import { useSummary } from "@/lib/useSummary";
+import { money, moneySpoken, shortDate } from "@/lib/money";
+import { GROUPS, categoryById, incomeCategoryById, pick } from "@/lib/catalog";
+import type { TKey } from "@/lib/i18n";
+
+const REPEAT_KEY: Record<string, TKey> = { once: "once", week: "weekly", "2weeks": "biweekly", month: "monthly" };
+
+export default function MoneyPage() {
+  const t = useT();
+  const lang = useLang();
+  const me = useMe()!;
+  const s = useSummary()!;
+  const removeEntry = useStore((x) => x.removeEntry);
+  const removeWork = useStore((x) => x.removeWork);
+  const [view, setView] = useState<"month" | "week">("month");
+
+  const earn = view === "month" ? s.monthIn : s.weekIn;
+  const spend = view === "month" ? s.monthOut : s.weekOut;
+  const save = view === "month" ? s.monthGoals : s.weekGoals;
+  const keep = earn - spend - save;
+  const factor = view === "month" ? 1 : 12 / 52;
+
+  const groups = GROUPS.map((g) => ({ g, amount: (s.byGroup[g.id] ?? 0) * factor }))
+    .filter((x) => x.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+  const maxGroup = Math.max(1, ...groups.map((x) => x.amount));
+
+  const say = `${view === "month" ? t("perMonth") : t("perWeek")}: ${t("youEarn")} ${moneySpoken(earn, lang)}. ${t("youSpend")} ${moneySpoken(spend, lang)}. ${t("youSave")} ${moneySpoken(save, lang)}. ${t("youKeep")} ${moneySpoken(keep, lang)}.`;
+
+  // stacked bar: where every dollar you earn goes
+  const base = Math.max(earn, spend + save, 1);
+  const pct = (n: number) => `${Math.max(0, (n / base) * 100)}%`;
+
+  return (
+    <>
+      <PageHeader title={t("moneyTitle")} say={`${t("moneySay")} ${say}`} />
+
+      <div className="mb-5 inline-grid grid-cols-2 gap-1 rounded-2xl bg-sand/50 p-1">
+        {(["month", "week"] as const).map((v) => (
+          <button key={v} onClick={() => setView(v)} className={cx("h-12 rounded-xl px-5 text-lg font-extrabold", view === v ? "bg-paper text-ink shadow-sm" : "text-ink/60")}>
+            {v === "month" ? t("perMonth") : t("perWeek")}
+          </button>
+        ))}
+      </div>
+
+      {/* The plain-language balance sheet */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Big label={t("youEarn")} value={money(earn, lang)} tone="green" icon={<ArrowDownCircle size={24} />} />
+        <Big label={t("youSpend")} value={money(spend, lang)} tone="clay" icon={<ArrowUpCircle size={24} />} />
+        <Big label={t("youSave")} value={money(save, lang)} tone="sun" icon={<Icon name="house" size={24} />} />
+        <Big label={t("youKeep")} value={money(keep, lang)} tone={keep < 0 ? "warn" : "ink"} icon={<Icon name="wallet" size={24} />} />
+      </div>
+
+      <Card className="mt-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-lg font-bold">{lang === "en" ? "For every dollar you earn" : "De cada dólar que ganas"}</p>
+          <ListenButton compact text={say} />
+        </div>
+        <div className="mt-3 flex h-10 overflow-hidden rounded-full bg-sand">
+          <span className="bg-clay" style={{ width: pct(spend) }} title={t("youSpend")} />
+          <span className="bg-sun" style={{ width: pct(save) }} title={t("youSave")} />
+          <span className="bg-leaf" style={{ width: pct(Math.max(0, keep)) }} title={t("youKeep")} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-base">
+          <Legend color="bg-clay" label={`${t("youSpend")} ${earn ? Math.round((spend / earn) * 100) : 0}¢`} />
+          <Legend color="bg-sun" label={`${t("youSave")} ${earn ? Math.round((save / earn) * 100) : 0}¢`} />
+          <Legend color="bg-leaf" label={`${t("youKeep")} ${earn ? Math.max(0, Math.round((keep / earn) * 100)) : 0}¢`} />
+        </div>
+        {keep < 0 && (
+          <p className="mt-4 rounded-2xl bg-sun-soft px-4 py-3 text-lg">
+            {lang === "en"
+              ? "You spend more than you earn. Look at the biggest bar below: that's the best place to start cutting."
+              : "Gastas más de lo que ganas. Mira la barra más grande de abajo: ahí es el mejor lugar para empezar a recortar."}
+          </p>
+        )}
+      </Card>
+
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        {/* Work and pay */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">{t("myWork")}</h2>
+            <Button href="/casita/anotar?tipo=gane" variant="soft" className="min-h-12 px-4 text-base"><Plus size={20} /> {t("addWork")}</Button>
+          </div>
+          {me.work.length === 0 ? (
+            <Card><p className="text-lg text-muted">{t("noIncomeYet")}</p></Card>
+          ) : (
+            <div className="space-y-3">
+              {me.work.map((w) => {
+                const weekly = w.every === "week" ? w.pay : w.every === "2weeks" ? w.pay / 2 : (w.pay * 12) / 52;
+                return (
+                  <Card key={w.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-leaf-soft text-leaf"><Hammer size={24} /></span>
+                        <div>
+                          <p className="text-lg font-extrabold">{w.name || t("incomeKindWork")}</p>
+                          <p className="text-base text-muted">{money(w.pay, lang)} · {t(REPEAT_KEY[w.every])}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => removeWork(w.id)} aria-label={t("delete")} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted hover:bg-sand/60 hover:text-clay"><Trash2 size={20} /></button>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <Stat value={money(weekly / Math.max(1, w.hoursPerWeek), lang, true)} label={t("perHour")} />
+                      <Stat value={money(weekly / Math.max(1, w.daysPerWeek), lang)} label={t("perDay")} />
+                      <Stat value={String(w.hoursPerWeek)} label={t("hoursWeek")} />
+                      <Stat value={String(w.daysPerWeek)} label={t("daysWeek")} />
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Where the money goes */}
+        <section>
+          <h2 className="mb-3 text-2xl font-semibold">{t("whereMoneyGoes")}</h2>
+          <Card>
+            {groups.length === 0 ? (
+              <p className="text-lg text-muted">{t("noEntries")}</p>
+            ) : (
+              <ul className="space-y-4">
+                {groups.map(({ g, amount }) => (
+                  <li key={g.id}>
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 text-lg font-bold"><span style={{ color: g.color }}><Icon name={g.icon} size={22} /></span> {pick(g.label, lang)}</span>
+                      <span className="font-serif text-xl font-semibold">{money(amount, lang)}</span>
+                    </div>
+                    <div className="h-4 overflow-hidden rounded-full bg-sand/70">
+                      <div className="h-full rounded-full" style={{ width: `${(amount / maxGroup) * 100}%`, background: g.color }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </section>
+      </div>
+
+      {/* Everything recorded */}
+      <section className="mt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">{t("recent")}</h2>
+          <Button href="/casita/anotar?tipo=gaste" variant="soft" className="min-h-12 px-4 text-base"><Plus size={20} /> {t("addSpent")}</Button>
+        </div>
+        <Card className="p-2 md:p-2">
+          {me.entries.length === 0 ? (
+            <p className="p-4 text-lg text-muted">{t("noEntries")}</p>
+          ) : (
+            <ul className="divide-y divide-sand">
+              {me.entries.map((e) => {
+                const c = e.kind === "in" ? incomeCategoryById(e.category) : categoryById(e.category);
+                return (
+                  <li key={e.id} className="flex items-center gap-3 px-3 py-3">
+                    <span className={cx("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay")}><Icon name={c.icon} size={22} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{pick(c.label, lang)}{e.note ? ` · ${e.note}` : ""}</span>
+                      <span className="block text-sm text-muted">{t(REPEAT_KEY[e.repeat])} · {shortDate(e.date, lang)}</span>
+                    </span>
+                    <span className={cx("font-serif text-xl font-semibold", e.kind === "in" && "text-leaf")}>{e.kind === "in" ? "+" : "−"}{money(e.amount, lang)}</span>
+                    <button onClick={() => removeEntry(e.id)} aria-label={t("delete")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-sand/60 hover:text-clay"><Trash2 size={18} /></button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </section>
+    </>
+  );
+}
+
+function Big({ label, value, tone, icon }: { label: string; value: string; tone: "green" | "clay" | "sun" | "ink" | "warn"; icon: React.ReactNode }) {
+  const styles = {
+    green: "bg-leaf text-paper",
+    clay: "bg-clay text-paper",
+    sun: "bg-sun text-ink",
+    ink: "bg-ink text-paper",
+    warn: "bg-sun-soft text-ink border-2 border-warn",
+  }[tone];
+  return (
+    <div className={cx("rounded-3xl p-5", styles)}>
+      <p className="flex items-center gap-2 text-lg font-bold opacity-90">{icon} {label}</p>
+      <p className="mt-2 font-serif text-[2.4rem] leading-none font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-2xl bg-cream p-3 text-center">
+      <p className="font-serif text-2xl font-semibold">{value}</p>
+      <p className="text-sm font-bold text-muted">{label}</p>
+    </div>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return <span className="flex items-center gap-2"><span className={cx("h-3.5 w-3.5 rounded-full", color)} /> {label}</span>;
+}

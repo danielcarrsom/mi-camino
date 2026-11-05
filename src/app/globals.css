@@ -1,26 +1,74 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Mi Camino brand: warm, trustworthy, easy to read.
+   Colors come from the Mi Casita deck so the pitch and the product match. */
+@theme {
+  --color-ink: #1f2b27;        /* deep green-black: text, dark panels */
+  --color-ink-soft: #2c3a35;
+  --color-cream: #f6f0e5;      /* page background */
+  --color-paper: #fffbf3;      /* cards */
+  --color-sand: #eadfcb;       /* borders, quiet surfaces */
+  --color-sand-dark: #d9cbb2;
+  --color-clay: #b34a2a;       /* terracotta: main action, roof, bricks */
+  --color-clay-dark: #8f3a20;
+  --color-sun: #e0a33a;        /* mustard: celebration, highlights */
+  --color-sun-soft: #f6e2b8;
+  --color-leaf: #3e7d4f;       /* green: healthy, good news */
+  --color-leaf-soft: #d7e8d9;
+  --color-muted: #5b5a52;      /* secondary text */
+  --color-warn: #c98a12;
+
+  --font-sans: "Nunito Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* Larger base size: many users are older or new to screens */
+  font-size: 18px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+/* Visible, thick focus ring for keyboard and switch users */
+*:focus-visible:not([role="dialog"]) {
+  outline: 4px solid var(--color-sun);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+@keyframes brick-drop {
+  0% { transform: translateY(-60px); opacity: 0; }
+  70% { transform: translateY(4px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.brick-new { animation: brick-drop 0.6s ease-out both; }
+
+@keyframes pop-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop-in { animation: pop-in 0.25s ease-out both; }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(179, 74, 42, 0.45); }
+  100% { box-shadow: 0 0 0 22px rgba(179, 74, 42, 0); }
+}
+.listening { animation: pulse-ring 1.2s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brick-new, .pop-in, .listening { animation: none; }
 }
