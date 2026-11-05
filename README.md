@@ -56,6 +56,26 @@ Add these in Vercel → Project → Settings → Environment Variables. Never co
 | `ELEVENLABS_VOICE_ID` | Optional. Voice used for Spanish |
 | `ELEVENLABS_VOICE_ID_EN` | Optional. Voice used for English |
 
+## Forgotten PIN
+
+No email or SMS is needed. People pick a security question when they sign up
+(or from the green reminder inside the app). "¿Olvidaste tu clave?" on the
+sign-in screen asks that question; the answer is checked on the server
+(Supabase function `recuperar`), ignoring accents, capitals and spaces.
+After 5 wrong tries the phone is locked for one hour.
+
+If someone has no question or forgot the answer, a person who helps them
+(e.g. at the Consulate) checks their ID and creates a **one-time code** that
+expires in 24 hours. In the Supabase SQL editor, replace the phone (10 digits
+for US, `52` + 10 digits for Mexico) and the code:
+
+```sql
+insert into public.recovery_codes (user_id, code_hash, expires_at)
+select public.user_id_by_login('3475550123@usuarios.micamino.app'),
+       encode(extensions.digest('MCABCD2345', 'sha256'), 'hex'),  -- code MC-ABCD-2345 without dashes
+       now() + interval '24 hours';
+```
+
 ## Indigenous languages
 
 ElevenLabs and current AI models don't support Mixteco, Náhuatl, Maya, K'iche' or Kichwa. Those languages are handled with **recordings from native speakers**: put them in `public/audio/<code>/<key>.mp3` and list the keys in `AUDIO_READY` in `src/lib/i18n.ts`. Codes: `mix` (Mixteco), `nah` (Náhuatl), `yua` (Maya), `quc` (K'iche'), `qvi` (Kichwa). Until a recording exists, the Spanish voice is used.

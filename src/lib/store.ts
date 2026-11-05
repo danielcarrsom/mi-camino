@@ -8,7 +8,7 @@ import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
 import { uid, toMonthly, toWeekly, isThisWeek } from "./money";
 import type { BizEntry, Product, BizType } from "./business";
-import { cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs } from "./cloud";
+import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
 
 export type Profile = {
   name: string;
@@ -16,6 +16,7 @@ export type Profile = {
   casita: boolean;
   negocio: boolean;
   createdAt: string;
+  recoveryQ?: string;     // id of the security question chosen (the answer lives only on the server)
 };
 
 export type Work = {
@@ -117,7 +118,9 @@ type State = {
   syncUp: () => Promise<void>;
   changePin: (newPin: string) => Promise<void>;
   syncDown: () => Promise<void>;
-  register: (phone: string, pin: string, profile: Profile) => Promise<void>;
+  register: (phone: string, pin: string, profile: Profile, recovery?: { question: string; answer: string } | null) => Promise<void>;
+  setRecovery: (question: string, answer: string) => Promise<boolean>;
+  resetLocalPin: (phone: string, pin: string) => Promise<void>;
   login: (phone: string, pin: string) => Promise<boolean>;
   logout: () => void;
   loadDemo: () => Promise<void>;
@@ -351,7 +354,7 @@ export const useStore = create<State>()(
         }
       },
 
-      register: async (phone, pin, profile) => {
+      register: async (phone, pin, profile, recovery) => {
         const p = onlyDigits(phone);
         const pinHash = await hashPin(p, pin);
         set((s) => ({
@@ -364,15 +367,36 @@ export const useStore = create<State>()(
         void (async () => {
           let r = await cloudRegister(p, pin, profile);
           if (r === "exists") r = await cloudSignIn(p, pin); // same phone + PIN used before
-          if (r === "ok") await get().syncDown();
-          else if (get().current === p) set({ cloud: "local" });
+          if (r === "ok") {
+            await get().syncDown();
+            if (recovery && (await recoverySet(recovery.question, recovery.answer))) get().updateProfile({ recoveryQ: recovery.question });
+          } else if (get().current === p) set({ cloud: "local" });
         })();
+      },
+      setRecovery: async (question, answer) => {
+        const ok = await recoverySet(question, answer);
+        if (ok) get().updateProfile({ recoveryQ: question });
+        return ok;
+      },
+      resetLocalPin: async (phone, pin) => {
+        const p = onlyDigits(phone);
+        const acc = get().accounts[p];
+        if (!acc) return;
+        const pinHash = await hashPin(p, pin);
+        set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } } }));
       },
       login: async (phone, pin) => {
         const p = onlyDigits(phone);
         const acc = get().accounts[p];
+        if (acc && (await hashPin(p, pin)) !== acc.pinHash) {
+          // The PIN may have been changed on another device or recovered online
+          if (pin.length < 6 || p === DEMO_PHONE || (await cloudSignIn(p, pin)) !== "ok") return false;
+          const pinHash = await hashPin(p, pin);
+          set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } }, current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" }));
+          void get().syncDown();
+          return true;
+        }
         if (acc) {
-          if ((await hashPin(p, pin)) !== acc.pinHash) return false;
           if (pin.length < 6) {
             // Account made with the old 4-digit PIN: let them in, then ask for a 6-digit one
             set({ current: p, deviceLang: acc.data.profile.lang, cloud: "local", needsNewPin: true });
@@ -409,6 +433,10 @@ export const useStore = create<State>()(
         set((s) => ({ accounts: { ...s.accounts, [current]: { ...s.accounts[current], pinHash: h } }, needsNewPin: false, cloud: "syncing" }));
         const profile = get().accounts[current].data.profile;
         void (async () => {
+          // Signed in already: just change the online PIN too.
+          if (await cloudSignedInAs(current)) {
+            if (await cloudChangePin(current, newPin)) { await get().syncDown(); return; }
+          }
           let r = await cloudRegister(current, newPin, profile);
           if (r === "exists") r = await cloudSignIn(current, newPin);
           if (r === "ok") await get().syncDown();

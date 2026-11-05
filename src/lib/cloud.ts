@@ -97,3 +97,64 @@ export async function cloudSave(d: UserData): Promise<boolean> {
 export async function cloudSignOut() {
   try { await cloud().auth.signOut(); } catch { /* offline is fine */ }
 }
+
+// ---------- Recovering a forgotten PIN ----------
+export type RecoveryResult = { ok: true } | { ok: false; reason: "wrong" | "locked" | "offline"; left?: number };
+
+async function recoveryCall(body: Record<string, unknown>, token?: string) {
+  return withTimeout(
+    fetch(`${URL}/functions/v1/recuperar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/** The security question this phone's account chose, or null if none (or no account). */
+export async function recoveryQuestion(phone: string): Promise<string | null | "offline"> {
+  try {
+    const r = await recoveryCall({ action: "question", phone });
+    if (!r.ok) return "offline";
+    const j = await r.json();
+    return (j.question as string | null) ?? null;
+  } catch {
+    return "offline";
+  }
+}
+
+export async function recoveryReset(phone: string, proof: { answer?: string; code?: string }, pin: string): Promise<RecoveryResult> {
+  try {
+    const r = await recoveryCall({ action: "reset", phone, pin, ...proof });
+    if (r.ok) return { ok: true };
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 429) return { ok: false, reason: "locked" };
+    if (r.status === 403) return { ok: false, reason: "wrong", left: j.left };
+    return { ok: false, reason: "offline" };
+  } catch {
+    return { ok: false, reason: "offline" };
+  }
+}
+
+/** Save the security question for the signed-in person. */
+export async function recoverySet(question: string, answer: string): Promise<boolean> {
+  try {
+    const { data } = await cloud().auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return false;
+    const r = await recoveryCall({ action: "set", question, answer }, token);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Change the online PIN while signed in. */
+export async function cloudChangePin(phone: string, pin: string): Promise<boolean> {
+  try {
+    const { error } = await withTimeout(cloud().auth.updateUser({ password: loginPassword(phone, pin) }));
+    return !error;
+  } catch {
+    return false;
+  }
+}

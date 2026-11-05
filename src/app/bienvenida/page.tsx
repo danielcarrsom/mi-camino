@@ -6,12 +6,13 @@ import { Button, ListenButton, Logo, MicButton, PinPad, Tile, cx } from "@/compo
 import { useHydrated, useT } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 import { PhoneInput } from "@/components/PhoneInput";
+import { RecoveryForm } from "@/components/RecoverySetup";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { speak, stopSpeaking } from "@/lib/voice";
 
-type Step = "lang" | "name" | "phone" | "pin" | "pin2" | "modules";
-const ORDER: Step[] = ["lang", "name", "phone", "pin", "pin2", "modules"];
+type Step = "lang" | "name" | "phone" | "pin" | "pin2" | "safety" | "modules";
+const ORDER: Step[] = ["lang", "name", "phone", "pin", "pin2", "safety", "modules"];
 
 export default function Onboarding() {
   const hydrated = useHydrated();
@@ -32,6 +33,7 @@ export default function Onboarding() {
   const [pinError, setPinError] = useState(false);
   const [modules, setModules] = useState<"casita" | "negocio" | "both">("both");
   const [phoneTaken, setPhoneTaken] = useState(false);
+  const [recovery, setRecovery] = useState<{ question: string; answer: string } | null>(null);
 
   const idx = ORDER.indexOf(step);
   const go = (s: Step) => setStep(s);
@@ -40,10 +42,12 @@ export default function Onboarding() {
   const says: Record<Step, string> = {
     lang: t("pickLangSay"), name: t("askNameSay"), phone: t("askPhoneSay"),
     pin: t("askPinSay"), pin2: t("repeatPinSay"), modules: t("pickModulesSay"),
+    safety: lang === "en" ? "If you ever forget your PIN, we'll ask you a question. Pick one and answer it. Only you should know the answer." : "Si un día olvidas tu clave, te haremos una pregunta. Elige una y contéstala. Solo tú debes saber la respuesta.",
   };
   const titles: Record<Step, string> = {
     lang: t("pickLang"), name: t("askName"), phone: t("askPhone"),
     pin: t("askPin"), pin2: t("repeatPin"), modules: t("pickModules"),
+    safety: lang === "en" ? "In case you forget your PIN" : "Por si olvidas tu clave",
   };
 
   // speak each step automatically when voice is on (and always on the first step)
@@ -58,7 +62,7 @@ export default function Onboarding() {
   useEffect(() => { if (step === "pin" && pin.length === 6) setTimeout(() => go("pin2"), 250); }, [pin, step]);
   useEffect(() => {
     if (step !== "pin2" || pin2.length !== 6) return;
-    if (pin2 === pin) { setPinError(false); setTimeout(() => go("modules"), 250); }
+    if (pin2 === pin) { setPinError(false); setTimeout(() => go("safety"), 250); }
     else { setPinError(true); setTimeout(() => { setPin(""); setPin2(""); go("pin"); }, 1400); }
   }, [pin2, pin, step]);
 
@@ -71,7 +75,7 @@ export default function Onboarding() {
       casita: modules !== "negocio",
       negocio: modules !== "casita",
       createdAt: new Date().toISOString(),
-    });
+    }, recovery);
     router.replace(modules === "negocio" ? "/negocio" : "/casita");
   }
 
@@ -159,6 +163,15 @@ export default function Onboarding() {
             <PinPad value={pin2} onChange={setPin2} />
             {pinError && <p className="mt-5 text-center text-lg font-bold text-clay">{t("pinMismatch")}</p>}
           </>
+        )}
+
+        {step === "safety" && (
+          <div className="mx-auto max-w-xl">
+            <RecoveryForm saveLabel={t("next")} onDone={(question, answer) => { setRecovery({ question, answer }); go("modules"); }} />
+            <button onClick={() => { setRecovery(null); go("modules"); }} className="mt-4 w-full text-center text-base font-bold text-muted underline underline-offset-4">
+              {lang === "en" ? "Skip for now" : "Hacerlo después"}
+            </button>
+          </div>
         )}
 
         {step === "modules" && (

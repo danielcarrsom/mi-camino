@@ -6,6 +6,7 @@ import {
   House, Target, Wallet, Users, Cloud, CloudOff, RefreshCw, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
 } from "lucide-react";
 import { Logo, Sheet, cx } from "./ui";
+import { RecoveryNudge } from "./RecoverySetup";
 import { useLang, useMe, useStore } from "@/lib/store";
 import { useT } from "@/lib/hooks";
 import { LANGS, langInfo } from "@/lib/i18n";
@@ -96,7 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-32 md:px-10 md:pt-10 md:pb-16">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-32 md:px-10 md:pt-10 md:pb-16"><RecoveryNudge />{children}</main>
 
       {/* ---------- Phone: bottom tabs ---------- */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-sand bg-paper pb-[env(safe-area-inset-bottom)] md:hidden" aria-label={t("menu")}>

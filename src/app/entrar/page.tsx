@@ -1,16 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button, ListenButton, Logo, PinPad } from "@/components/ui";
 import { useHydrated, useT } from "@/lib/hooks";
-import { useStore } from "@/lib/store";
+import { useLang, useStore } from "@/lib/store";
 import { PhoneInput } from "@/components/PhoneInput";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
 
 export default function Login() {
   const hydrated = useHydrated();
   const t = useT();
+  const lang = useLang();
   const router = useRouter();
   const login = useStore((s) => s.login);
   const [phone, setPhone] = useState("");
@@ -54,6 +56,11 @@ export default function Login() {
           <>
             <PinPad value={pin} onChange={(v) => { setError(false); setPin(v); }} />
             {error && <p className="mt-5 text-center text-lg font-bold text-clay">{t("wrongLogin")}</p>}
+            <div className="mt-6 text-center">
+              <Link href={`/recuperar?tel=${phoneKey(phone, country) ?? ""}`} className={error ? "inline-flex min-h-14 items-center justify-center rounded-2xl bg-ink px-6 text-lg font-extrabold text-paper" : "text-lg font-bold text-clay underline underline-offset-4"}>
+                {lang === "en" ? "Forgot your PIN?" : "¿Olvidaste tu clave?"}
+              </Link>
+            </div>
             {pin.length === 4 && (
               <div className="mt-5 text-center">
                 <Button variant="soft" onClick={() => void tryLogin(pin)}>{t("enter")}</Button>
