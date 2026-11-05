@@ -23,12 +23,14 @@ Never ask for or repeat immigration status, Social Security numbers, account num
 
 Return ONLY JSON with this shape:
 {"entries":[{"kind":"in"|"out","category":"<id>","amount":number,"repeat":"once"|"week"|"2weeks"|"month","note":"<short note in the user's language or empty>"}],
- "work": null | {"name":"<workplace type, e.g. Restaurante, or empty>","pay":number,"every":"week"|"2weeks"|"month","hoursPerWeek":number,"daysPerWeek":number}}
+ "work": null | {"name":"<workplace type, e.g. Restaurante, or empty>","pay":number,"every":"hour"|"week"|"2weeks"|"month","hoursPerWeek":number,"daysPerWeek":number}}
 
 Rules:
 - Spending categories (kind "out"): ${CATEGORIES.map((c) => `${c.id} (${c.label.es})`).join(", ")}.
 - Income categories (kind "in"): ${INCOME_CATEGORIES.map((c) => `${c.id} (${c.label.es})`).join(", ")}.
-- Use "work" only for a regular paycheck/paystub (pay per period with hours or days). Then "entries" may be empty.
+- Use "work" for a regular job: a paycheck/paystub, or a pay RATE. Then "entries" may be empty.
+- If they say a rate per HOUR ("me pagan 33 dólares la hora", "$18/hr"), set "every":"hour" and "pay" to the hourly rate (33), NOT the weekly total.
+- If they say a rate per DAY ("150 al día"), set "every":"week" and "pay" = daily rate × days per week.
 - If hours per week or days per week are not stated, estimate from the paystub if possible (hours worked in the period), else use 40 and 5.
 - If a pay period is two weeks, convert hours to per week.
 - "repeat": rent, utilities, phone are usually "month"; groceries, subway usually "week"; a single purchase is "once". Use what the person says if they say it.
@@ -53,11 +55,14 @@ function clampWork(w: Partial<ParsedWork> | null | undefined): ParsedWork | null
   if (!w) return null;
   const pay = Number(w.pay);
   if (!pay || pay <= 0) return null;
-  const every = ["week", "2weeks", "month"].includes(String(w.every)) ? (w.every as ParsedWork["every"]) : "week";
+  const raw = String((w as { every?: string }).every);
+  const perHour = raw === "hour";
+  const every = ["week", "2weeks", "month"].includes(raw) ? (raw as ParsedWork["every"]) : "week";
   return {
     name: typeof w.name === "string" ? w.name.slice(0, 40) : "",
     pay: Math.round(pay * 100) / 100,
     every,
+    perHour,
     hoursPerWeek: Math.min(100, Math.max(1, Number(w.hoursPerWeek) || 40)),
     daysPerWeek: Math.min(7, Math.max(1, Number(w.daysPerWeek) || 5)),
   };

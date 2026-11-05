@@ -76,8 +76,9 @@ function Add() {
   function save(entries: ParsedEntry[], work: ParsedWork | null, src: Source = source) {
     const now = new Date().toISOString();
     if (entries.length) addEntries(entries.map((e) => ({ ...e, date: now, source: src })));
-    if (work) addWork({ ...work, source: src });
-    const total = entries.reduce((a, e) => a + e.amount, 0) + (work?.pay ?? 0);
+    const job = work ? toSavedWork(work) : null;
+    if (job) { const { perHour: _ignored, ...rest } = job; void _ignored; addWork({ ...rest, source: src }); }
+    const total = entries.reduce((a, e) => a + e.amount, 0) + (job?.pay ?? 0);
     playSaved();
     speak(`${t("savedOk")} ${moneySpoken(total, lang)}.`, lang, "savedOk");
     setSaved(true);
@@ -313,28 +314,47 @@ function Review({ kind, initial, onCancel, onSave }: { kind: Kind; initial: Pars
   );
 }
 
+/** What a job pays in one week, whether it's quoted per hour or per pay period. */
+function weeklyPay(w: ParsedWork): number {
+  if (w.perHour) return w.pay * w.hoursPerWeek;
+  return w.every === "week" ? w.pay : w.every === "2weeks" ? w.pay / 2 : (w.pay * 12) / 52;
+}
+
+/** Saved jobs always store pay per period, so an hourly rate becomes a weekly paycheck. */
+function toSavedWork(w: ParsedWork): ParsedWork {
+  if (!w.perHour) return w;
+  return { ...w, pay: Math.round(w.pay * w.hoursPerWeek * 100) / 100, every: "week", perHour: false };
+}
+
 function WorkEditor({ work, onChange }: { work: ParsedWork; onChange: (w: ParsedWork) => void }) {
   const t = useT();
   const lang = useLang();
-  const weekly = work.every === "week" ? work.pay : work.every === "2weeks" ? work.pay / 2 : (work.pay * 12) / 52;
+  const weekly = weeklyPay(work);
   const perHour = work.hoursPerWeek ? weekly / work.hoursPerWeek : 0;
   const perDay = work.daysPerWeek ? weekly / work.daysPerWeek : 0;
   return (
     <div className="mt-4 space-y-4">
-      <AmountInput label={t("payWhat")} value={String(work.pay)} onChange={(v) => onChange({ ...work, pay: Number(v) || 0 })} />
       <div>
         <p className="mb-2 text-lg font-bold">{t("payEvery")}</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <button onClick={() => onChange({ ...work, perHour: true, every: "week" })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", work.perHour ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
+            {t("hourly")}
+          </button>
           {REPEATS.slice(1).map((r) => (
-            <button key={r.id} onClick={() => onChange({ ...work, every: r.id })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", work.every === r.id ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
+            <button key={r.id} onClick={() => onChange({ ...work, perHour: false, every: r.id })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", !work.perHour && work.every === r.id ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
               {t(r.key)}
             </button>
           ))}
         </div>
       </div>
+      <AmountInput label={work.perHour ? t("payPerHourQ") : t("payWhat")} value={String(work.pay)} onChange={(v) => onChange({ ...work, pay: Number(v) || 0 })} />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Stepper label={t("payHours")} value={work.hoursPerWeek} min={1} max={100} step={1} onChange={(v) => onChange({ ...work, hoursPerWeek: v })} />
         <Stepper label={t("payDays")} value={work.daysPerWeek} min={1} max={7} step={1} onChange={(v) => onChange({ ...work, daysPerWeek: v })} />
+      </div>
+      <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
+        <p className="text-base font-bold">{t("weekTotal")}</p>
+        <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-leaf-soft p-4 text-center">

@@ -3,7 +3,7 @@
 import { CATEGORIES, INCOME_CATEGORIES, type Repeat } from "./catalog";
 
 export type ParsedEntry = { kind: "in" | "out"; category: string; amount: number; repeat: Repeat; note: string };
-export type ParsedWork = { name: string; pay: number; every: Repeat; hoursPerWeek: number; daysPerWeek: number };
+export type ParsedWork = { name: string; pay: number; every: Repeat; hoursPerWeek: number; daysPerWeek: number; perHour?: boolean };
 export type Parsed = { entries: ParsedEntry[]; work: ParsedWork | null; heard: string };
 
 const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -87,8 +87,24 @@ export function understandLocally(text: string, kind: "in" | "out"): Parsed {
 
   // Work pay: "me pagaron 650 por la semana, trabaje 45 horas 6 dias"
   if (kind === "in") {
-    const hours = t.match(/(\d+)\s*(horas|hrs|hours|h\b)/);
-    const days = t.match(/(\d)\s*(dias|days)/);
+    // A rate: "33 dolares la hora", "$18/hr", "150 al dia"
+    const UNIT = String.raw`\$?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:dolares|dlls?|usd|bucks|dollars|\$)?\s*`;
+    const hourRate = t.match(new RegExp(UNIT + String.raw`(?:la hora|por hora|a la hora|cada hora|an hour|per hour|\/\s*(?:hr|hora|h)\b|hourly)`));
+    const dayRate = t.match(new RegExp(UNIT + String.raw`(?:al dia|por dia|el dia|diarios|a day|per day|\/\s*dia)`));
+    let rest = t;
+    if (hourRate) rest = rest.replace(hourRate[0], " ");
+    if (dayRate) rest = rest.replace(dayRate[0], " ");
+    const hours = rest.match(/(\d+)\s*(horas|hrs|hours|h\b)/);
+    const days = rest.match(/(\d)\s*(dias|days)/);
+    const hoursPerWeek = hours ? parseInt(hours[1]) : 40;
+    const daysPerWeek = days ? parseInt(days[1]) : 5;
+    if (hourRate) {
+      return { heard, entries: [], work: { name: "", pay: parseFloat(hourRate[1].replace(",", ".")), every: "week", hoursPerWeek, daysPerWeek, perHour: true } };
+    }
+    if (dayRate) {
+      const perDay = parseFloat(dayRate[1].replace(",", "."));
+      return { heard, entries: [], work: { name: "", pay: Math.round(perDay * daysPerWeek * 100) / 100, every: "week", hoursPerWeek, daysPerWeek } };
+    }
     const isPay = /pagaron|pago|cheque|sueldo|salario|paycheck|paystub|gane|trabaj/.test(t);
     if (isPay && (hours || days)) {
       const nums = numbersIn(t.replace(hours?.[0] ?? "", "").replace(days?.[0] ?? "", ""));
