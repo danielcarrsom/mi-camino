@@ -41,12 +41,14 @@ h1, h2, h3, .font-serif {
 }
 
 /* Visible, thick focus ring for keyboard and switch users */
-*:focus-visible:not([role="dialog"]) {
+*:focus-visible:not([role="dialog"]):not(input):not(textarea):not(select) {
   outline: 4px solid var(--color-sun);
   outline-offset: 3px;
   border-radius: 12px;
 }
 
+/* Text boxes show focus with their own colored border instead of a second ring */
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 

@@ -26,7 +26,14 @@ export default function CasitaHome() {
       : `${t("leftThisWeekSay")} ${moneySpoken(s.weekLeft, lang)}. ${t("youEarn")} ${moneySpoken(s.weekIn, lang)}, ${t("youSpend").toLowerCase()} ${moneySpoken(s.weekOut, lang)}.`
     : t("noIncomeYet");
 
-  const recent = me.entries.slice(0, 4);
+  // Everything recorded lately: spending, income and money set apart for goals.
+  type Row = { kind: "entry"; date: string; entry: Entry } | { kind: "goal"; date: string; goalId: string; goalName: string; amount: number; auto: boolean; id: string };
+  const recent: Row[] = [
+    ...me.entries.map((e) => ({ kind: "entry" as const, date: e.date, entry: e })),
+    ...me.goals.flatMap((g) => g.deposits.map((d) => ({ kind: "goal" as const, date: d.date, goalId: g.id, goalName: g.name, amount: d.amount, auto: !!d.auto, id: d.id }))),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
   const [editing, setEditing] = useState<Entry | null>(null);
 
   return (
@@ -110,11 +117,25 @@ export default function CasitaHome() {
             <section>
               <h2 className="mb-3 text-2xl font-semibold">{t("recent")}</h2>
               <Card className="divide-y divide-sand p-2 md:p-2">
-                {recent.map((e) => {
+                {recent.map((row) => {
+                  if (row.kind === "goal") {
+                    return (
+                      <Link key={row.id} href={`/casita/metas/${row.goalId}`} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-cream">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sun-soft text-clay"><PiggyBank size={22} /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-bold">{row.goalName}</span>
+                          <span className="block text-sm text-muted">{row.amount < 0 ? (lang === "en" ? "Taken out" : "Sacaste") : row.auto ? (lang === "en" ? "Savings plan" : "Plan de ahorro") : (lang === "en" ? "Set apart" : "Apartaste")} · {shortDate(row.date, lang)}</span>
+                        </span>
+                        <span className="font-serif text-xl font-semibold">{row.amount < 0 ? "+" : "−"}{money(Math.abs(row.amount), lang)}</span>
+                        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={17} /></span>
+                      </Link>
+                    );
+                  }
+                  const e = row.entry;
                   const c = e.kind === "in" ? incomeCategoryById(e.category) : categoryById(e.category);
                   return (
                     <button key={e.id} onClick={() => setEditing(e)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-cream">
-                      <span className={`flex h-11 w-11 items-center justify-center rounded-full ${e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay"}`}>
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay"}`}>
                         <Icon name={c.icon} size={22} />
                       </span>
                       <span className="min-w-0 flex-1">
