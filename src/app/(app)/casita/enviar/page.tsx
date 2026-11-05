@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Send, RefreshCw, ShieldAlert, ShieldCheck, Building2, CreditCard, Lightbulb, Check, ExternalLink, ArrowDownUp, Store } from "lucide-react";
-import { AmountInput, Card, ListenButton, PageHeader, QuickAmounts, cx } from "@/components/ui";
+import { Send, RefreshCw, ShieldAlert, ShieldCheck, CreditCard, Lightbulb, Check, ExternalLink, ArrowRight, Store, ChevronDown, Repeat as RepeatIcon } from "lucide-react";
+import { Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { useLang, useMe, useStore } from "@/lib/store";
 import { money } from "@/lib/money";
 import { speak } from "@/lib/voice";
@@ -92,6 +92,11 @@ export default function SendMoney() {
     speak(repeat === "month" ? L(lang, "Listo. Lo anotamos como envío de cada mes.", "Done. We added it as a monthly transfer.") : L(lang, "Listo. Lo anotamos como gasto.", "Done. We added it as an expense."), lang);
   };
 
+  // Two linked boxes: what you send (dollars) and what arrives (local money).
+  const usdBox = mode === "send" ? amount : calc ? String(Math.round(calc.sendUsd * 100) / 100) : "";
+  const localBox = mode === "receive" ? amount : calc ? fmt(Math.round(calc.arrives), lang) : "";
+  const clean = (v: string) => v.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"); // also drops thousands commas
+
   return (
     <>
       <PageHeader
@@ -100,162 +105,179 @@ export default function SendMoney() {
         say={L(lang, "Enviar dinero. Escribe cuánto quieres enviar y te decimos cuánto le llega a tu familia. También te mostramos opciones seguras.", "Send money. Type how much you want to send and we'll tell you how much your family gets. We also show you safe options.")}
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.15fr_1fr] lg:gap-6">
-        {/* ---------- Calculator ---------- */}
-        <div className="min-w-0 space-y-5">
-          <Card>
-            <p className="mb-2 text-lg font-bold">{L(lang, "¿A dónde envías?", "Where are you sending?")}</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {COUNTRIES.map((c) => (
-                <button key={c.id} onClick={() => setCountry(c)} className={cx("flex min-h-16 flex-col items-center justify-center rounded-2xl border-2 px-2 text-center text-base font-bold", country.id === c.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>
-                  <span className="text-2xl leading-none">{c.flag}</span>
-                  <span className="mt-1 leading-tight">{L(lang, c.es, c.en)}</span>
-                </button>
-              ))}
-            </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr] lg:gap-6">
+        {/* ---------- The calculator ---------- */}
+        <Card className="min-w-0 p-5 md:p-7">
+          {/* where */}
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={L(lang, "¿A dónde envías?", "Where are you sending?")}>
+            {COUNTRIES.map((c) => (
+              <button
+                key={c.id}
+                role="radio"
+                aria-checked={country.id === c.id}
+                onClick={() => { setCountry(c); setMode("send"); setAmount(usdBox || "200"); setSaved(null); }}
+                className={cx("inline-flex h-12 shrink-0 items-center gap-2 rounded-full border-2 px-4 font-bold whitespace-nowrap", country.id === c.id ? "border-ink bg-ink text-paper" : "border-sand bg-paper hover:border-sand-dark")}
+              >
+                <span className="text-xl leading-none">{c.flag}</span> {L(lang, c.es, c.en)}
+              </button>
+            ))}
+          </div>
 
-            <div className="mt-5 flex items-center justify-between gap-3">
-              <p className="text-lg font-bold">
-                {mode === "send" ? L(lang, "¿Cuántos dólares vas a enviar?", "How many dollars will you send?") : L(lang, `¿Cuántos ${unit} quieres que lleguen?`, `How many ${unit} should arrive?`)}
-              </p>
-              {country.cur !== "USD" && (
-                <button onClick={() => { setMode(mode === "send" ? "receive" : "send"); setAmount(mode === "send" ? String(Math.round((calc?.arrives ?? 0) / 100) * 100 || 3000) : "200"); }} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-sand/60 px-3 text-sm font-bold hover:bg-sun-soft">
-                  <ArrowDownUp size={16} /> {mode === "send" ? L(lang, `Pensar en ${unit}`, `Think in ${unit}`) : L(lang, "Pensar en dólares", "Think in dollars")}
-                </button>
-              )}
-            </div>
-            <div className="mt-2">
-              {mode === "send" ? (
-                <AmountInput value={amount} onChange={setAmount} />
-              ) : (
-                <label className="flex items-center rounded-2xl border-2 border-sand bg-paper px-4 focus-within:border-clay">
-                  <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} onFocus={(e) => e.currentTarget.select()} className="h-20 w-full min-w-0 bg-transparent px-2 font-serif text-5xl font-semibold outline-none" aria-label={unit} />
-                  <span className="text-xl font-bold text-muted">{unit}</span>
-                </label>
-              )}
-              <QuickAmounts amounts={mode === "send" ? [100, 200, 300, 500] : [2000, 3000, 5000, 10000]} onPick={(v) => setAmount(String(v))} />
-            </div>
-          </Card>
+          {/* send → arrives */}
+          <div className="mt-6 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr]">
+            <label className="block rounded-3xl border-2 border-sand bg-cream/60 p-4 focus-within:border-clay">
+              <span className="block text-base font-bold text-muted">{L(lang, "Tú envías", "You send")}</span>
+              <span className="mt-1 flex items-baseline gap-1">
+                <span className="font-serif text-3xl text-muted">$</span>
+                <input inputMode="decimal" value={usdBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setMode("send"); setAmount(clean(e.target.value)); setSaved(null); }}
+                  className="w-full min-w-0 bg-transparent font-serif text-5xl font-semibold outline-none" aria-label={L(lang, "Dólares que envías", "Dollars you send")} />
+              </span>
+              <span className="text-base text-muted">{L(lang, "dólares", "dollars")}</span>
+            </label>
 
-          {/* Result */}
-          <Card dark className="p-6 md:p-8">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-lg font-bold text-paper/75">
-                {mode === "send" ? L(lang, "A tu familia le llegan más o menos", "Your family gets about") : L(lang, "Necesitas enviar más o menos", "You need to send about")}
-              </p>
-              <ListenButton compact light text={say} />
-            </div>
-            {calc ? (
-              <p className="mt-1 font-serif text-[3.2rem] leading-none font-semibold md:text-[4rem]">
-                {mode === "send" ? <>{fmt(calc.arrives, lang)} <span className="text-2xl text-paper/70">{unit}</span></> : <>{money(calc.sendUsd, lang, true)} <span className="text-2xl text-paper/70">{L(lang, "dólares", "dollars")}</span></>}
-              </p>
-            ) : (
-              <p className="mt-2 flex items-center gap-2 text-xl"><RefreshCw size={20} className="animate-spin" /> …</p>
-            )}
-            <p className="mt-4 text-base text-paper/75">
-              {L(lang, "Con la Tarjeta Finabien: comisión de", "With the Finabien card: fee of")} {money(FINABIEN_FEE, lang, true)}
-              {country.cur !== "USD" && rate && <> · {L(lang, "hoy 1 dólar ≈", "today 1 dollar ≈")} {fmt(fx, lang, 2)} {unit}</>}
-            </p>
-            {rate?.approx && <p className="mt-2 rounded-xl bg-paper/10 px-3 py-2 text-sm">{L(lang, "No pudimos traer el tipo de cambio de hoy; este número es aproximado.", "We couldn't load today's rate; this number is approximate.")}</p>}
-            {overMax && <p className="mt-2 rounded-xl bg-sun px-3 py-2 text-sm font-bold text-ink">{L(lang, `Con Finabien puedes enviar hasta ${money(FINABIEN_MAX, lang)} por envío. Divídelo en dos envíos.`, `With Finabien you can send up to ${money(FINABIEN_MAX, lang)} per transfer. Split it into two.`)}</p>}
-            {underMin && <p className="mt-2 rounded-xl bg-paper/10 px-3 py-2 text-sm">{L(lang, "La comisión de $2.99 aplica para envíos de $100 a $2,500. Pregunta el costo para envíos más chicos.", "The $2.99 fee applies to transfers from $100 to $2,500. Ask about smaller amounts.")}</p>}
+            <span className="flex items-center justify-center text-muted" aria-hidden>
+              <span className="flex h-11 w-11 rotate-90 items-center justify-center rounded-full bg-sand/60 sm:rotate-0"><ArrowRight size={22} /></span>
+            </span>
 
-            {calc && (
-              <div className="mt-6 flex flex-wrap gap-2">
-                {saved ? (
-                  <p className="flex items-center gap-2 rounded-2xl bg-leaf px-4 py-3 font-bold"><Check size={20} /> {saved === "month" ? L(lang, "Anotado como envío de cada mes", "Added as a monthly transfer") : L(lang, "Anotado como gasto", "Added as an expense")}</p>
+            <label className="block rounded-3xl border-2 border-leaf/40 bg-leaf-soft/70 p-4 focus-within:border-leaf">
+              <span className="block text-base font-bold text-leaf">{L(lang, "Le llega a tu familia", "Your family gets")}</span>
+              <span className="mt-1 flex items-baseline gap-1">
+                {calc ? (
+                  <input inputMode="decimal" value={localBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setMode("receive"); setAmount(clean(e.target.value)); setSaved(null); }}
+                    className="w-full min-w-0 bg-transparent font-serif text-5xl font-semibold text-ink outline-none" aria-label={L(lang, `${unit} que llegan`, `${unit} that arrive`)} />
                 ) : (
-                  <>
-                    <button onClick={() => saveAsExpense("once")} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-paper px-4 font-bold text-ink"><Send size={18} /> {L(lang, "Anotar este envío", "Add this transfer")}</button>
-                    <button onClick={() => saveAsExpense("month")} className="inline-flex h-12 items-center gap-2 rounded-2xl px-4 font-bold text-paper/85 hover:bg-paper/10">{L(lang, "Lo envío cada mes", "I send this every month")}</button>
-                  </>
+                  <RefreshCw size={28} className="my-3 animate-spin text-leaf" />
                 )}
-              </div>
-            )}
-          </Card>
+              </span>
+              <span className="text-base text-muted">{unit} · {L(lang, "más o menos", "about")}</span>
+            </label>
+          </div>
 
-          {/* Compare with a quote */}
-          {country.cur !== "USD" && (
-            <Card>
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="flex items-center gap-2 text-2xl font-semibold"><Store size={24} className="text-clay" /> {L(lang, "Compara con lo que te ofrecen", "Compare with what you're offered")}</h2>
-                <ListenButton compact text={L(lang, "Si una tienda o una app te ofrece enviar dinero, escribe la comisión y el tipo de cambio que te dan, y te decimos cuánto pierdes o ganas.", "If a store or app offers to send money, type the fee and the exchange rate they give you, and we'll tell you how much you lose or gain.")} />
-              </div>
-              <p className="mt-1 text-base text-muted">{L(lang, "Pregunta en la tienda o en la app y escribe lo que te dicen.", "Ask at the store or app and type what they tell you.")}</p>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block font-bold">{L(lang, "Comisión (dólares)", "Fee (dollars)")}</span>
-                  <input inputMode="decimal" value={quoteFee} onChange={(e) => setQuoteFee(e.target.value.replace(/[^\d.]/g, ""))} placeholder="5.99" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-xl font-bold outline-none focus:border-clay" />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block font-bold">{L(lang, `1 dólar = ¿cuántos ${unit}?`, `1 dollar = how many ${unit}?`)}</span>
-                  <input inputMode="decimal" value={quoteRate} onChange={(e) => setQuoteRate(e.target.value.replace(/[^\d.]/g, ""))} placeholder={fx ? fmt(fx * 0.97, lang, 2) : ""} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-xl font-bold outline-none focus:border-clay" />
-                </label>
-              </div>
-              <p className="mt-2 text-sm text-muted">{L(lang, "Si pagas en efectivo, sumamos el impuesto de 1% que existe desde enero de 2026.", "If you pay cash, we add the 1% tax that exists since January 2026.")}</p>
-              {qRate > 0 && calc && (
-                <div className={cx("mt-4 rounded-2xl p-4 text-lg", difference > 0.5 ? "bg-sun-soft" : "bg-leaf-soft")}>
-                  <p>{L(lang, "Con esa oferta llegan", "With that offer")} <b>{fmt(quoteArrives, lang)} {unit}</b>{lang === "en" ? " arrive" : ""}.</p>
-                  <p className="mt-1">
-                    {difference > 0.5
-                      ? <>{L(lang, "Con Finabien llegarían", "With Finabien")} <b>{fmt(difference, lang)} {unit} {L(lang, "más", "more")}</b>{lang === "en" ? " would arrive" : ""}.</>
-                      : L(lang, "Esa oferta es igual o mejor que Finabien hoy.", "That offer is as good as or better than Finabien today.")}
-                  </p>
-                </div>
-              )}
-            </Card>
+          {/* quick amounts + details */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[100, 200, 300, 500].map((v) => (
+              <button key={v} onClick={() => { setMode("send"); setAmount(String(v)); setSaved(null); }} className={cx("h-11 rounded-full border-2 px-4 font-bold", mode === "send" && Number(amount) === v ? "border-clay bg-clay text-paper" : "border-sand bg-paper hover:border-clay")}>
+                ${v}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-sand pt-4">
+            <p className="text-base text-muted">
+              {L(lang, "Con Tarjeta Finabien", "With Finabien card")} · {L(lang, "comisión", "fee")} {money(FINABIEN_FEE, lang, true)}
+              {country.cur !== "USD" && rate && <> · 1 {L(lang, "dólar", "dollar")} = {fmt(fx, lang, 2)} {unit}{rate.approx ? ` (${L(lang, "aprox.", "approx.")})` : ""}</>}
+            </p>
+            <ListenButton compact text={say} />
+          </div>
+          {(overMax || underMin) && (
+            <p className="mt-3 rounded-2xl bg-sun-soft px-4 py-3 text-base">
+              {overMax
+                ? L(lang, `Con Finabien el máximo es ${money(FINABIEN_MAX, lang)} por envío. Divídelo en dos envíos.`, `Finabien's limit is ${money(FINABIEN_MAX, lang)} per transfer. Split it in two.`)
+                : L(lang, "La comisión de $2.99 es para envíos de $100 a $2,500. Pregunta el costo para envíos más chicos.", "The $2.99 fee is for $100 to $2,500. Ask about smaller amounts.")}
+            </p>
           )}
-        </div>
 
-        {/* ---------- Safe options & tips ---------- */}
-        <div className="min-w-0 space-y-5">
-          <div className="rounded-3xl border-2 border-leaf bg-leaf-soft/60 p-5 md:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-2xl font-semibold"><CreditCard size={24} className="text-leaf" /> {L(lang, "Tarjeta Finabien Paisano", "Finabien Paisano card")}</h2>
-              <ListenButton compact text={L(lang, "La Tarjeta Finabien Paisano es del gobierno de México. Es gratis. La pides en cualquier consulado, sin cita, o en línea. Necesitas una identificación oficial, un número de celular y un correo. Cada envío de 100 a 2,500 dólares cuesta 2 dólares con 99 centavos, y los envíos desde la tarjeta no pagan el impuesto de 1%.", "The Finabien Paisano card is from the Mexican government. It's free. You can get it at any consulate, without an appointment, or online. You need an official ID, a cell phone number and an email. Each transfer from 100 to 2,500 dollars costs 2.99, and transfers from the card don't pay the 1% tax.")} />
-            </div>
-            <p className="mt-2 text-lg">{L(lang, "Del gobierno de México, para mandar dinero a tu familia con menos costo.", "From the Mexican government, to send money home for less.")}</p>
-            <ul className="mt-4 space-y-2 text-lg">
-              {[
-                L(lang, "La tarjeta es gratis", "The card is free"),
-                L(lang, "La pides en cualquier consulado, sin cita, o en línea", "Get it at any consulate, no appointment, or online"),
-                L(lang, "Necesitas identificación oficial, celular y correo", "You need an official ID, a cell phone and an email"),
-                L(lang, "$2.99 por envío de $100 a $2,500", "$2.99 per transfer from $100 to $2,500"),
-                L(lang, "Los envíos desde la tarjeta no pagan el impuesto de 1%", "Transfers from the card don't pay the 1% tax"),
-              ].map((x) => <li key={x} className="flex items-start gap-2"><Check size={22} className="mt-0.5 shrink-0 text-leaf" /> {x}</li>)}
-            </ul>
+          {/* save */}
+          {calc && (
             <div className="mt-5 flex flex-wrap gap-2">
-              <a href="https://www.finabien.gob.mx" target="_blank" rel="noopener noreferrer" className="inline-flex h-12 items-center gap-2 rounded-2xl bg-leaf px-4 font-bold text-paper"><ExternalLink size={18} /> finabien.gob.mx</a>
-              <span className="inline-flex h-12 items-center gap-2 rounded-2xl bg-paper px-4 font-bold"><Building2 size={18} /> {L(lang, "Pregunta en el Consulado", "Ask at the Consulate")}</span>
+              {saved ? (
+                <p className="flex items-center gap-2 rounded-2xl bg-leaf-soft px-4 py-3 font-bold text-leaf"><Check size={20} /> {saved === "month" ? L(lang, "Anotado como envío de cada mes", "Added as a monthly transfer") : L(lang, "Anotado como gasto", "Added as an expense")}</p>
+              ) : (
+                <>
+                  <button onClick={() => saveAsExpense("once")} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-clay px-5 font-bold text-paper shadow-[0_3px_0_#8f3a20]"><Send size={18} /> {L(lang, "Anotar este envío", "Add this transfer")}</button>
+                  <button onClick={() => saveAsExpense("month")} className="inline-flex h-12 items-center gap-2 rounded-2xl border-2 border-sand bg-paper px-5 font-bold"><RepeatIcon size={18} /> {L(lang, "Lo envío cada mes", "I send it monthly")}</button>
+                </>
+              )}
             </div>
-            <p className="mt-3 text-sm text-muted">{L(lang, "Datos de Finabien (2025–2026). Pueden cambiar: confírmalos en el Consulado.", "Finabien information (2025–2026). It can change: confirm at the Consulate.")}</p>
-          </div>
+          )}
+        </Card>
 
-          <Card>
-            <h2 className="flex items-center gap-2 text-xl font-semibold"><Lightbulb size={22} className="text-sun" /> {L(lang, "Para que llegue más dinero", "So more money arrives")}</h2>
-            <ul className="mt-3 space-y-3 text-lg">
-              <li>{L(lang, "Fíjate en dos cosas: la comisión y el tipo de cambio. A veces la comisión es baja pero te dan menos pesos por dólar.", "Look at two things: the fee and the exchange rate. Sometimes the fee is low but you get fewer pesos per dollar.")}</li>
-              <li>{L(lang, "Enviar desde una tarjeta o cuenta es más barato que en efectivo: el efectivo paga un impuesto de 1%.", "Sending from a card or account is cheaper than cash: cash pays a 1% tax.")}</li>
-              <li>{L(lang, "Mejor un envío grande que muchos chiquitos: pagas menos comisiones.", "One big transfer is better than many small ones: you pay fewer fees.")}</li>
-            </ul>
-          </Card>
-
-          <div className="rounded-3xl border-2 border-sun bg-sun-soft/60 p-5 md:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-xl font-semibold"><ShieldAlert size={22} className="text-clay" /> {L(lang, "Cuidado con los fraudes", "Watch out for scams")}</h2>
-              <ListenButton compact text={L(lang, "Cuidado con los fraudes. Nunca envíes dinero a alguien que no conoces en persona. Nadie del gobierno te va a pedir dinero por teléfono. Nunca compartas tu clave ni los números de tu tarjeta. Pide siempre tu recibo con el número de envío.", "Watch out for scams. Never send money to someone you haven't met in person. No one from the government will ask you for money by phone. Never share your PIN or card numbers. Always ask for a receipt with the transfer number.")} />
+        {/* ---------- Recommended safe option ---------- */}
+        <div className="min-w-0 rounded-3xl bg-ink p-5 text-paper md:p-7">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-extrabold tracking-wide text-sun uppercase">{L(lang, "Opción segura", "Safe option")}</p>
+              <h2 className="mt-1 flex items-center gap-2 text-2xl font-semibold"><CreditCard size={24} /> {L(lang, "Tarjeta Finabien", "Finabien card")}</h2>
             </div>
-            <ul className="mt-3 space-y-2 text-lg">
-              {[
-                L(lang, "Nunca envíes dinero a alguien que no conoces en persona", "Never send money to someone you haven't met in person"),
-                L(lang, "Nadie del gobierno te va a pedir dinero por teléfono", "No one from the government will ask for money by phone"),
-                L(lang, "Nunca compartas tu clave ni los números de tu tarjeta", "Never share your PIN or card numbers"),
-                L(lang, "Pide siempre tu recibo con el número de envío", "Always get a receipt with the transfer number"),
-              ].map((x) => <li key={x} className="flex items-start gap-2"><ShieldCheck size={22} className="mt-0.5 shrink-0 text-clay" /> {x}</li>)}
-            </ul>
+            <ListenButton compact light text={L(lang, "La Tarjeta Finabien Paisano es del gobierno de México. Es gratis. La pides en cualquier consulado, sin cita, o en línea, con una identificación oficial, un celular y un correo. Cada envío de 100 a 2,500 dólares cuesta 2 dólares con 99 centavos y no paga el impuesto de 1%.", "The Finabien Paisano card is from the Mexican government. It's free. Get it at any consulate, without an appointment, or online, with an official ID, a cell phone and an email. Each transfer from 100 to 2,500 dollars costs 2.99 and doesn't pay the 1% tax.")} />
           </div>
+          <p className="mt-2 text-paper/80">{L(lang, "Del gobierno de México, para mandar dinero con menos costo.", "From the Mexican government, to send money for less.")}</p>
+          <ul className="mt-4 space-y-2.5">
+            {[
+              L(lang, "Gratis, en cualquier consulado o en línea", "Free, at any consulate or online"),
+              L(lang, "Solo identificación, celular y correo", "Just an ID, a phone and an email"),
+              L(lang, "$2.99 por envío", "$2.99 per transfer"),
+              L(lang, "Sin el impuesto de 1%", "No 1% tax"),
+            ].map((x) => <li key={x} className="flex items-center gap-2.5 text-lg"><Check size={20} className="shrink-0 text-sun" /> {x}</li>)}
+          </ul>
+          <a href="https://www.finabien.gob.mx" target="_blank" rel="noopener noreferrer" className="mt-6 flex h-12 items-center justify-center gap-2 rounded-2xl bg-paper font-bold text-ink"><ExternalLink size={18} /> finabien.gob.mx</a>
+          <p className="mt-3 text-sm text-paper/60">{L(lang, "Datos de Finabien 2025–2026. Confírmalos en el Consulado.", "Finabien info 2025–2026. Confirm at the Consulate.")}</p>
         </div>
       </div>
+
+      {/* ---------- More help, folded so the page stays calm ---------- */}
+      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {country.cur !== "USD" && (
+          <Fold icon={<Store size={22} className="text-clay" />} title={L(lang, "¿Otra oferta?", "Another offer?")} sub={L(lang, "Compárala con Finabien", "Compare it with Finabien")}>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-base font-bold">{L(lang, "Comisión", "Fee")}</span>
+                <input inputMode="decimal" value={quoteFee} onChange={(e) => setQuoteFee(clean(e.target.value))} placeholder="$5.99" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-base font-bold">1 $ = ¿{unit}?</span>
+                <input inputMode="decimal" value={quoteRate} onChange={(e) => setQuoteRate(clean(e.target.value))} placeholder={fx ? fmt(fx * 0.97, lang, 2) : ""} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
+              </label>
+            </div>
+            <p className="mt-2 text-sm text-muted">{L(lang, "Incluye el impuesto de 1% si pagas en efectivo.", "Includes the 1% tax if you pay cash.")}</p>
+            {qRate > 0 && calc && (
+              <p className={cx("mt-3 rounded-2xl px-4 py-3 text-lg", difference > 0.5 ? "bg-sun-soft" : "bg-leaf-soft")}>
+                {L(lang, "Llegan", "Arrives:")} <b>{fmt(quoteArrives, lang)} {unit}</b>.{" "}
+                {difference > 0.5
+                  ? <>{L(lang, "Con Finabien,", "With Finabien,")} <b>{fmt(difference, lang)} {L(lang, "más", "more")}</b>.</>
+                  : L(lang, "Es igual o mejor que Finabien.", "As good as or better than Finabien.")}
+              </p>
+            )}
+          </Fold>
+        )}
+
+        <Fold icon={<Lightbulb size={22} className="text-sun" />} title={L(lang, "Para que llegue más", "So more arrives")} sub={L(lang, "3 consejos", "3 tips")}>
+          <ul className="space-y-2.5 text-lg">
+            <li>• {L(lang, "Mira la comisión y el tipo de cambio: los dos importan.", "Check the fee and the rate: both matter.")}</li>
+            <li>• {L(lang, "Envía desde tarjeta o cuenta: el efectivo paga 1% de impuesto.", "Send from a card or account: cash pays a 1% tax.")}</li>
+            <li>• {L(lang, "Un envío grande cuesta menos que muchos chiquitos.", "One big transfer costs less than many small ones.")}</li>
+          </ul>
+        </Fold>
+
+        <Fold icon={<ShieldAlert size={22} className="text-clay" />} title={L(lang, "Cuidado con fraudes", "Avoid scams")} sub={L(lang, "Lo que nunca hacer", "What never to do")}>
+          <ul className="space-y-2.5 text-lg">
+            {[
+              L(lang, "No envíes a quien no conoces en persona", "Don't send to anyone you haven't met"),
+              L(lang, "El gobierno nunca pide dinero por teléfono", "The government never asks for money by phone"),
+              L(lang, "Nunca des tu clave ni tu número de tarjeta", "Never share your PIN or card number"),
+              L(lang, "Pide siempre tu recibo", "Always get a receipt"),
+            ].map((x) => <li key={x} className="flex items-start gap-2"><ShieldCheck size={20} className="mt-1 shrink-0 text-clay" /> {x}</li>)}
+          </ul>
+        </Fold>
+      </div>
     </>
+  );
+}
+
+/** A calm, folded section: title row you tap to open. */
+function Fold({ icon, title, sub, children }: { icon: React.ReactNode; title: string; sub: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="h-fit rounded-3xl border border-sand bg-paper">
+      <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-h-20 w-full items-center gap-3 px-5 text-left">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cream">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[1.05rem] leading-tight font-extrabold">{title}</span>
+          <span className="block text-base text-muted">{sub}</span>
+        </span>
+        <ChevronDown size={24} className={cx("shrink-0 text-muted transition", open && "rotate-180")} />
+      </button>
+      {open && <div className="px-5 pb-5">{children}</div>}
+    </div>
   );
 }
