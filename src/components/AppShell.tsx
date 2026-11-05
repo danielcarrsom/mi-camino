@@ -24,6 +24,17 @@ const CASITA: NavItem[] = [
   { href: "/aprender", key: "learn", icon: BookOpen },
 ];
 
+const NEGOCIO: NavItem[] = [
+  { href: "/negocio", key: "home", icon: Store, exact: true },
+  { href: "/negocio/dinero", key: "myMoney", icon: Wallet },
+  { href: "/negocio/metas", key: "myGoals", icon: Target },
+  { href: "/aprender", key: "learn", icon: BookOpen },
+];
+const NEGOCIO_MORE: NavItem[] = [
+  { href: "/aprender", key: "learn", icon: BookOpen },
+  { href: "/casita/documentos", key: "documents", icon: FileSearch },
+];
+
 function isActive(path: string, item: NavItem) {
   return item.exact ? path === item.href : path === item.href || path.startsWith(item.href + "/");
 }
@@ -45,34 +56,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         <ModuleSwitch inNegocio={inNegocio} />
 
         <nav className="mt-6 flex flex-1 flex-col gap-1" aria-label={t("menu")}>
-          {!inNegocio &&
-            CASITA.map((item) => {
-              const active = isActive(path, item);
-              const I = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cx(
-                    "flex h-13 items-center gap-3 rounded-2xl px-4 text-[1.05rem] font-bold transition",
-                    active ? "bg-paper text-ink" : "text-paper/80 hover:bg-paper/10 hover:text-paper",
-                  )}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <I size={22} /> {t(item.key)}
-                </Link>
-              );
-            })}
-          {inNegocio && (
-            <Link href="/negocio" className="flex h-13 items-center gap-3 rounded-2xl bg-paper px-4 font-bold text-ink">
-              <House size={22} /> {t("home")}
-            </Link>
-          )}
-          {!inNegocio && (
-            <Link href="/casita/anotar" className="mt-4 flex h-14 items-center justify-center gap-2 rounded-2xl bg-clay text-lg font-extrabold text-paper hover:bg-clay-dark">
-              <Plus size={24} /> {t("addSpent").split(" ")[0]}
-            </Link>
-          )}
+          {(inNegocio ? NEGOCIO : CASITA).map((item) => {
+            const active = isActive(path, item);
+            const I = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cx(
+                  "flex h-13 items-center gap-3 rounded-2xl px-4 text-[1.05rem] font-bold transition",
+                  active ? "bg-paper text-ink" : "text-paper/80 hover:bg-paper/10 hover:text-paper",
+                )}
+                aria-current={active ? "page" : undefined}
+              >
+                <I size={22} /> {t(item.key)}
+              </Link>
+            );
+          })}
+          <Link href={inNegocio ? "/negocio/anotar" : "/casita/anotar"} className="mt-4 flex h-14 items-center justify-center gap-2 rounded-2xl bg-clay text-lg font-extrabold text-paper hover:bg-clay-dark">
+            <Plus size={24} /> {t("addSpent").split(" ")[0]}
+          </Link>
         </nav>
 
         <div className="mt-6 space-y-1 border-t border-paper/15 pt-4">
@@ -101,7 +104,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           {inNegocio ? (
             <>
               <Tab href="/negocio" icon={Store} label={t("home")} active={path === "/negocio"} />
-              <span /><span /><span />
+              <Tab href="/negocio/metas" icon={Target} label={t("myGoals").replace("Mis ", "").replace("My ", "")} active={path.startsWith("/negocio/metas")} />
+              <Link href="/negocio/anotar" aria-label={t("addSpent")} className="mx-auto -mt-8 flex h-18 w-18 items-center justify-center rounded-full bg-clay text-paper shadow-[0_5px_0_#8f3a20]">
+                <Plus size={36} strokeWidth={2.5} />
+              </Link>
+              <Tab href="/negocio/dinero" icon={Wallet} label={t("myMoney").replace("Mi ", "").replace("My ", "")} active={path.startsWith("/negocio/dinero")} />
             </>
           ) : (
             <>
@@ -122,7 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sheet open={more} onClose={() => setMore(false)} title={t("menu")}>
         <div className="mb-4"><ModuleSwitch inNegocio={inNegocio} onPick={() => setMore(false)} /></div>
         <div className="grid grid-cols-2 gap-3">
-          {CASITA.slice(3).map((item) => {
+          {(inNegocio ? NEGOCIO_MORE : CASITA.slice(3)).map((item) => {
             const I = item.icon;
             return (
               <Link key={item.href} href={item.href} onClick={() => setMore(false)} className="flex min-h-24 flex-col items-start justify-between rounded-3xl border-2 border-sand bg-paper p-4 font-extrabold">

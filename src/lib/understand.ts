@@ -6,7 +6,7 @@ export type ParsedEntry = { kind: "in" | "out"; category: string; amount: number
 export type ParsedWork = { name: string; pay: number; every: Repeat; hoursPerWeek: number; daysPerWeek: number; perHour?: boolean };
 export type Parsed = { entries: ParsedEntry[]; work: ParsedWork | null; heard: string };
 
-const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+export const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const SMALL: Record<string, number> = {
   un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
@@ -15,7 +15,7 @@ const SMALL: Record<string, number> = {
   seiscientos: 600, setecientos: 700, ochocientos: 800, novecientos: 900, mil: 1000,
 };
 
-function numbersIn(s: string): number[] {
+export function numbersIn(s: string): number[] {
   const out: number[] = [];
   const re = /\$?\s?(\d{1,3}(?:[,\s]\d{3})+|\d+)(?:\.(\d{1,2}))?/g;
   let m: RegExpExecArray | null;
@@ -37,7 +37,7 @@ function numbersIn(s: string): number[] {
   return out;
 }
 
-function repeatIn(s: string): Repeat | null {
+export function repeatIn(s: string): Repeat | null {
   const t = strip(s);
   if (/cada (dos|2) semanas|cada quince|quincena|biweekly|every (two|2) weeks/.test(t)) return "2weeks";
   if (/cada semana|a la semana|por semana|semanal|weekly|every week|per week|la semana/.test(t)) return "week";

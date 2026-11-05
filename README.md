@@ -5,7 +5,7 @@ Educación financiera y planeación para cada paisano en Nueva York: en su lengu
 Mi Camino has two sides, so people learn to keep their home money and their business money apart:
 
 - **Mi Casita**: personal and family money. Goals built brick by brick, what you earn (per hour and per day from your paystub), what you spend (rent, electricity, water, groceries…), and a plain-language balance: *Ganas, Gastas, Para tus metas, Te queda*.
-- **Mi Negocio**: small-business money (in progress).
+- **Mi Negocio**: sales and costs (voice, typing or tapping products), a traffic-light health check, product cost and price calculator, "what if" look-ahead, business goals with automatic savings, plain-language suggestions, and "pay yourself" into Mi Casita.
 
 Everything can be done three ways: **talking, typing (spelling mistakes are fine) or taking a photo**. Every screen can be read aloud.
 
@@ -31,7 +31,7 @@ Everything can be done three ways: **talking, typing (spelling mistakes are fine
 | Explain a document + scam check | 🔜 |
 | Remittance calculator + Finabien | 🔜 |
 | Learn: games and audio lessons | 🔜 |
-| Mi Negocio | 🔜 |
+| Mi Negocio | ✅ |
 | Indigenous-language audio (Mixteco, Náhuatl, Maya, K'iche', Kichwa) | 🔜 recorded with native speakers |
 
 ## Run it

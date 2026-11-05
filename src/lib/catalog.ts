@@ -78,6 +78,7 @@ export const INCOME_CATEGORIES: Category[] = [
   { id: "propinas", group: "ingreso", label: { es: "Propinas", en: "Tips" }, icon: "coins", keywords: ["propina", "propinas", "tips"], defaultRepeat: "once" },
   { id: "extra", group: "ingreso", label: { es: "Trabajo extra", en: "Extra work" }, icon: "wrench", keywords: ["extra", "chambita", "side", "trabajito"], defaultRepeat: "once" },
   { id: "regalo", group: "ingreso", label: { es: "Me regalaron o prestaron", en: "Gift or loan to me" }, icon: "gift", keywords: ["regalo", "me regalaron", "me prestaron"], defaultRepeat: "once" },
+  { id: "mi_negocio", group: "ingreso", label: { es: "Sueldo de mi negocio", en: "Pay from my business" }, icon: "store", keywords: ["mi negocio", "mi sueldo del negocio"], defaultRepeat: "once" },
   { id: "otro_ingreso", group: "ingreso", label: { es: "Otro dinero", en: "Other money" }, icon: "wallet", keywords: [], defaultRepeat: "once" },
 ];
 export const incomeCategoryById = (id: string) => INCOME_CATEGORIES.find((c) => c.id === id) ?? INCOME_CATEGORIES[INCOME_CATEGORIES.length - 1];

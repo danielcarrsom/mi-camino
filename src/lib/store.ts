@@ -7,6 +7,7 @@ import { persist } from "zustand/middleware";
 import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
 import { uid, toMonthly, toWeekly, isThisWeek } from "./money";
+import type { BizEntry, Product, BizType } from "./business";
 import { cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs } from "./cloud";
 
 export type Profile = {
@@ -82,7 +83,18 @@ export type UserData = {
   goals: Goal[];
   tandas?: Tanda[];
   learn?: Learn;
+  business?: Business;
   updatedAt?: string;          // last change on this device or in the cloud
+};
+
+/** Mi Negocio: its own money, products and goals, kept apart from the home. */
+export type Business = {
+  name: string;
+  type: BizType;
+  entries: BizEntry[];
+  products: Product[];
+  goals: Goal[];
+  createdAt: string;
 };
 
 /** Best stars per game (0–3) and lessons finished. */
@@ -130,6 +142,21 @@ type State = {
   receiveTanda: (id: string) => void;
   setGameStars: (game: string, stars: number) => void;
   markLessonRead: (lesson: string) => void;
+
+  setupBusiness: (b: { name: string; type: BizType }) => void;
+  updateBusiness: (b: Partial<Pick<Business, "name" | "type">>) => void;
+  addBizEntries: (e: Omit<BizEntry, "id">[]) => void;
+  updateBizEntry: (id: string, e: Partial<Omit<BizEntry, "id">>) => void;
+  removeBizEntry: (id: string) => void;
+  addProduct: (p: Omit<Product, "id" | "createdAt">) => void;
+  updateProduct: (id: string, p: Partial<Omit<Product, "id" | "createdAt">>) => void;
+  removeProduct: (id: string) => void;
+  addBizGoal: (g: { preset: string; name: string; target: number }) => string;
+  updateBizGoal: (id: string, g: Partial<Pick<Goal, "name" | "target">>) => void;
+  removeBizGoal: (id: string) => void;
+  bizDeposit: (goalId: string, amount: number) => void;
+  setBizPlan: (goalId: string, plan: { amount: number; every: Plan["every"] } | null) => void;
+  payMyself: (amount: number) => void;
 };
 
 export const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -138,6 +165,46 @@ async function hashPin(phone: string, pin: string): Promise<string> {
   const data = new TextEncoder().encode(`mi-camino:${phone}:${pin}`);
   const buf = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Adds the automatic bricks a savings plan owes since it was last applied. */
+function applyGoalPlans(goals: Goal[]): Goal[] | null {
+  let changed = false;
+  const out = goals.map((g) => {
+    if (!g.plan) return g;
+    let last = new Date(g.plan.lastApplied);
+    let saved = goalSaved(g);
+    const added: Deposit[] = [];
+    for (let next = nextPeriod(last, g.plan.every); next.getTime() <= Date.now() && saved < g.target && added.length < 60; next = nextPeriod(next, g.plan.every)) {
+      const amt = Math.min(g.plan.amount, g.target - saved);
+      added.push({ id: uid(), amount: amt, date: next.toISOString(), auto: true });
+      saved += amt;
+      last = next;
+    }
+    if (!added.length) return g;
+    changed = true;
+    return { ...g, deposits: [...g.deposits, ...added], plan: { ...g.plan, lastApplied: last.toISOString() } };
+  });
+  return changed ? out : null;
+}
+
+/** Starting a plan sets apart the first amount right away (this week). */
+function withPlan(g: Goal, plan: { amount: number; every: Plan["every"] } | null): Goal {
+  if (!plan) return { ...g, plan: null };
+  const now = new Date().toISOString();
+  const first = Math.min(plan.amount, Math.max(0, g.target - goalSaved(g)));
+  const startingNew = !g.plan;
+  return {
+    ...g,
+    plan: { ...plan, lastApplied: startingNew ? now : g.plan!.lastApplied },
+    deposits: startingNew && first > 0 ? [...g.deposits, { id: uid(), amount: first, date: now, auto: true }] : g.deposits,
+  };
+}
+
+function withBiz(d: UserData, fn: (b: Business) => Business): UserData {
+  if (!d.business) return d;
+  const next = fn(d.business);
+  return next === d.business ? d : { ...d, business: next };
 }
 
 function mutateCurrent(state: State, fn: (d: UserData) => UserData): Partial<State> {
@@ -201,6 +268,42 @@ function demoData(lang: Lang): UserData {
         id: uid(), name: "Tanda de las compañeras", amount: 100, every: "week", people: 10,
         names: ["Lupe", "Rosa", "Carmen", "Juana", "Elena", "", "Paty", "Sofía", "Inés", "Marta"],
         myTurn: 6, start: daysAgo(21), paid: [0, 1, 2], received: false, goalId: casaId, createdAt: daysAgo(25),
+      },
+    ],
+    business: demoBusiness(),
+  };
+}
+
+/** María sells tamales on weekends: about 8 weeks of history, a little better each month. */
+function demoBusiness(): Business {
+  const entries: BizEntry[] = [];
+  const add = (kind: "in" | "out", category: string, amount: number, ago: number, note = "", repeat: Repeat = "once") =>
+    entries.push({ id: uid(), kind, category, amount, repeat, note, date: daysAgo(ago), source: "voz" });
+  for (let ago = 1; ago <= 58; ago++) {
+    const d = new Date(); d.setDate(d.getDate() - ago);
+    const dow = d.getDay();
+    const lift = ago < 30 ? 1.12 : 1; // this month went better
+    if (dow === 6 || dow === 0) add("in", "ventas", Math.round((dow === 0 ? 330 : 270) * lift + ((ago * 37) % 40)), ago, "Tamales y champurrado");
+    if (dow === 5) add("out", "mercancia", Math.round(165 * lift + ((ago * 13) % 20)), ago, "Masa, carne y hojas");
+    if (dow === 3 && ago % 2 === 1) add("in", "pedidos", 90 + ((ago * 7) % 50), ago, "Encargo para fiesta");
+    if (dow === 5 && ago % 14 < 7) add("out", "empaque", 28, ago, "Vasos y bolsas");
+  }
+  add("out", "local", 300, 25, "Cocina compartida", "month");
+  add("out", "permisos", 30, 25, "Permiso de comida", "month");
+  add("out", "servicios", 45, 20, "Gas", "month");
+  add("out", "mi_sueldo", 200, 8);
+  return {
+    name: "Tamales María", type: "comida", createdAt: daysAgo(60), entries,
+    products: [
+      { id: uid(), name: "Tamal", cost: 1.1, price: 3, perWeek: 140, createdAt: daysAgo(40) },
+      { id: uid(), name: "Champurrado", cost: 0.6, price: 2.5, perWeek: 50, createdAt: daysAgo(40) },
+      { id: uid(), name: "Torta de tamal", cost: 3.9, price: 4.5, perWeek: 20, createdAt: daysAgo(20) },
+    ],
+    goals: [
+      {
+        id: uid(), preset: "equipo", name: "Carrito para vender", target: 2500, createdAt: daysAgo(45),
+        deposits: [{ id: uid(), amount: 400, date: daysAgo(40) }, { id: uid(), amount: 300, date: daysAgo(20) }, { id: uid(), amount: 50, date: daysAgo(2), auto: true }],
+        plan: { amount: 50, every: "week", lastApplied: daysAgo(2) },
       },
     ],
   };
@@ -363,22 +466,11 @@ export const useStore = create<State>()(
       applyPlans: () =>
         set((s) =>
           mutateCurrent(s, (d) => {
-            let changed = false;
-            const goals = d.goals.map((g) => {
-              if (!g.plan) return g;
-              let last = new Date(g.plan.lastApplied);
-              let saved = goalSaved(g);
-              const added: Deposit[] = [];
-              for (let next = nextPeriod(last, g.plan.every); next.getTime() <= Date.now() && saved < g.target && added.length < 60; next = nextPeriod(next, g.plan.every)) {
-                const amt = Math.min(g.plan.amount, g.target - saved);
-                added.push({ id: uid(), amount: amt, date: next.toISOString(), auto: true });
-                saved += amt;
-                last = next;
-              }
-              if (!added.length) return g;
-              changed = true;
-              return { ...g, deposits: [...g.deposits, ...added], plan: { ...g.plan, lastApplied: last.toISOString() } };
-            });
+            const planned = applyGoalPlans(d.goals);
+            let changed = !!planned;
+            const goals = planned ?? d.goals;
+            const bizPlanned = d.business ? applyGoalPlans(d.business.goals) : null;
+            if (bizPlanned) changed = true;
             // Older tanda payouts were saved as a normal deposit of amount × people:
             // mark them as coming from the tanda and fix the amount.
             let fixedGoals = goals;
@@ -394,7 +486,8 @@ export const useStore = create<State>()(
                 return { ...g, deposits: deps };
               });
             }
-            return changed ? { ...d, goals: fixedGoals } : d;
+            if (!changed) return d;
+            return { ...d, goals: fixedGoals, business: d.business && bizPlanned ? { ...d.business, goals: bizPlanned } : d.business };
           }),
         ),
       addTanda: (t) => {
@@ -405,6 +498,57 @@ export const useStore = create<State>()(
       updateTanda: (id, t) =>
         set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).map((x) => (x.id === id ? { ...x, ...t } : x)) }))),
       removeTanda: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).filter((x) => x.id !== id) }))),
+      setupBusiness: ({ name, type }) =>
+        set((s) =>
+          mutateCurrent(s, (d) => ({
+            ...d,
+            profile: { ...d.profile, negocio: true },
+            business: d.business ? { ...d.business, name, type } : { name, type, entries: [], products: [], goals: [], createdAt: new Date().toISOString() },
+          })),
+        ),
+      updateBusiness: (b) => set((s) => mutateCurrent(s, (d) => withBiz(d, (x) => ({ ...x, ...b })))),
+      addBizEntries: (es) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, entries: [...es.map((e) => ({ ...e, id: uid() })), ...b.entries] })))),
+      updateBizEntry: (id, e) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, entries: b.entries.map((x) => (x.id === id ? { ...x, ...e } : x)) })))),
+      removeBizEntry: (id) => set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, entries: b.entries.filter((x) => x.id !== id) })))),
+      addProduct: (p) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, products: [...b.products, { ...p, id: uid(), createdAt: new Date().toISOString() }] })))),
+      updateProduct: (id, p) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, products: b.products.map((x) => (x.id === id ? { ...x, ...p } : x)) })))),
+      removeProduct: (id) => set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, products: b.products.filter((x) => x.id !== id) })))),
+      addBizGoal: ({ preset, name, target }) => {
+        const id = uid();
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, goals: [...b.goals, { id, preset, name, target, deposits: [], createdAt: new Date().toISOString() }] }))));
+        return id;
+      },
+      updateBizGoal: (id, g) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, goals: b.goals.map((x) => (x.id === id ? { ...x, ...g } : x)) })))),
+      removeBizGoal: (id) => set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, goals: b.goals.filter((x) => x.id !== id) })))),
+      bizDeposit: (goalId, amount) =>
+        set((s) =>
+          mutateCurrent(s, (d) =>
+            withBiz(d, (b) => ({ ...b, goals: b.goals.map((g) => (g.id === goalId ? { ...g, deposits: [...g.deposits, { id: uid(), amount, date: new Date().toISOString() }] } : g)) })),
+          ),
+        ),
+      setBizPlan: (goalId, plan) =>
+        set((s) =>
+          mutateCurrent(s, (d) =>
+            withBiz(d, (b) => ({ ...b, goals: b.goals.map((g) => (g.id === goalId ? withPlan(g, plan) : g)) })),
+          ),
+        ),
+      payMyself: (amount) =>
+        set((s) =>
+          mutateCurrent(s, (d) => {
+            if (!d.business || amount <= 0) return d;
+            const date = new Date().toISOString();
+            return {
+              ...d,
+              entries: [{ id: uid(), kind: "in", category: "mi_negocio", amount, repeat: "once", note: d.business.name, date, source: "manual" }, ...d.entries],
+              business: { ...d.business, entries: [{ id: uid(), kind: "out", category: "mi_sueldo", amount, repeat: "once", note: "", date, source: "manual" }, ...d.business.entries] },
+            };
+          }),
+        ),
       setGameStars: (game, stars) =>
         set((s) =>
           mutateCurrent(s, (d) => {
