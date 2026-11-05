@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  House, Target, Wallet, Users, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
+  House, Target, Wallet, Users, Cloud, CloudOff, RefreshCw, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
 } from "lucide-react";
 import { Logo, Sheet, cx } from "./ui";
 import { useLang, useMe, useStore } from "@/lib/store";
@@ -78,6 +78,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mt-6 space-y-1 border-t border-paper/15 pt-4">
           <SettingsButtons onLang={() => setLangOpen(true)} dark />
           {me && <p className="px-4 pt-2 text-sm text-paper/60">{me.profile.name}</p>}
+          <CloudBadge dark />
         </div>
       </aside>
 
@@ -130,13 +131,28 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </div>
-        <div className="mt-5 space-y-1">
+        <div className="mt-4"><CloudBadge /></div>
+        <div className="mt-3 space-y-1">
           <SettingsButtons onLang={() => { setMore(false); setLangOpen(true); }} />
         </div>
       </Sheet>
 
       <LanguageSheet open={langOpen} onClose={() => setLangOpen(false)} />
     </div>
+  );
+}
+
+function CloudBadge({ dark }: { dark?: boolean }) {
+  const status = useStore((s) => s.cloud);
+  const lang = useLang();
+  if (status === "off") return null;
+  const en = lang === "en";
+  const text = status === "saved" ? (en ? "Saved online" : "Guardado en línea") : status === "syncing" ? (en ? "Saving…" : "Guardando…") : en ? "Only on this device" : "Solo en este dispositivo";
+  const I = status === "saved" ? Cloud : status === "syncing" ? RefreshCw : CloudOff;
+  return (
+    <p className={cx("flex items-center gap-2 px-4 text-sm font-bold", dark ? (status === "local" ? "text-sun" : "text-paper/60") : status === "local" ? "text-warn" : "text-muted")}>
+      <I size={16} className={status === "syncing" ? "animate-spin" : undefined} /> {text}
+    </p>
   );
 }
 
