@@ -144,14 +144,19 @@ export function Tile({ icon, label, sub, onClick, href, selected, color = "#b34a
 export function Sheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
+  // Keep the latest onClose without re-running the open effect on every
+  // render; re-running it moved focus away from inputs after each keystroke.
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   useEffect(() => {
     if (!open) return;
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const k = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
     document.addEventListener("keydown", k);
     document.body.style.overflow = "hidden";
-    ref.current?.focus();
+    // focus the dialog only if nothing inside it (like an amount box) took focus
+    requestAnimationFrame(() => { if (ref.current && !ref.current.contains(document.activeElement)) ref.current.focus(); });
     return () => { document.removeEventListener("keydown", k); document.body.style.overflow = ""; };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 md:items-center md:p-6" onClick={onClose}>
@@ -186,6 +191,7 @@ export function AmountInput({ value, onChange, autoFocus, label }: { value: stri
         <input
           inputMode="decimal"
           autoFocus={autoFocus}
+          onFocus={(e) => e.currentTarget.select()}
           value={value}
           onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1"))}
           placeholder="0"

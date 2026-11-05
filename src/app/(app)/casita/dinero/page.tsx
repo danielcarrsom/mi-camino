@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { Hammer, Plus, Trash2, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { useLang, useMe, useStore } from "@/lib/store";
+import { useLang, useMe, type Entry, type Work } from "@/lib/store";
+import { EntryEditSheet, WorkEditSheet } from "@/components/MoneyForms";
 import { useSummary } from "@/lib/useSummary";
-import { money, moneySpoken, shortDate } from "@/lib/money";
+import { money, moneySpoken, shortDate, toMonthly } from "@/lib/money";
 import { GROUPS, categoryById, incomeCategoryById, pick } from "@/lib/catalog";
 import type { TKey } from "@/lib/i18n";
 
@@ -17,9 +18,15 @@ export default function MoneyPage() {
   const lang = useLang();
   const me = useMe()!;
   const s = useSummary()!;
-  const removeEntry = useStore((x) => x.removeEntry);
-  const removeWork = useStore((x) => x.removeWork);
   const [view, setView] = useState<"month" | "week">("month");
+  const [editEntry, setEditEntry] = useState<Entry | null>(null);
+  const [editWork, setEditWork] = useState<Work | null>(null);
+
+  const fixedOut = me.entries.filter((e) => e.kind === "out" && e.repeat !== "once");
+  const fixedIn = me.entries.filter((e) => e.kind === "in" && e.repeat !== "once");
+  const onceOut = me.entries.filter((e) => e.kind === "out" && e.repeat === "once");
+  const onceIn = me.entries.filter((e) => e.kind === "in" && e.repeat === "once");
+  const fixedOutMonthly = fixedOut.reduce((a, e) => a + toMonthly(e.amount, e.repeat), 0);
 
   const earn = view === "month" ? s.monthIn : s.weekIn;
   const spend = view === "month" ? s.monthOut : s.weekOut;
@@ -105,7 +112,7 @@ export default function MoneyPage() {
                           <p className="text-base text-muted">{money(w.pay, lang)} · {t(REPEAT_KEY[w.every])}</p>
                         </div>
                       </div>
-                      <button onClick={() => removeWork(w.id)} aria-label={t("delete")} className="flex h-11 w-11 items-center justify-center rounded-xl text-muted hover:bg-sand/60 hover:text-clay"><Trash2 size={20} /></button>
+                      <PencilButton onClick={() => setEditWork(w)} label={t("editEntry")} />
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <Stat value={money(weekly / Math.max(1, w.hoursPerWeek), lang, true)} label={t("perHour")} />
@@ -145,35 +152,38 @@ export default function MoneyPage() {
         </section>
       </div>
 
-      {/* Everything recorded */}
+      {/* Fixed expenses: added once, they repeat by themselves */}
       <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">{t("recent")}</h2>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold">{t("fixedExpenses")}</h2>
           <Button href="/casita/anotar?tipo=gaste" variant="soft" className="min-h-12 px-4 text-base"><Plus size={20} /> {t("addSpent")}</Button>
         </div>
-        <Card className="p-2 md:p-2">
-          {me.entries.length === 0 ? (
-            <p className="p-4 text-lg text-muted">{t("noEntries")}</p>
-          ) : (
-            <ul className="divide-y divide-sand">
-              {me.entries.map((e) => {
-                const c = e.kind === "in" ? incomeCategoryById(e.category) : categoryById(e.category);
-                return (
-                  <li key={e.id} className="flex items-center gap-3 px-3 py-3">
-                    <span className={cx("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay")}><Icon name={c.icon} size={22} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-bold">{pick(c.label, lang)}{e.note ? ` · ${e.note}` : ""}</span>
-                      <span className="block text-sm text-muted">{t(REPEAT_KEY[e.repeat])} · {shortDate(e.date, lang)}</span>
-                    </span>
-                    <span className={cx("font-serif text-xl font-semibold", e.kind === "in" && "text-leaf")}>{e.kind === "in" ? "+" : "−"}{money(e.amount, lang)}</span>
-                    <button onClick={() => removeEntry(e.id)} aria-label={t("delete")} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-sand/60 hover:text-clay"><Trash2 size={18} /></button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+        <p className="mb-3 flex items-center gap-2 text-base text-muted"><RepeatIcon size={18} className="shrink-0 text-leaf" /> {t("fixedHint")}</p>
+        <EntryList items={fixedOut} onEdit={setEditEntry} total={fixedOutMonthly} empty={t("noEntries")} />
       </section>
+
+      {fixedIn.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-3 text-2xl font-semibold">{t("fixedIncome")}</h2>
+          <EntryList items={fixedIn} onEdit={setEditEntry} />
+        </section>
+      )}
+
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        <section>
+          <h2 className="mb-3 text-2xl font-semibold">{t("oneTimeExpenses")}</h2>
+          <EntryList items={onceOut} onEdit={setEditEntry} empty={t("noEntries")} />
+        </section>
+        {onceIn.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-2xl font-semibold">{t("oneTimeIncome")}</h2>
+            <EntryList items={onceIn} onEdit={setEditEntry} />
+          </section>
+        )}
+      </div>
+
+      <EntryEditSheet entry={editEntry} onClose={() => setEditEntry(null)} />
+      <WorkEditSheet work={editWork} onClose={() => setEditWork(null)} />
     </>
   );
 }
@@ -205,4 +215,48 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function Legend({ color, label }: { color: string; label: string }) {
   return <span className="flex items-center gap-2"><span className={cx("h-3.5 w-3.5 rounded-full", color)} /> {label}</span>;
+}
+
+function PencilButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60 text-ink hover:bg-sun-soft hover:text-clay">
+      <Pencil size={19} />
+    </button>
+  );
+}
+
+/** A list of saved money, each row with a pencil to change it. */
+function EntryList({ items, onEdit, total, empty }: { items: Entry[]; onEdit: (e: Entry) => void; total?: number; empty?: string }) {
+  const t = useT();
+  const lang = useLang();
+  if (!items.length) return <Card><p className="text-lg text-muted">{empty ?? t("noEntries")}</p></Card>;
+  return (
+    <Card className="p-2 md:p-2">
+      <ul className="divide-y divide-sand">
+        {items.map((e) => {
+          const c = e.kind === "in" ? incomeCategoryById(e.category) : categoryById(e.category);
+          return (
+            <li key={e.id}>
+              <button onClick={() => onEdit(e)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-cream">
+                <span className={cx("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay")}><Icon name={c.icon} size={22} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-bold">{pick(c.label, lang)}{e.note ? ` · ${e.note}` : ""}</span>
+                  <span className="block text-sm text-muted">{e.repeat === "once" ? shortDate(e.date, lang) : t(REPEAT_KEY[e.repeat])}</span>
+                </span>
+                <span className={cx("font-serif text-xl font-semibold", e.kind === "in" && "text-leaf")}>{e.kind === "in" ? "+" : "−"}{money(e.amount, lang)}</span>
+                <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60 text-ink"><Pencil size={19} /></span>
+                <span className="sr-only">{t("editEntry")}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {total != null && (
+        <div className="flex items-center justify-between border-t-2 border-sand px-3 pt-3 pb-2">
+          <span className="text-lg font-extrabold">{lang === "en" ? "Total" : "En total"}</span>
+          <span className="font-serif text-2xl font-semibold">{money(total, lang)} <span className="text-base text-muted">{t("perMonthShort")}</span></span>
+        </div>
+      )}
+    </Card>
+  );
 }

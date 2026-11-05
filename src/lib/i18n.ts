@@ -204,6 +204,16 @@ const es = {
   incomeKindOther: "Otro dinero que me llegó",
 
   aiDisclaimer: "La inteligencia artificial puede equivocarse. Revisa que todo esté bien.",
+  fixedExpenses: "Gastos fijos",
+  fixedHint: "Los anotas una vez y se repiten solos. Si algo cambia, toca el lápiz.",
+  fixedIncome: "Dinero que te llega seguido",
+  oneTimeExpenses: "Gastos de una vez",
+  oneTimeIncome: "Dinero extra que te llegó",
+  repeatsAlone: "Se repite solo. No tienes que volver a anotarlo.",
+  alreadyHave: "Ya tienes este gasto anotado. Si guardas, lo cambiamos por el nuevo.",
+  editEntry: "Cambiar",
+  perMonthShort: "al mes",
+  note: "Nota (opcional)",
 } as const;
 
 export type TKey = keyof typeof es;
@@ -373,6 +383,16 @@ const en: Record<TKey, string> = {
   incomeKindOther: "Other money I received",
 
   aiDisclaimer: "AI can make mistakes. Check that everything is right.",
+  fixedExpenses: "Fixed expenses",
+  fixedHint: "You add them once and they repeat on their own. If something changes, tap the pencil.",
+  fixedIncome: "Money you get regularly",
+  oneTimeExpenses: "One-time expenses",
+  oneTimeIncome: "Extra money you got",
+  repeatsAlone: "It repeats on its own. You don't have to add it again.",
+  alreadyHave: "You already have this expense. If you save, we'll replace it with the new one.",
+  editEntry: "Change",
+  perMonthShort: "a month",
+  note: "Note (optional)",
 };
 
 const DICTS: Record<"es" | "en", Record<TKey, string>> = { es, en };

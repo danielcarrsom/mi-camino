@@ -1,13 +1,14 @@
 "use client";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDownCircle, ArrowUpCircle, Mic, Keyboard, Camera, Check, Trash2, Hammer, Loader2, ImageUp, ShieldCheck } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Mic, Keyboard, Camera, Check, Trash2, Hammer, Loader2, ImageUp, ShieldCheck, Repeat as RepeatIcon } from "lucide-react";
 import { AmountInput, Button, Card, Disclaimer, MicButton, PageHeader, Sheet, Tile, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { useLang, useStore, type Source } from "@/lib/store";
+import { useLang, useMe, useStore, type Source } from "@/lib/store";
 import { money, moneySpoken } from "@/lib/money";
-import { CATEGORIES, GROUPS, INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
+import { INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
+import { CategorySheet, RepeatPicker, WorkEditor, toSavedWork } from "@/components/MoneyForms";
 import type { Parsed, ParsedEntry, ParsedWork } from "@/lib/understand";
 import { speak } from "@/lib/voice";
 import { playSaved } from "@/lib/sound";
@@ -30,6 +31,8 @@ function Add() {
   const router = useRouter();
   const addEntries = useStore((s) => s.addEntries);
   const addWork = useStore((s) => s.addWork);
+  const updateEntry = useStore((s) => s.updateEntry);
+  const me = useMe();
 
   const tipo = params.get("tipo");
   const [kind, setKind] = useState<Kind | null>(tipo === "gane" ? "in" : tipo === "gaste" ? "out" : null);
@@ -39,6 +42,7 @@ function Add() {
   const [source, setSource] = useState<Source>("voz");
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [savedRepeats, setSavedRepeats] = useState(false);
 
   useEffect(() => {
     setKind(tipo === "gane" ? "in" : tipo === "gaste" ? "out" : null);
@@ -75,7 +79,16 @@ function Add() {
 
   function save(entries: ParsedEntry[], work: ParsedWork | null, src: Source = source) {
     const now = new Date().toISOString();
-    if (entries.length) addEntries(entries.map((e) => ({ ...e, date: now, source: src })));
+    // A fixed expense (rent, electricity…) is kept once and repeats by itself.
+    // Saving the same fixed one again updates it instead of counting it twice.
+    const fresh: ParsedEntry[] = [];
+    for (const e of entries) {
+      const existing = e.repeat !== "once" ? me?.entries.find((x) => x.kind === e.kind && x.category === e.category && x.repeat !== "once") : undefined;
+      if (existing) updateEntry(existing.id, { amount: e.amount, repeat: e.repeat, note: e.note || existing.note, source: src });
+      else fresh.push(e);
+    }
+    if (fresh.length) addEntries(fresh.map((e) => ({ ...e, date: now, source: src })));
+    setSavedRepeats(entries.some((e) => e.repeat !== "once"));
     const job = work ? toSavedWork(work) : null;
     if (job) { const { perHour: _ignored, ...rest } = job; void _ignored; addWork({ ...rest, source: src }); }
     const total = entries.reduce((a, e) => a + e.amount, 0) + (job?.pay ?? 0);
@@ -104,6 +117,7 @@ function Add() {
       <div className="mx-auto flex max-w-lg flex-col items-center py-10 text-center">
         <span className="pop-in flex h-28 w-28 items-center justify-center rounded-full bg-leaf text-paper"><Check size={64} strokeWidth={3} /></span>
         <h1 className="mt-6 text-4xl font-semibold">{t("savedOk")}</h1>
+        {savedRepeats && <p className="mt-3 flex items-center gap-2 rounded-2xl bg-leaf-soft px-4 py-3 text-lg"><RepeatIcon size={22} className="shrink-0 text-leaf" /> {t("repeatsAlone")}</p>}
         <div className="mt-8 flex w-full flex-col gap-3">
           <Button href="/casita">{t("home")}</Button>
           <Button variant="soft" onClick={() => { setSaved(false); setResult(null); }}>{kind === "in" ? t("addEarned") : t("addSpent")}</Button>
@@ -242,10 +256,6 @@ async function shrinkImage(file: File): Promise<{ data: string; type: string }> 
 }
 
 // ---------- Review / edit what was understood ----------
-const REPEATS: { id: Repeat; key: "once" | "weekly" | "biweekly" | "monthly" }[] = [
-  { id: "once", key: "once" }, { id: "week", key: "weekly" }, { id: "2weeks", key: "biweekly" }, { id: "month", key: "monthly" },
-];
-
 function Review({ kind, initial, onCancel, onSave }: { kind: Kind; initial: Parsed; onCancel: () => void; onSave: (e: ParsedEntry[], w: ParsedWork | null) => void }) {
   const t = useT();
   const lang = useLang();
@@ -283,13 +293,8 @@ function Review({ kind, initial, onCancel, onSave }: { kind: Kind; initial: Pars
             </div>
             <div className="mt-4"><AmountInput value={String(e.amount)} onChange={(v) => upd(i, { amount: Number(v) || 0 })} /></div>
             <p className="mt-4 mb-2 text-lg font-bold">{t("howOften")}</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {REPEATS.map((r) => (
-                <button key={r.id} onClick={() => upd(i, { repeat: r.id })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", e.repeat === r.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>
-                  {t(r.key)}
-                </button>
-              ))}
-            </div>
+            <RepeatPicker value={e.repeat} onChange={(r) => upd(i, { repeat: r })} />
+            {e.repeat !== "once" && <p className="mt-3 flex items-center gap-2 text-base text-leaf"><RepeatIcon size={18} /> {t("repeatsAlone")}</p>}
             {e.note && <p className="mt-3 text-base text-muted">{e.note}</p>}
           </Card>
         );
@@ -314,107 +319,6 @@ function Review({ kind, initial, onCancel, onSave }: { kind: Kind; initial: Pars
   );
 }
 
-/** What a job pays in one week, whether it's quoted per hour or per pay period. */
-function weeklyPay(w: ParsedWork): number {
-  if (w.perHour) return w.pay * w.hoursPerWeek;
-  return w.every === "week" ? w.pay : w.every === "2weeks" ? w.pay / 2 : (w.pay * 12) / 52;
-}
-
-/** Saved jobs always store pay per period, so an hourly rate becomes a weekly paycheck. */
-function toSavedWork(w: ParsedWork): ParsedWork {
-  if (!w.perHour) return w;
-  return { ...w, pay: Math.round(w.pay * w.hoursPerWeek * 100) / 100, every: "week", perHour: false };
-}
-
-function WorkEditor({ work, onChange }: { work: ParsedWork; onChange: (w: ParsedWork) => void }) {
-  const t = useT();
-  const lang = useLang();
-  const weekly = weeklyPay(work);
-  const perHour = work.hoursPerWeek ? weekly / work.hoursPerWeek : 0;
-  const perDay = work.daysPerWeek ? weekly / work.daysPerWeek : 0;
-  return (
-    <div className="mt-4 space-y-4">
-      <div>
-        <p className="mb-2 text-lg font-bold">{t("payEvery")}</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <button onClick={() => onChange({ ...work, perHour: true, every: "week" })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", work.perHour ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
-            {t("hourly")}
-          </button>
-          {REPEATS.slice(1).map((r) => (
-            <button key={r.id} onClick={() => onChange({ ...work, perHour: false, every: r.id })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", !work.perHour && work.every === r.id ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
-              {t(r.key)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <AmountInput label={work.perHour ? t("payPerHourQ") : t("payWhat")} value={String(work.pay)} onChange={(v) => onChange({ ...work, pay: Number(v) || 0 })} />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Stepper label={t("payHours")} value={work.hoursPerWeek} min={1} max={100} step={1} onChange={(v) => onChange({ ...work, hoursPerWeek: v })} />
-        <Stepper label={t("payDays")} value={work.daysPerWeek} min={1} max={7} step={1} onChange={(v) => onChange({ ...work, daysPerWeek: v })} />
-      </div>
-      <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
-        <p className="text-base font-bold">{t("weekTotal")}</p>
-        <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-leaf-soft p-4 text-center">
-          <p className="font-serif text-3xl font-semibold text-leaf">{money(perHour, lang, true)}</p>
-          <p className="text-base font-bold">{t("perHour")}</p>
-        </div>
-        <div className="rounded-2xl bg-leaf-soft p-4 text-center">
-          <p className="font-serif text-3xl font-semibold text-leaf">{money(perDay, lang)}</p>
-          <p className="text-base font-bold">{t("perDay")}</p>
-        </div>
-      </div>
-      <input value={work.name} onChange={(e) => onChange({ ...work, name: e.target.value })} placeholder={t("workName")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
-    </div>
-  );
-}
-
-function Stepper({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
-  return (
-    <div>
-      <p className="mb-2 text-lg font-bold">{label}</p>
-      <div className="flex items-center justify-between rounded-2xl border-2 border-sand bg-paper p-1.5">
-        <button onClick={() => onChange(Math.max(min, value - step))} className="h-12 w-12 rounded-xl bg-sand/70 text-2xl font-bold" aria-label="−">−</button>
-        <span className="font-serif text-3xl font-semibold">{value}</span>
-        <button onClick={() => onChange(Math.min(max, value + step))} className="h-12 w-12 rounded-xl bg-sand/70 text-2xl font-bold" aria-label="+">+</button>
-      </div>
-    </div>
-  );
-}
-
-function CategorySheet({ open, kind, onClose, onPick }: { open: boolean; kind: Kind; onClose: () => void; onPick: (id: string) => void }) {
-  const t = useT();
-  const lang = useLang();
-  return (
-    <Sheet open={open} onClose={onClose} title={t("category")}>
-      {kind === "in" ? (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {INCOME_CATEGORIES.map((c) => (
-            <Tile key={c.id} icon={<Icon name={c.icon} />} label={pick(c.label, lang)} color="#3e7d4f" onClick={() => onPick(c.id)} className="min-h-18" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {GROUPS.map((g) => (
-            <div key={g.id}>
-              <p className="mb-2 flex items-center gap-2 text-base font-extrabold tracking-wide text-muted uppercase"><Icon name={g.icon} size={18} /> {pick(g.label, lang)}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {CATEGORIES.filter((c) => c.group === g.id).map((c) => (
-                  <button key={c.id} onClick={() => onPick(c.id)} className="flex min-h-16 items-center gap-2 rounded-2xl border-2 border-sand bg-paper px-3 text-left font-bold hover:border-clay">
-                    <Icon name={c.icon} size={22} className="shrink-0" /> <span className="leading-tight">{pick(c.label, lang)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Sheet>
-  );
-}
-
 // ---------- "Or choose yourself" ----------
 function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[], w: ParsedWork | null) => void }) {
   const t = useT();
@@ -427,6 +331,8 @@ function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[
   const [work, setWork] = useState<ParsedWork>({ name: "", pay: 0, every: "week", hoursPerWeek: 40, daysPerWeek: 5 });
 
   const reset = () => { setCat(null); setWorkMode(false); setAmount(""); setRepeat("once"); };
+  const me = useMe();
+  const fixedFor = (id: string) => me?.entries.find((x) => x.kind === kind && x.category === id && x.repeat !== "once");
   const quick = kind === "out" ? ["renta", "luz", "agua", "super", "metro", "telefono", "envio", "otro"] : [];
 
   return (
@@ -446,7 +352,7 @@ function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[
           quick.map((id) => {
             const c = categoryById(id);
             return (
-              <button key={id} onClick={() => { reset(); setCat(id); setRepeat(c.defaultRepeat); setOpen(true); }} className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-sand bg-paper p-2 text-center font-bold hover:border-clay">
+              <button key={id} onClick={() => { reset(); setCat(id); const ex = fixedFor(id); setRepeat(ex?.repeat ?? c.defaultRepeat); setAmount(ex ? String(ex.amount) : ""); setOpen(true); }} className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-sand bg-paper p-2 text-center font-bold hover:border-clay">
                 <Icon name={c.icon} size={26} className="text-clay" /> <span className="leading-tight">{pick(c.label, lang)}</span>
               </button>
             );
@@ -471,15 +377,11 @@ function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[
                 ))}
               </div>
             )}
+            {cat && fixedFor(cat) && <p className="mb-4 rounded-2xl bg-sun-soft px-4 py-3 text-base">{t("alreadyHave")}</p>}
             <AmountInput value={amount} onChange={setAmount} autoFocus />
             <p className="mt-4 mb-2 text-lg font-bold">{t("howOften")}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {REPEATS.map((r) => (
-                <button key={r.id} onClick={() => setRepeat(r.id)} className={cx("min-h-14 rounded-2xl border-2 text-base font-bold", repeat === r.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>
-                  {t(r.key)}
-                </button>
-              ))}
-            </div>
+            <RepeatPicker value={repeat} onChange={setRepeat} />
+            {repeat !== "once" && <p className="mt-3 flex items-center gap-2 text-base text-leaf"><RepeatIcon size={18} /> {t("repeatsAlone")}</p>}
             <Button
               onClick={() => { setOpen(false); onPicked([{ kind, category: cat!, amount: Number(amount), repeat, note: "" }], null); }}
               disabled={!Number(amount) || !cat}

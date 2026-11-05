@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight, Pencil } from "lucide-react";
+import { EntryEditSheet } from "@/components/MoneyForms";
 import { Button, Card, ListenButton, PageHeader, Tile } from "@/components/ui";
 import { GoalVisual } from "@/components/GoalVisual";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { goalSaved, useLang, useMe } from "@/lib/store";
+import { goalSaved, useLang, useMe, type Entry } from "@/lib/store";
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate } from "@/lib/money";
 import { categoryById, goalPresetById, incomeCategoryById, pick } from "@/lib/catalog";
@@ -25,6 +27,7 @@ export default function CasitaHome() {
     : t("noIncomeYet");
 
   const recent = me.entries.slice(0, 4);
+  const [editing, setEditing] = useState<Entry | null>(null);
 
   return (
     <>
@@ -110,18 +113,19 @@ export default function CasitaHome() {
                 {recent.map((e) => {
                   const c = e.kind === "in" ? incomeCategoryById(e.category) : categoryById(e.category);
                   return (
-                    <div key={e.id} className="flex items-center gap-3 px-3 py-3">
+                    <button key={e.id} onClick={() => setEditing(e)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left hover:bg-cream">
                       <span className={`flex h-11 w-11 items-center justify-center rounded-full ${e.kind === "in" ? "bg-leaf-soft text-leaf" : "bg-sand/70 text-clay"}`}>
                         <Icon name={c.icon} size={22} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-bold">{pick(c.label, lang)}</span>
-                        <span className="block text-sm text-muted">{shortDate(e.date, lang)}</span>
+                        <span className="block text-sm text-muted">{e.repeat === "once" ? shortDate(e.date, lang) : lang === "en" ? "Repeats" : "Se repite"}</span>
                       </span>
                       <span className={`font-serif text-xl font-semibold ${e.kind === "in" ? "text-leaf" : ""}`}>
                         {e.kind === "in" ? "+" : "−"}{money(e.amount, lang)}
                       </span>
-                    </div>
+                      <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={17} /></span>
+                    </button>
                   );
                 })}
               </Card>
@@ -129,6 +133,7 @@ export default function CasitaHome() {
           )}
         </div>
       </div>
+      <EntryEditSheet entry={editing} onClose={() => setEditing(null)} />
     </>
   );
 }

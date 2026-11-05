@@ -76,8 +76,10 @@ type State = {
   updateProfile: (p: Partial<Profile>) => void;
   addWork: (w: Omit<Work, "id" | "createdAt">) => void;
   removeWork: (id: string) => void;
+  updateWork: (id: string, w: Partial<Omit<Work, "id" | "createdAt">>) => void;
   addEntries: (e: Omit<Entry, "id">[]) => void;
   removeEntry: (id: string) => void;
+  updateEntry: (id: string, e: Partial<Omit<Entry, "id">>) => void;
   addGoal: (g: { preset: string; name: string; target: number }) => string;
   updateGoal: (id: string, g: Partial<Pick<Goal, "name" | "target">>) => void;
   removeGoal: (id: string) => void;
@@ -187,9 +189,11 @@ export const useStore = create<State>()(
       addWork: (w) =>
         set((s) => mutateCurrent(s, (d) => ({ ...d, work: [...d.work, { ...w, id: uid(), createdAt: new Date().toISOString() }] }))),
       removeWork: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, work: d.work.filter((w) => w.id !== id) }))),
+      updateWork: (id, w) => set((s) => mutateCurrent(s, (d) => ({ ...d, work: d.work.map((x) => (x.id === id ? { ...x, ...w } : x)) }))),
       addEntries: (es) =>
         set((s) => mutateCurrent(s, (d) => ({ ...d, entries: [...es.map((e) => ({ ...e, id: uid() })), ...d.entries] }))),
       removeEntry: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, entries: d.entries.filter((e) => e.id !== id) }))),
+      updateEntry: (id, e) => set((s) => mutateCurrent(s, (d) => ({ ...d, entries: d.entries.map((x) => (x.id === id ? { ...x, ...e } : x)) }))),
       addGoal: ({ preset, name, target }) => {
         const id = uid();
         set((s) =>
