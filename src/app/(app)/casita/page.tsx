@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight, Pencil } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight, Pencil, Users } from "lucide-react";
 import { EntryEditSheet } from "@/components/MoneyForms";
 import { Button, Card, ListenButton, PageHeader, Tile } from "@/components/ui";
 import { GoalVisual } from "@/components/GoalVisual";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { goalSaved, useLang, useMe, type Entry } from "@/lib/store";
+import { goalSaved, tandaEnded, tandaPayoutDate, tandaPot, useLang, useMe, type Entry } from "@/lib/store";
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate } from "@/lib/money";
 import { categoryById, goalPresetById, incomeCategoryById, pick } from "@/lib/catalog";
@@ -35,6 +35,7 @@ export default function CasitaHome() {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
   const [editing, setEditing] = useState<Entry | null>(null);
+  const tandas = (me.tandas ?? []).filter((tn) => !tandaEnded(tn));
 
   return (
     <>
@@ -112,6 +113,21 @@ export default function CasitaHome() {
               </div>
             )}
           </section>
+
+          {tandas.length > 0 && (
+            <Link href="/casita/tanda" className="flex items-center gap-4 rounded-3xl border border-sand bg-paper p-4 hover:border-sand-dark">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-clay/10 text-clay"><Users size={28} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-lg font-extrabold">{t("myTanda")}: {tandas[0].name}</span>
+                <span className="block text-base text-muted">
+                  {tandas[0].received
+                    ? (lang === "en" ? "You already got it" : "Ya la recibiste")
+                    : `${lang === "en" ? "Your turn:" : "Te toca:"} ${tandaPayoutDate(tandas[0]).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { day: "numeric", month: "long" })} · ${money(tandaPot(tandas[0]), lang)}`}
+                </span>
+              </span>
+              <ChevronRight size={24} className="text-muted" />
+            </Link>
+          )}
 
           {recent.length > 0 && (
             <section>

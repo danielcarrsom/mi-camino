@@ -56,11 +56,29 @@ export type Goal = {
   createdAt: string;
 };
 
+/** A tanda (rotating savings group): everyone puts `amount` every period and
+ *  each round one person takes the whole pot. */
+export type Tanda = {
+  id: string;
+  name: string;
+  amount: number;             // what each person puts per round
+  every: "week" | "2weeks" | "month";
+  people: number;
+  names: string[];            // optional names per turn (index 0 = turn 1)
+  myTurn: number;             // 1-based
+  start: string;              // date of round 1
+  paid: number[];             // rounds (0-based) I already paid
+  received: boolean;
+  goalId: string | null;      // where the pot goes when I receive it
+  createdAt: string;
+};
+
 export type UserData = {
   profile: Profile;
   work: Work[];
   entries: Entry[];
   goals: Goal[];
+  tandas?: Tanda[];
 };
 
 type Account = { pinHash: string; data: UserData };
@@ -91,6 +109,11 @@ type State = {
   deposit: (goalId: string, amount: number) => void;
   setPlan: (goalId: string, plan: { amount: number; every: Plan["every"] } | null) => void;
   applyPlans: () => void;
+  addTanda: (t: Omit<Tanda, "id" | "createdAt" | "paid" | "received">) => string;
+  updateTanda: (id: string, t: Partial<Omit<Tanda, "id" | "createdAt">>) => void;
+  removeTanda: (id: string) => void;
+  toggleTandaPaid: (id: string, round: number) => void;
+  receiveTanda: (id: string) => void;
 };
 
 export const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -119,6 +142,7 @@ function daysAgo(n: number) {
 
 function demoData(lang: Lang): UserData {
   const now = new Date().toISOString();
+  const casaId = uid();
   return {
     profile: { name: "María", lang, casita: true, negocio: true, createdAt: now },
     work: [
@@ -136,7 +160,7 @@ function demoData(lang: Lang): UserData {
     ],
     goals: [
       {
-        id: uid(), preset: "casa_mexico", name: "Mi casita en Puebla", target: 12000, createdAt: daysAgo(90),
+        id: casaId, preset: "casa_mexico", name: "Mi casita en Puebla", target: 12000, createdAt: daysAgo(90),
         deposits: [
           { id: uid(), amount: 1500, date: daysAgo(80) },
           { id: uid(), amount: 1200, date: daysAgo(50) },
@@ -152,6 +176,13 @@ function demoData(lang: Lang): UserData {
           { id: uid(), amount: 300, date: daysAgo(30) },
           { id: uid(), amount: 250, date: daysAgo(12) },
         ],
+      },
+    ],
+    tandas: [
+      {
+        id: uid(), name: "Tanda de las compañeras", amount: 100, every: "week", people: 10,
+        names: ["Lupe", "Rosa", "Carmen", "Juana", "Elena", "", "Paty", "Sofía", "Inés", "Marta"],
+        myTurn: 6, start: daysAgo(21), paid: [0, 1, 2], received: false, goalId: casaId, createdAt: daysAgo(25),
       },
     ],
   };
@@ -257,6 +288,38 @@ export const useStore = create<State>()(
             return changed ? { ...d, goals } : d;
           }),
         ),
+      addTanda: (t) => {
+        const id = uid();
+        set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: [...(d.tandas ?? []), { ...t, id, paid: [], received: false, createdAt: new Date().toISOString() }] })));
+        return id;
+      },
+      updateTanda: (id, t) =>
+        set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).map((x) => (x.id === id ? { ...x, ...t } : x)) }))),
+      removeTanda: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).filter((x) => x.id !== id) }))),
+      toggleTandaPaid: (id, round) =>
+        set((s) =>
+          mutateCurrent(s, (d) => ({
+            ...d,
+            tandas: (d.tandas ?? []).map((x) =>
+              x.id !== id ? x : { ...x, paid: x.paid.includes(round) ? x.paid.filter((r) => r !== round) : [...x.paid, round] },
+            ),
+          })),
+        ),
+      receiveTanda: (id) =>
+        set((s) =>
+          mutateCurrent(s, (d) => {
+            const t = (d.tandas ?? []).find((x) => x.id === id);
+            if (!t || t.received) return d;
+            const pot = t.amount * t.people;
+            const now = new Date().toISOString();
+            return {
+              ...d,
+              tandas: (d.tandas ?? []).map((x) => (x.id === id ? { ...x, received: true } : x)),
+              // the pot goes straight into the chosen goal
+              goals: t.goalId ? d.goals.map((g) => (g.id === t.goalId ? { ...g, deposits: [...g.deposits, { id: uid(), amount: pot, date: now }] } : g)) : d.goals,
+            };
+          }),
+        ),
       deposit: (goalId, amount) =>
         set((s) =>
           mutateCurrent(s, (d) => ({
@@ -277,6 +340,25 @@ function nextPeriod(from: Date, every: Plan["every"]): Date {
   else d.setDate(d.getDate() + (every === "2weeks" ? 14 : 7));
   return d;
 }
+
+// ---------- tanda helpers ----------
+export function tandaRoundDate(t: Tanda, round: number): Date {
+  const d = new Date(t.start);
+  if (t.every === "month") d.setMonth(d.getMonth() + round);
+  else d.setDate(d.getDate() + round * (t.every === "2weeks" ? 14 : 7));
+  return d;
+}
+/** 0-based round happening now (the last one that already started), or -1 before it starts. */
+export function tandaCurrentRound(t: Tanda, now = new Date()): number {
+  let r = -1;
+  for (let i = 0; i < t.people; i++) if (tandaRoundDate(t, i).getTime() <= now.getTime()) r = i;
+  return r;
+}
+export function tandaEnded(t: Tanda, now = new Date()): boolean {
+  return tandaRoundDate(t, t.people).getTime() <= now.getTime();
+}
+export const tandaPot = (t: Tanda) => t.amount * t.people;
+export const tandaPayoutDate = (t: Tanda) => tandaRoundDate(t, t.myTurn - 1);
 
 /** A plan only counts while the goal still needs money. */
 export const planActive = (g: Goal) => Boolean(g.plan && goalSaved(g) < g.target);
@@ -361,10 +443,24 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
     .filter((x) => { const dt = new Date(x.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
     .reduce((a, x) => a + x.amount, 0);
 
-  const monthIn = workMonthly + monthInRepeat + monthOnceIn;
-  const monthOut = monthOutRepeat + monthOnceOut;
-  const weekIn = workWeekly + weekInRepeat + weekInOnce;
-  const weekOut = weekOutRepeat + weekOutOnce;
+  // Tandas: the payment is a fixed expense while the tanda runs; the pot is
+  // money in the week/month it's my turn.
+  let tandaWeekOut = 0, tandaMonthOut = 0, tandaWeekIn = 0, tandaMonthIn = 0;
+  for (const t of d.tandas ?? []) {
+    if (tandaCurrentRound(t) < 0 && tandaRoundDate(t, 0).getTime() - Date.now() > 7 * 864e5) continue; // not started yet
+    if (tandaEnded(t)) continue;
+    tandaWeekOut += toWeekly(t.amount, t.every);
+    tandaMonthOut += toMonthly(t.amount, t.every);
+    const payout = tandaPayoutDate(t).toISOString();
+    if (isThisWeek(payout)) tandaWeekIn += tandaPot(t);
+    const pd = new Date(payout), n = new Date();
+    if (pd.getMonth() === n.getMonth() && pd.getFullYear() === n.getFullYear()) tandaMonthIn += tandaPot(t);
+  }
+
+  const monthIn = workMonthly + monthInRepeat + monthOnceIn + tandaMonthIn;
+  const monthOut = monthOutRepeat + monthOnceOut + tandaMonthOut;
+  const weekIn = workWeekly + weekInRepeat + weekInOnce + tandaWeekIn;
+  const weekOut = weekOutRepeat + weekOutOnce + tandaWeekOut;
 
   return {
     monthIn, monthOut, monthGoals, monthKeep: monthIn - monthOut - monthGoals,

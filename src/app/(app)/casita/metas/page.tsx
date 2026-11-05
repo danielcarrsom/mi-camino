@@ -36,7 +36,7 @@ function Goals() {
       <PageHeader
         title={t("goalsTitle")}
         say={t("goalsSay")}
-        right={<Button onClick={() => setOpen(true)} className="hidden min-h-12 px-4 text-base md:inline-flex"><Plus size={20} /> {t("newGoal")}</Button>}
+        right={<span className="hidden md:block"><Button onClick={() => setOpen(true)} className="min-h-12 px-4 text-base"><Plus size={20} /> {t("newGoal")}</Button></span>}
       />
 
       {me.goals.length === 0 ? (

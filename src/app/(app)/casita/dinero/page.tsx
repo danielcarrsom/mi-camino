@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
-import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon, PiggyBank } from "lucide-react";
+import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon, PiggyBank, Users } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
-import { planActive, useLang, useMe, type Entry, type Work } from "@/lib/store";
+import { planActive, tandaEnded, tandaPot, useLang, useMe, type Entry, type Work } from "@/lib/store";
 import Link from "next/link";
 import { EntryEditSheet, WorkEditSheet } from "@/components/MoneyForms";
 import { useSummary } from "@/lib/useSummary";
@@ -29,6 +29,7 @@ export default function MoneyPage() {
   const onceIn = me.entries.filter((e) => e.kind === "in" && e.repeat === "once");
   const fixedOutMonthly = fixedOut.reduce((a, e) => a + toMonthly(e.amount, e.repeat), 0);
   const activePlans = me.goals.filter(planActive);
+  const activeTandas = (me.tandas ?? []).filter((tn) => !tandaEnded(tn));
 
   const earn = view === "month" ? s.monthIn : s.weekIn;
   const spend = view === "month" ? s.monthOut : s.weekOut;
@@ -162,6 +163,25 @@ export default function MoneyPage() {
         </div>
         <p className="mb-3 flex items-center gap-2 text-base text-muted"><RepeatIcon size={18} className="shrink-0 text-leaf" /> {t("fixedHint")}</p>
         <EntryList items={fixedOut} onEdit={setEditEntry} total={fixedOutMonthly} empty={t("noEntries")} />
+        {activeTandas.length > 0 && (
+          <Card className="mt-3 p-2 md:p-2">
+            <ul className="divide-y divide-sand">
+              {activeTandas.map((tn) => (
+                <li key={tn.id}>
+                  <Link href="/casita/tanda" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 hover:bg-cream">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sand/70 text-clay"><Users size={22} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{t("myTanda")}: {tn.name}</span>
+                      <span className="block text-sm text-muted">{t(REPEAT_KEY[tn.every])} · {lang === "en" ? "you receive" : "recibes"} {money(tandaPot(tn), lang)}</span>
+                    </span>
+                    <span className="font-serif text-xl font-semibold">−{money(tn.amount, lang)}</span>
+                    <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={19} /></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
         {activePlans.length > 0 && (
           <Card className="mt-3 p-2 md:p-2">
             <ul className="divide-y divide-sand">

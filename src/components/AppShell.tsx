@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  House, Target, Wallet, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
+  House, Target, Wallet, Users, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
 } from "lucide-react";
 import { Logo, Sheet, cx } from "./ui";
 import { useLang, useMe, useStore } from "@/lib/store";
@@ -18,6 +18,7 @@ const CASITA: NavItem[] = [
   { href: "/casita", key: "home", icon: House, exact: true },
   { href: "/casita/metas", key: "myGoals", icon: Target },
   { href: "/casita/dinero", key: "myMoney", icon: Wallet },
+  { href: "/casita/tanda", key: "myTanda", icon: Users },
   { href: "/casita/documentos", key: "documents", icon: FileSearch },
   { href: "/casita/enviar", key: "send", icon: Send },
   { href: "/aprender", key: "learn", icon: BookOpen },
