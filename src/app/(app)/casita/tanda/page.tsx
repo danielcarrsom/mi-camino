@@ -77,7 +77,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
   const myRoundIdx = t.myTurn - 1;
   const myTurnNow = current === myRoundIdx || (isThisWeek(payout.toISOString()) && !t.received);
   const goal = t.goalId ? me.goals.find((g) => g.id === t.goalId) : null;
-  const paidCount = t.paid.length;
+  const paidCount = t.paid.filter((r) => r !== t.myTurn - 1).length;
   const roundShown = Math.max(0, current);
   const nextRound = current < t.people - 1 ? current + 1 : null;
 
@@ -149,12 +149,18 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
                 {L(lang, "Recibe:", "Receives:")} {personName(lang, t, roundShown)}
               </p>
               <p className="mt-1 text-paper/75">{dateWord(lang, tandaRoundDate(t, roundShown))}</p>
+              {roundShown === myRoundIdx ? (
+                <p className="mt-5 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl bg-sun px-4 text-center text-lg font-extrabold text-ink">
+                  <HandCoins size={26} /> {L(lang, `Esta vuelta no pagas: te toca recibir ${money(pot, lang)}`, `You don't pay this round: you receive ${money(pot, lang)}`)}
+                </p>
+              ) : (
               <button
                 onClick={() => { toggle(t.id, roundShown); if (!t.paid.includes(roundShown)) { playSaved(); speak(L(lang, "Listo, anotamos tu pago de esta vuelta.", "Done, we noted your payment for this round."), lang); } }}
                 className={cx("mt-5 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl text-lg font-extrabold transition", t.paid.includes(roundShown) ? "bg-leaf text-paper" : "bg-clay text-paper shadow-[0_4px_0_#8f3a20]")}
               >
                 {t.paid.includes(roundShown) ? <><Check size={26} /> {L(lang, "Ya pagué esta vuelta", "I paid this round")}</> : <>{L(lang, "Ya pagué", "I paid")} {money(t.amount, lang)}</>}
               </button>
+              )}
               {nextRound !== null && (
                 <p className="mt-4 flex items-center gap-2 text-base text-paper/75">
                   <CalendarDays size={18} /> {L(lang, "Siguiente pago:", "Next payment:")} {dateWord(lang, tandaRoundDate(t, nextRound))}
@@ -173,7 +179,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
           <Card className="p-2 md:p-2">
             <div className="flex items-center justify-between px-3 pt-2 pb-1">
               <h3 className="text-xl font-semibold">{L(lang, "Todas las vueltas", "All rounds")}</h3>
-              <span className="text-base font-bold text-muted">{L(lang, "Pagaste", "Paid")} {paidCount}/{t.people}</span>
+              <span className="text-base font-bold text-muted">{L(lang, "Pagaste", "Paid")} {paidCount}/{t.people - 1}</span>
             </div>
             <ul className="max-h-[26rem] divide-y divide-sand overflow-y-auto">
               {Array.from({ length: t.people }).map((_, i) => {
@@ -187,7 +193,9 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
                       <span className="block truncate">{personName(lang, t, i)}{mine ? ` · ${L(lang, "recibes", "you get")} ${money(pot, lang)}` : ""}</span>
                       <span className="block text-sm font-normal text-muted">{dateWord(lang, tandaRoundDate(t, i))}</span>
                     </span>
-                    {started ? (
+                    {mine ? (
+                      <span className="rounded-xl bg-sun-soft px-3 py-2 text-sm font-bold">{L(lang, "No pagas", "You don't pay")}</span>
+                    ) : started ? (
                       <button
                         onClick={() => toggle(t.id, i)}
                         aria-pressed={paid}
@@ -384,13 +392,13 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
         {Number(amount) > 0 && (
           <div className="rounded-2xl bg-ink p-5 text-paper">
             <p className="text-lg">
-              {L(lang, "Cada quien pone", "Each person puts in")} <b>{money(Number(amount), lang)}</b> {everyWord(lang, every)}. {L(lang, "Son", "There are")} {people} {L(lang, "personas: el que recibe se lleva", "people: whoever receives takes")} <b className="text-sun">{money(pot, lang)}</b>.
+              {L(lang, "Cada quien pone", "Each person puts in")} <b>{money(Number(amount), lang)}</b> {everyWord(lang, every)}. {L(lang, "Son", "There are")} {people} {L(lang, "personas: el que recibe no paga esa vuelta y se lleva", "people: whoever receives doesn't pay that round and takes")} <b className="text-sun">{money(pot, lang)}</b>.
             </p>
             <p className="mt-2 text-lg">
               {L(lang, "Te toca recibir en la vuelta", "Your turn is round")} <b>{myTurn}</b>: <b className="text-sun">{dateWord(lang, tandaPayoutDate(draft))}</b>.
             </p>
             <p className="mt-2 text-base text-paper/70">
-              {L(lang, `En total pones ${money(pot, lang)} y recibes ${money(pot, lang)}. No ganas intereses: es una forma de ahorrar juntos.`, `In total you put in ${money(pot, lang)} and get ${money(pot, lang)}. No interest: it's a way to save together.`)}
+              {L(lang, `En total pones ${money(pot, lang)} (todas las vueltas menos la tuya) y recibes ${money(pot, lang)}. No ganas intereses: es una forma de ahorrar juntos.`, `In total you put in ${money(pot, lang)} (every round except yours) and get ${money(pot, lang)}. No interest: it's a way to save together.`)}
             </p>
           </div>
         )}
@@ -412,8 +420,8 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
 function WhatIsTanda({ lang }: { lang: Lang }) {
   const what = L(
     lang,
-    "Una tanda es un grupo de personas que juntan dinero. Cada vuelta, todos ponen lo mismo y una persona se lleva todo. Así hasta que a todos les toca.",
-    "A tanda is a group of people who pool money. Each round everyone puts in the same amount and one person takes it all, until everyone has had a turn.",
+    "Una tanda es un grupo de personas que juntan dinero. Cada vuelta, los demás ponen lo mismo y una persona se lleva todo; esa vuelta ella no paga. Así hasta que a todos les toca.",
+    "A tanda is a group of people who pool money. Each round the others put in the same amount and one person takes it all; that round they don't pay. It goes on until everyone has had a turn.",
   );
   const safe = L(
     lang,
@@ -428,7 +436,7 @@ function WhatIsTanda({ lang }: { lang: Lang }) {
           <ListenButton compact text={what} />
         </div>
         <p className="mt-2 text-lg">{what}</p>
-        <p className="mt-3 text-base text-muted">{L(lang, "Ejemplo: 10 personas ponen $100 cada semana. Cada semana una se lleva $1,000.", "Example: 10 people put in $100 every week. Each week one person takes $1,000.")}</p>
+        <p className="mt-3 text-base text-muted">{L(lang, "Ejemplo: son 10 personas y cada una pone $100 cada semana. Cada semana una se lleva $900, lo que ponen las otras 9.", "Example: 10 people, $100 each every week. Each week one person takes $900, what the other 9 put in.")}</p>
       </Card>
       <div className="rounded-3xl border-2 border-sun bg-sun-soft/60 p-5">
         <div className="flex items-start justify-between gap-3">

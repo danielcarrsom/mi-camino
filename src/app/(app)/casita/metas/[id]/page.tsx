@@ -128,7 +128,7 @@ export default function GoalDetail() {
               <ul className="mt-3 divide-y divide-sand">
                 {[...goal.deposits].reverse().slice(0, 8).map((d) => (
                   <li key={d.id} className="flex items-center justify-between py-3 text-lg">
-                    <span className="flex items-center gap-2 text-muted">{shortDate(d.date, lang)}{d.auto && <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-sm font-bold text-leaf"><RepeatIcon size={14} /> {lang === "en" ? "plan" : "plan"}</span>}</span>
+                    <span className="flex items-center gap-2 text-muted">{shortDate(d.date, lang)}{d.from === "tanda" && <span className="inline-flex items-center gap-1 rounded-full bg-sun-soft px-2 py-0.5 text-sm font-bold text-ink">{lang === "en" ? "tanda" : "tanda"}</span>}{d.auto && <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-sm font-bold text-leaf"><RepeatIcon size={14} /> {lang === "en" ? "plan" : "plan"}</span>}</span>
                     <span className={`font-serif text-xl font-semibold ${d.amount < 0 ? "text-clay" : "text-leaf"}`}>{d.amount < 0 ? "−" : "+"}{money(Math.abs(d.amount), lang)}</span>
                   </li>
                 ))}

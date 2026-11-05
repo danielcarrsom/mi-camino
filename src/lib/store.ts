@@ -40,7 +40,8 @@ export type Entry = {
   source: Source;
 };
 
-export type Deposit = { id: string; amount: number; date: string; auto?: boolean };
+/** auto = added by a savings plan; from "tanda" = the tanda pot, which never came out of your pay. */
+export type Deposit = { id: string; amount: number; date: string; auto?: boolean; from?: "tanda" };
 
 /** A savings plan: set apart `amount` every `every`. It is counted as money
  *  leaving the budget each period, and a brick is added automatically. */
@@ -285,7 +286,22 @@ export const useStore = create<State>()(
               changed = true;
               return { ...g, deposits: [...g.deposits, ...added], plan: { ...g.plan, lastApplied: last.toISOString() } };
             });
-            return changed ? { ...d, goals } : d;
+            // Older tanda payouts were saved as a normal deposit of amount × people:
+            // mark them as coming from the tanda and fix the amount.
+            let fixedGoals = goals;
+            for (const t of d.tandas ?? []) {
+              if (!t.received || !t.goalId) continue;
+              fixedGoals = fixedGoals.map((g) => {
+                if (g.id !== t.goalId) return g;
+                const i = g.deposits.findIndex((x) => !x.auto && !x.from && x.amount === t.amount * t.people);
+                if (i < 0) return g;
+                changed = true;
+                const deps = [...g.deposits];
+                deps[i] = { ...deps[i], amount: tandaPot(t), from: "tanda" };
+                return { ...g, deposits: deps };
+              });
+            }
+            return changed ? { ...d, goals: fixedGoals } : d;
           }),
         ),
       addTanda: (t) => {
@@ -310,13 +326,13 @@ export const useStore = create<State>()(
           mutateCurrent(s, (d) => {
             const t = (d.tandas ?? []).find((x) => x.id === id);
             if (!t || t.received) return d;
-            const pot = t.amount * t.people;
+            const pot = tandaPot(t);
             const now = new Date().toISOString();
             return {
               ...d,
               tandas: (d.tandas ?? []).map((x) => (x.id === id ? { ...x, received: true } : x)),
               // the pot goes straight into the chosen goal
-              goals: t.goalId ? d.goals.map((g) => (g.id === t.goalId ? { ...g, deposits: [...g.deposits, { id: uid(), amount: pot, date: now }] } : g)) : d.goals,
+              goals: t.goalId ? d.goals.map((g) => (g.id === t.goalId ? { ...g, deposits: [...g.deposits, { id: uid(), amount: pot, date: now, from: "tanda" as const }] } : g)) : d.goals,
             };
           }),
         ),
@@ -357,7 +373,9 @@ export function tandaCurrentRound(t: Tanda, now = new Date()): number {
 export function tandaEnded(t: Tanda, now = new Date()): boolean {
   return tandaRoundDate(t, t.people).getTime() <= now.getTime();
 }
-export const tandaPot = (t: Tanda) => t.amount * t.people;
+/** The person whose turn it is doesn't pay that round, so the pot is
+ *  everyone else's payment. */
+export const tandaPot = (t: Tanda) => t.amount * (t.people - 1);
 export const tandaPayoutDate = (t: Tanda) => tandaRoundDate(t, t.myTurn - 1);
 
 /** A plan only counts while the goal still needs money. */
@@ -437,7 +455,8 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
   const plans = d.goals.filter(planActive).map((g) => g.plan!);
   const planWeekly = plans.reduce((a, p) => a + toWeekly(p.amount, p.every), 0);
   const planMonthly = plans.reduce((a, p) => a + toMonthly(p.amount, p.every), 0);
-  const manual = d.goals.flatMap((g) => g.deposits).filter((x) => !x.auto);
+  // The tanda pot goes straight to a goal: it never came out of your pay.
+  const manual = d.goals.flatMap((g) => g.deposits).filter((x) => !x.auto && x.from !== "tanda");
   const weekGoals = planWeekly + manual.filter((x) => isThisWeek(x.date)).reduce((a, x) => a + x.amount, 0);
   const monthGoals = planMonthly + manual
     .filter((x) => { const dt = new Date(x.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
@@ -449,12 +468,18 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
   for (const t of d.tandas ?? []) {
     if (tandaCurrentRound(t) < 0 && tandaRoundDate(t, 0).getTime() - Date.now() > 7 * 864e5) continue; // not started yet
     if (tandaEnded(t)) continue;
-    tandaWeekOut += toWeekly(t.amount, t.every);
-    tandaMonthOut += toMonthly(t.amount, t.every);
     const payout = tandaPayoutDate(t).toISOString();
-    if (isThisWeek(payout)) tandaWeekIn += tandaPot(t);
     const pd = new Date(payout), n = new Date();
-    if (pd.getMonth() === n.getMonth() && pd.getFullYear() === n.getFullYear()) tandaMonthIn += tandaPot(t);
+    const payoutThisWeek = isThisWeek(payout);
+    const payoutThisMonth = pd.getMonth() === n.getMonth() && pd.getFullYear() === n.getFullYear();
+    // You don't pay in the round when it's your turn.
+    tandaWeekOut += payoutThisWeek ? 0 : toWeekly(t.amount, t.every);
+    tandaMonthOut += Math.max(0, toMonthly(t.amount, t.every) - (payoutThisMonth ? t.amount : 0));
+    // If the pot goes to a goal it never passes through your budget.
+    if (!t.goalId) {
+      if (payoutThisWeek) tandaWeekIn += tandaPot(t);
+      if (payoutThisMonth) tandaMonthIn += tandaPot(t);
+    }
   }
 
   const monthIn = workMonthly + monthInRepeat + monthOnceIn + tandaMonthIn;

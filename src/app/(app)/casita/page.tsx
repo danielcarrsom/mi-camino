@@ -27,10 +27,10 @@ export default function CasitaHome() {
     : t("noIncomeYet");
 
   // Everything recorded lately: spending, income and money set apart for goals.
-  type Row = { kind: "entry"; date: string; entry: Entry } | { kind: "goal"; date: string; goalId: string; goalName: string; amount: number; auto: boolean; id: string };
+  type Row = { kind: "entry"; date: string; entry: Entry } | { kind: "goal"; date: string; goalId: string; goalName: string; amount: number; auto: boolean; fromTanda: boolean; id: string };
   const recent: Row[] = [
     ...me.entries.map((e) => ({ kind: "entry" as const, date: e.date, entry: e })),
-    ...me.goals.flatMap((g) => g.deposits.map((d) => ({ kind: "goal" as const, date: d.date, goalId: g.id, goalName: g.name, amount: d.amount, auto: !!d.auto, id: d.id }))),
+    ...me.goals.flatMap((g) => g.deposits.map((d) => ({ kind: "goal" as const, date: d.date, goalId: g.id, goalName: g.name, amount: d.amount, auto: !!d.auto, fromTanda: d.from === "tanda", id: d.id }))),
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
@@ -140,9 +140,9 @@ export default function CasitaHome() {
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sun-soft text-clay"><PiggyBank size={22} /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold">{row.goalName}</span>
-                          <span className="block text-sm text-muted">{row.amount < 0 ? (lang === "en" ? "Taken out" : "Sacaste") : row.auto ? (lang === "en" ? "Savings plan" : "Plan de ahorro") : (lang === "en" ? "Set apart" : "Apartaste")} · {shortDate(row.date, lang)}</span>
+                          <span className="block text-sm text-muted">{row.amount < 0 ? (lang === "en" ? "Taken out" : "Sacaste") : row.fromTanda ? (lang === "en" ? "From your tanda" : "De tu tanda") : row.auto ? (lang === "en" ? "Savings plan" : "Plan de ahorro") : (lang === "en" ? "Set apart" : "Apartaste")} · {shortDate(row.date, lang)}</span>
                         </span>
-                        <span className="font-serif text-xl font-semibold">{row.amount < 0 ? "+" : "−"}{money(Math.abs(row.amount), lang)}</span>
+                        <span className={`font-serif text-xl font-semibold ${row.fromTanda ? "text-leaf" : ""}`}>{row.fromTanda ? "+" : row.amount < 0 ? "+" : "−"}{money(Math.abs(row.amount), lang)}</span>
                         <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={17} /></span>
                       </Link>
                     );
