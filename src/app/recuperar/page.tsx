@@ -6,7 +6,7 @@ import { Button, ListenButton, Logo, MicButton, PinPad } from "@/components/ui";
 import { PhoneInput } from "@/components/PhoneInput";
 import { useHydrated } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
-import { phoneKey, type PhoneCountry } from "@/lib/phone";
+import { altPhoneKey, phoneKey, type PhoneCountry } from "@/lib/phone";
 import { pick } from "@/lib/catalog";
 import { recoveryQuestion as questionById } from "@/lib/recovery";
 import { recoveryQuestion, recoveryReset } from "@/lib/cloud";
@@ -37,6 +37,7 @@ function Recuperar() {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState<PhoneCountry>("us");
   const [question, setQuestion] = useState<string | null>(null);
+  const [foundKey, setFoundKey] = useState<string | null>(null);
   const [useCode, setUseCode] = useState(false);
   const [answer, setAnswer] = useState("");
   const [code, setCode] = useState("");
@@ -66,18 +67,26 @@ function Recuperar() {
   const findAccount = async () => {
     if (!key) return;
     setMsg(null); setStage("busy");
-    const q = await recoveryQuestion(key);
+    let q = await recoveryQuestion(key);
+    let k = key;
+    // Not found: maybe it was saved as the other country (same 10 digits)
+    const alt = altPhoneKey(key);
+    if (q !== "offline" && !q.exists && alt) {
+      const q2 = await recoveryQuestion(alt);
+      if (q2 !== "offline" && q2.exists) { q = q2; k = alt; }
+    }
     if (q === "offline") { setMsg(L("No hay conexión. Revisa tu internet e intenta otra vez.", "No connection. Check your internet and try again.")); setStage("phone"); return; }
-    setQuestion(q); setUseCode(!q); setStage("proof");
+    setFoundKey(k); setQuestion(q.question); setUseCode(!q.question); setStage("proof");
   };
 
   const submit = async (newPin: string) => {
-    if (!key) return;
+    const k = foundKey ?? key;
+    if (!k) return;
     setStage("busy"); setMsg(null);
-    const r = await recoveryReset(key, useCode || !question ? { code } : { answer }, newPin);
+    const r = await recoveryReset(k, useCode || !question ? { code } : { answer }, newPin);
     if (r.ok) {
-      await resetLocalPin(key, newPin);
-      const ok = await login(key, newPin);
+      await resetLocalPin(k, newPin);
+      const ok = await login(k, newPin);
       playGoal();
       if (voiceOn) speak(L("¡Listo! Ya tienes tu clave nueva.", "Done! You have your new PIN."), lang);
       router.replace(ok ? "/inicio" : "/entrar");

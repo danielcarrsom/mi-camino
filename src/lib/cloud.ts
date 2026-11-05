@@ -111,13 +111,13 @@ async function recoveryCall(body: Record<string, unknown>, token?: string) {
   );
 }
 
-/** The security question this phone's account chose, or null if none (or no account). */
-export async function recoveryQuestion(phone: string): Promise<string | null | "offline"> {
+/** Does this phone have an account, and which security question did it choose? */
+export async function recoveryQuestion(phone: string): Promise<{ exists: boolean; question: string | null } | "offline"> {
   try {
     const r = await recoveryCall({ action: "question", phone });
     if (!r.ok) return "offline";
     const j = await r.json();
-    return (j.question as string | null) ?? null;
+    return { exists: j.exists ?? j.question != null, question: (j.question as string | null) ?? null };
   } catch {
     return "offline";
   }

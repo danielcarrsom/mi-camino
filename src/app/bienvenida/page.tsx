@@ -27,7 +27,7 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>("lang");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [country, setCountry] = useState<PhoneCountry>("us");
+  const [country, setCountry] = useState<PhoneCountry | null>(null);
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -67,7 +67,7 @@ export default function Onboarding() {
   }, [pin2, pin, step]);
 
   async function finish() {
-    const key = phoneKey(phone, country);
+    const key = country ? phoneKey(phone, country) : null;
     if (!key) return;
     await register(key, pin, {
       name: name.trim() || "Amigo",
@@ -80,7 +80,7 @@ export default function Onboarding() {
   }
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
-  const key = phoneKey(phone, country);
+  const key = country ? phoneKey(phone, country) : null;
   const phoneOk = !!key;
 
   return (

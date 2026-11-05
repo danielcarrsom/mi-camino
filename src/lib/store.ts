@@ -7,6 +7,7 @@ import { persist } from "zustand/middleware";
 import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
 import { uid, toMonthly, toWeekly, isThisWeek } from "./money";
+import { altPhoneKey } from "./phone";
 import type { BizEntry, Product, BizType } from "./business";
 import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
 
@@ -386,44 +387,51 @@ export const useStore = create<State>()(
         set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } } }));
       },
       login: async (phone, pin) => {
-        const p = onlyDigits(phone);
-        const acc = get().accounts[p];
-        if (acc && (await hashPin(p, pin)) !== acc.pinHash) {
-          // The PIN may have been changed on another device or recovered online
-          if (pin.length < 6 || p === DEMO_PHONE || (await cloudSignIn(p, pin)) !== "ok") return false;
-          const pinHash = await hashPin(p, pin);
-          set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } }, current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" }));
-          void get().syncDown();
-          return true;
-        }
-        if (acc) {
-          if (pin.length < 6) {
-            // Account made with the old 4-digit PIN: let them in, then ask for a 6-digit one
-            set({ current: p, deviceLang: acc.data.profile.lang, cloud: "local", needsNewPin: true });
+        const first = onlyDigits(phone);
+        // Try the number as typed, then the same digits as the other country (US ↔ Mexico)
+        for (const p of [first, altPhoneKey(first)].filter((x): x is string => !!x)) {
+          const ok = await (async (): Promise<boolean> => {
+            const acc = get().accounts[p];
+            if (acc && (await hashPin(p, pin)) !== acc.pinHash) {
+              // The PIN may have been changed on another device or recovered online
+              if (pin.length < 6 || p === DEMO_PHONE || (await cloudSignIn(p, pin)) !== "ok") return false;
+              const pinHash = await hashPin(p, pin);
+              set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } }, current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" }));
+              void get().syncDown();
+              return true;
+            }
+            if (acc) {
+              if (pin.length < 6) {
+                // Account made with the old 4-digit PIN: let them in, then ask for a 6-digit one
+                set({ current: p, deviceLang: acc.data.profile.lang, cloud: "local", needsNewPin: true });
+                return true;
+              }
+              set({ current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" });
+              if (p === DEMO_PHONE) { set({ cloud: "off" }); return true; }
+              // connect online in the background; accounts made before online saving get created now
+              void (async () => {
+                let r = await cloudSignIn(p, pin);
+                if (r === "wrong") r = await cloudRegister(p, pin, acc.data.profile);
+                if (r === "ok") await get().syncDown();
+                else if (get().current === p) set({ cloud: "local" });
+              })();
+              return true;
+            }
+            // Not on this device: try the online account (e.g. a new phone or computer)
+            const r = await cloudSignIn(p, pin);
+            if (r !== "ok") return false;
+            const remote = await cloudLoad();
+            const data: UserData = remote?.data ?? {
+              profile: { name: "", lang: get().deviceLang, casita: true, negocio: false, createdAt: new Date().toISOString() },
+              work: [], entries: [], goals: [],
+            };
+            const h = await hashPin(p, pin);
+            set((s) => ({ accounts: { ...s.accounts, [p]: { pinHash: h, data } }, current: p, deviceLang: data.profile.lang, cloud: "saved" }));
             return true;
-          }
-          set({ current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" });
-          if (p === DEMO_PHONE) { set({ cloud: "off" }); return true; }
-          // connect online in the background; accounts made before online saving get created now
-          void (async () => {
-            let r = await cloudSignIn(p, pin);
-            if (r === "wrong") r = await cloudRegister(p, pin, acc.data.profile);
-            if (r === "ok") await get().syncDown();
-            else if (get().current === p) set({ cloud: "local" });
           })();
-          return true;
+          if (ok) return true;
         }
-        // Not on this device: try the online account (e.g. a new phone or computer)
-        const r = await cloudSignIn(p, pin);
-        if (r !== "ok") return false;
-        const remote = await cloudLoad();
-        const data: UserData = remote?.data ?? {
-          profile: { name: "", lang: get().deviceLang, casita: true, negocio: false, createdAt: new Date().toISOString() },
-          work: [], entries: [], goals: [],
-        };
-        const h = await hashPin(p, pin);
-        set((s) => ({ accounts: { ...s.accounts, [p]: { pinHash: h, data } }, current: p, deviceLang: data.profile.lang, cloud: "saved" }));
-        return true;
+        return false;
       },
       logout: () => { void cloudSignOut(); set({ current: null, cloud: "off", needsNewPin: false }); },
       changePin: async (newPin) => {
