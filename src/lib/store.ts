@@ -81,8 +81,12 @@ export type UserData = {
   entries: Entry[];
   goals: Goal[];
   tandas?: Tanda[];
+  learn?: Learn;
   updatedAt?: string;          // last change on this device or in the cloud
 };
+
+/** Best stars per game (0–3) and lessons finished. */
+export type Learn = { stars: Record<string, number>; read: string[] };
 
 export type CloudStatus = "off" | "syncing" | "saved" | "local";
 
@@ -124,6 +128,8 @@ type State = {
   removeTanda: (id: string) => void;
   toggleTandaPaid: (id: string, round: number) => void;
   receiveTanda: (id: string) => void;
+  setGameStars: (game: string, stars: number) => void;
+  markLessonRead: (lesson: string) => void;
 };
 
 export const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -399,6 +405,22 @@ export const useStore = create<State>()(
       updateTanda: (id, t) =>
         set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).map((x) => (x.id === id ? { ...x, ...t } : x)) }))),
       removeTanda: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, tandas: (d.tandas ?? []).filter((x) => x.id !== id) }))),
+      setGameStars: (game, stars) =>
+        set((s) =>
+          mutateCurrent(s, (d) => {
+            const l = d.learn ?? { stars: {}, read: [] };
+            if ((l.stars[game] ?? 0) >= stars) return d;
+            return { ...d, learn: { ...l, stars: { ...l.stars, [game]: stars } } };
+          }),
+        ),
+      markLessonRead: (lesson) =>
+        set((s) =>
+          mutateCurrent(s, (d) => {
+            const l = d.learn ?? { stars: {}, read: [] };
+            if (l.read.includes(lesson)) return d;
+            return { ...d, learn: { ...l, read: [...l.read, lesson] } };
+          }),
+        ),
       toggleTandaPaid: (id, round) =>
         set((s) =>
           mutateCurrent(s, (d) => ({
