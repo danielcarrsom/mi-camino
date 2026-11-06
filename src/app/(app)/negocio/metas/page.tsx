@@ -8,9 +8,9 @@ import { Icon } from "@/components/Icon";
 import { PlanEditor, finishText, type PlanDraft } from "@/components/PlanEditor";
 import { L, TipList, useBiz } from "@/components/Biz";
 import { goalSaved, useStore, type Goal } from "@/lib/store";
-import { money } from "@/lib/money";
+import { money, toMonthly } from "@/lib/money";
 import { pick } from "@/lib/catalog";
-import { BIZ_GOALS, bizGoalPreset, bizTips } from "@/lib/business";
+import { BIZ_GOALS, bizFreeWeekly, bizGoalPreset, bizTips, recommendBizSaving } from "@/lib/business";
 import { playBrick, playGoal, playSaved } from "@/lib/sound";
 
 export default function MetasNegocioPage() {
@@ -37,7 +37,7 @@ function Metas() {
   }, []);
   if (!biz) return null;
 
-  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang);
+  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay });
   const ideas = BIZ_GOALS.filter((g) => !biz.goals.some((x) => x.preset === g.id)).slice(0, 3);
 
   return (
@@ -67,7 +67,7 @@ function Metas() {
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sun-soft text-clay"><Icon name={g.icon} size={28} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-lg leading-tight font-extrabold">{pick(g.label, lang)}</span>
-              <span className="block text-base text-muted">{pick(g.hint, lang)} · {money(g.suggested(n), lang)}</span>
+              <span className="block text-base text-muted">{pick(g.hint, lang)} · {money(g.suggested(n, biz.type), lang)}</span>
             </span>
             <Plus size={24} className="shrink-0 text-clay" />
           </button>
@@ -182,7 +182,9 @@ function GoalCard({ goal }: { goal: Goal }) {
 }
 
 function CreateSheet({ preset, onClose }: { preset: string | null; onClose: () => void }) {
-  const { n, lang } = useBiz();
+  const { n, lang, biz } = useBiz();
+  const plansMonthly = (biz?.goals ?? []).filter((g) => g.plan && goalSaved(g) < g.target).reduce((a, g) => a + toMonthly(g.plan!.amount, g.plan!.every), 0);
+  const freeWeekly = bizFreeWeekly(n, plansMonthly);
   const addGoal = useStore((s) => s.addBizGoal);
   const setPlan = useStore((s) => s.setBizPlan);
   const [pid, setPid] = useState<string>("");
@@ -191,12 +193,16 @@ function CreateSheet({ preset, onClose }: { preset: string | null; onClose: () =
   const [plan, setPlanDraft] = useState<PlanDraft>({ amount: "", every: "week" });
   const choose = (id: string) => {
     const p = bizGoalPreset(id);
-    setPid(id); setName(id === "propia" ? "" : pick(p.label, lang)); setTarget(String(p.suggested(n)));
+    const t = p.suggested(n, biz?.type);
+    setPid(id); setName(id === "propia" ? "" : pick(p.label, lang)); setTarget(String(t));
+    const rec = recommendBizSaving(freeWeekly, t);
+    setPlanDraft({ amount: rec ? String(rec) : "", every: "week" });
   };
+  const preset0 = pid ? bizGoalPreset(pid) : null;
+  const recWeekly = recommendBizSaving(freeWeekly, Number(target) || 0);
   useEffect(() => {
     if (preset === null) return;
-    if (preset) choose(preset); else { setPid(""); setName(""); setTarget(""); }
-    setPlanDraft({ amount: "", every: "week" });
+    if (preset) choose(preset); else { setPid(""); setName(""); setTarget(""); setPlanDraft({ amount: "", every: "week" }); }
   }, [preset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ok = pid && name.trim() && Number(target) > 0;
@@ -219,10 +225,21 @@ function CreateSheet({ preset, onClose }: { preset: string | null; onClose: () =
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L(lang, "Nombre de la meta", "Goal name")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
           <div>
             <AmountInput label={L(lang, "¿Cuánto necesitas?", "How much do you need?")} value={target} onChange={setTarget} />
-            {pid === "colchon" && <p className="mt-2 text-base text-muted">{L(lang, "Sugerimos lo que gastas en un mes en tu negocio.", "We suggest what your business spends in a month.")}</p>}
+            {preset0?.why && <p className="mt-2 text-base text-muted">💡 {pick(preset0.why(biz?.type), lang)} {L(lang, "Puedes cambiarlo.", "You can change it.")}</p>}
           </div>
           <div>
             <p className="mb-2 text-lg font-bold">{L(lang, "¿Cuánto apartas? (opcional)", "How much will you set aside? (optional)")}</p>
+            {recWeekly ? (
+              <div className="mb-3 rounded-2xl border-2 border-sun bg-sun-soft p-4">
+                <p className="text-lg font-extrabold">💡 {L(lang, `Te recomendamos ${money(recWeekly, lang)} a la semana`, `We suggest ${money(recWeekly, lang)} a week`)}</p>
+                <p className="mt-1 text-base">{L(lang,
+                  `Después de gastos, tu sueldo y tus otras metas, a tu negocio le quedan como ${money(freeWeekly, lang)} a la semana. Apartar una parte deja dinero para surtir.`,
+                  `After costs, your salary and other goals, your business has about ${money(freeWeekly, lang)} a week left. Setting part aside leaves money for stock.`)}</p>
+                {Number(plan.amount) !== recWeekly && <button onClick={() => setPlanDraft({ ...plan, amount: String(recWeekly) })} className="mt-2 inline-flex h-11 items-center rounded-xl bg-ink px-4 font-bold text-paper">{L(lang, "Usar esta cantidad", "Use this amount")}</button>}
+              </div>
+            ) : freeWeekly <= 0 && n.hasData ? (
+              <p className="mb-3 rounded-2xl bg-sun-soft px-4 py-3 text-base">{L(lang, "Ahora mismo a tu negocio no le sobra dinero después de gastos y tu sueldo. Empieza con poquito o revisa tus precios en Mis costos.", "Right now your business has nothing left after costs and your salary. Start small or check your prices in My costs.")}</p>
+            ) : null}
             <PlanEditor value={plan} onChange={setPlanDraft} missing={Number(target) || 0} />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

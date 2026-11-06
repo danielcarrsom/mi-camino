@@ -263,9 +263,10 @@ export const LESSONS: Lesson[] = [
 
 // ---------- Trusted help ----------
 export type Need = "dinero" | "impuestos" | "fraude" | "documentos" | "envios" | "casa";
-export type Resource = { id: string; name: Label; what: Label; needs: Need[]; icon: string; phone?: { tel: string; show: string }; phone2?: { tel: string; show: string; label: Label }; web?: { href: string; show: string }; free: boolean; note?: Label };
+export type Resource = { id: string; name: Label; what: Label; needs: string[]; icon: string; phone?: { tel: string; show: string }; phone2?: { tel: string; show: string; label: Label }; web?: { href: string; show: string }; free: boolean; note?: Label };
 
-export const NEEDS: { id: Need | "todos"; label: Label; icon: string }[] = [
+export type NeedItem = { id: string; label: Label; icon: string };
+export const NEEDS: NeedItem[] = [
   { id: "todos", label: { es: "Todo", en: "All" }, icon: "star" },
   { id: "dinero", label: { es: "Dinero y crédito", en: "Money and credit" }, icon: "wallet" },
   { id: "impuestos", label: { es: "Impuestos", en: "Taxes" }, icon: "landmark" },

@@ -8,7 +8,7 @@ import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
 import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek } from "./money";
 import { altPhoneKey } from "./phone";
-import type { BizEntry, Product, BizType } from "./business";
+import type { BizEntry, Product, BizType, StockItem, MyPay } from "./business";
 import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
 
 export type Profile = {
@@ -98,6 +98,8 @@ export type Business = {
   products: Product[];
   goals: Goal[];
   createdAt: string;
+  pay?: MyPay | null;
+  stock?: StockItem[];
 };
 
 /** Best stars per game (0–3) and lessons finished. */
@@ -163,6 +165,11 @@ type State = {
   bizDeposit: (goalId: string, amount: number) => void;
   setBizPlan: (goalId: string, plan: { amount: number; every: Plan["every"] } | null) => void;
   payMyself: (amount: number) => void;
+  setMyPay: (p: { amount: number; every: MyPay["every"] } | null, payNow?: boolean) => void;
+  confirmMyPay: () => void;
+  addStock: (i: Omit<StockItem, "id" | "updatedAt">) => void;
+  updateStock: (id: string, i: Partial<Omit<StockItem, "id">>) => void;
+  removeStock: (id: string) => void;
 };
 
 export const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -300,6 +307,12 @@ function demoBusiness(): Business {
   add("out", "mi_sueldo", 200, 8);
   return {
     name: "Tamales María", type: "comida", createdAt: daysAgo(60), entries,
+    pay: { amount: 200, every: "week", since: daysAgo(8), paid: [] },
+    stock: [
+      { id: uid(), name: "Masa", unit: "kilos", have: 12, perWeek: 20, cost: 1.8, updatedAt: daysAgo(1) },
+      { id: uid(), name: "Hojas de maíz", unit: "paquetes", have: 6, perWeek: 3, cost: 4.5, updatedAt: daysAgo(1) },
+      { id: uid(), name: "Vasos para champurrado", unit: "piezas", have: 40, perWeek: 50, cost: 0.15, updatedAt: daysAgo(1) },
+    ],
     products: [
       { id: uid(), name: "Tamal", cost: 1.1, price: 3, perWeek: 140, createdAt: daysAgo(40) },
       { id: uid(), name: "Champurrado", cost: 0.6, price: 2.5, perWeek: 50, createdAt: daysAgo(40) },
@@ -599,6 +612,27 @@ export const useStore = create<State>()(
             };
           }),
         ),
+      setMyPay: (p, payNow) => {
+        set((s) =>
+          mutateCurrent(s, (d) =>
+            withBiz(d, (b) => ({ ...b, pay: p ? { amount: p.amount, every: p.every, since: b.pay?.since ?? new Date().toISOString(), paid: b.pay?.paid ?? [] } : null })),
+          ),
+        );
+        if (p && payNow) get().confirmMyPay();
+      },
+      confirmMyPay: () => {
+        const b = get().accounts[get().current ?? ""]?.data.business;
+        if (!b?.pay) return;
+        const k = periodKey({ repeat: b.pay.every, date: b.pay.since });
+        if (b.pay.paid.includes(k)) return;
+        get().payMyself(b.pay.amount);
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (x) => (x.pay ? { ...x, pay: { ...x.pay, paid: [...x.pay.paid.slice(-23), k] } } : x))));
+      },
+      addStock: (i) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, stock: [...(b.stock ?? []), { ...i, id: uid(), updatedAt: new Date().toISOString() }] })))),
+      updateStock: (id, i) =>
+        set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, stock: (b.stock ?? []).map((x) => (x.id === id ? { ...x, ...i, updatedAt: new Date().toISOString() } : x)) })))),
+      removeStock: (id) => set((s) => mutateCurrent(s, (d) => withBiz(d, (b) => ({ ...b, stock: (b.stock ?? []).filter((x) => x.id !== id) })))),
       setGameStars: (game, stars) =>
         set((s) =>
           mutateCurrent(s, (d) => {

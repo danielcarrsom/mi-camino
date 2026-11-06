@@ -1,12 +1,12 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDownCircle, ArrowUpCircle, Calculator, Check, ChevronDown, Pencil, Plus, Receipt, Repeat as RepeatIcon, Telescope, Trash2 } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Boxes, Calculator, Check, ChevronDown, Pencil, Plus, Receipt, Repeat as RepeatIcon, Telescope, Trash2 } from "lucide-react";
 import { AmountInput, Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
 import { BizEntryRow, BizEntrySheet, L, LightDot, Semaforo, Stat, useBiz } from "@/components/Biz";
 import { goalSaved, useStore } from "@/lib/store";
 import { money, toMonthly } from "@/lib/money";
-import { monthlyProfit, productLight, productsMonthly, suggestedPrice, type BizEntry, type Product, type Scenario } from "@/lib/business";
+import { monthlyProfitDollars, productLight, productsMonthly, suggestedPrice, type BizEntry, type DollarScenario, type Product, type StockItem } from "@/lib/business";
 import { playSaved } from "@/lib/sound";
 
 type Tab = "movimientos" | "costos" | "futuro";
@@ -61,7 +61,7 @@ function Dinero() {
 
 // ---------- Sales and costs ----------
 function Movimientos() {
-  const { biz, n, lang } = useBiz();
+  const { biz, n, lang, goals30, free } = useBiz();
   const [edit, setEdit] = useState<BizEntry | null>(null);
   const [filter, setFilter] = useState<"todo" | "in" | "out">("todo");
   const [limit, setLimit] = useState(15);
@@ -77,6 +77,11 @@ function Movimientos() {
         <Stat label={L(lang, "Compraste (30 días)", "Bought (30 days)")} value={money(n.varCosts, lang)} tone="out" />
         <Stat label={L(lang, "Gastos fijos al mes", "Fixed costs / month")} value={money(n.fixed, lang)} tone="out" />
         <Stat label={n.profit >= 0 ? L(lang, "Te quedó", "You kept") : L(lang, "Te faltó", "Short by")} value={money(Math.abs(n.profit), lang)} tone="big" />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <MiniRow label={L(lang, "Tu sueldo (30 días)", "Your salary (30 days)")} value={`−${money(n.paidMe, lang)}`} />
+        <MiniRow label={L(lang, "Apartado para metas (30 días)", "Set aside for goals (30 days)")} value={`−${money(goals30, lang)}`} />
+        <MiniRow label={L(lang, "Libre en el negocio", "Free in the business")} value={money(free, lang)} strong={free >= 0} bad={free < 0} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -212,6 +217,16 @@ function Costos() {
       )}
 
       <ProductSheet product={edit} onClose={() => setEdit(null)} />
+      <div className="pt-4"><Inventario /></div>
+    </div>
+  );
+}
+
+function MiniRow({ label, value, strong, bad }: { label: string; value: string; strong?: boolean; bad?: boolean }) {
+  return (
+    <div className={cx("flex min-w-0 items-center justify-between gap-2 rounded-2xl px-4 py-3", strong ? "bg-leaf/12" : bad ? "bg-clay/10" : "bg-paper border border-sand")}>
+      <span className="text-base font-bold">{label}</span>
+      <span className={cx("text-xl font-extrabold", strong && "text-leaf", bad && "text-clay")}>{value}</span>
     </div>
   );
 }
@@ -318,13 +333,13 @@ function ProductSheet({ product, onClose }: { product: Product | "new" | null; o
 }
 
 // ---------- Looking ahead ----------
-const MORE = [-0.2, 0, 0.1, 0.2, 0.5];
-const PRICE = [0, 0.05, 0.1, 0.2];
-const CUT = [0, 0.05, 0.1, 0.2];
+const MORE = [-100, 0, 50, 100, 200, 400];
+const PRICE = [0, 0.25, 0.5, 1];
+const CUT = [0, 25, 50, 100];
 
 function Futuro() {
   const { biz, n, lang } = useBiz();
-  const [s, setS] = useState<Scenario>({ more: 0.1, price: 0, cut: 0 });
+  const [s, setS] = useState<DollarScenario>({ moreWeekly: 100, pricePerPiece: 0, cutWeekly: 0 });
   const base = useMemo(() => {
     if (!biz) return { weeklySales: 0, weeklyVar: 0, fixed: 0, fromProducts: false };
     if (n.weeklySales > 0) return { weeklySales: n.weeklySales, weeklyVar: n.weeklyVar, fixed: n.fixed, fromProducts: false };
@@ -333,12 +348,13 @@ function Futuro() {
   }, [biz, n]);
   if (!biz) return null;
 
-  const same = monthlyProfit(base, { more: 0, price: 0, cut: 0 });
-  const withChanges = monthlyProfit(base, s);
+  const units = biz.products.reduce((a, p) => a + p.perWeek, 0);
+  const same = monthlyProfitDollars(base, units, { moreWeekly: 0, pricePerPiece: 0, cutWeekly: 0 });
+  const withChanges = monthlyProfitDollars(base, units, s);
   const diff = withChanges - same;
   const horizons = [{ m: 1, l: L(lang, "1 mes", "1 month") }, { m: 3, l: L(lang, "3 meses", "3 months") }, { m: 6, l: L(lang, "6 meses", "6 months") }, { m: 12, l: L(lang, "1 año", "1 year") }];
   const max = Math.max(1, ...horizons.map((h) => Math.max(same, withChanges, 0) * h.m));
-  const pctLabel = (x: number) => (x > 0 ? `+${Math.round(x * 100)}%` : x < 0 ? `${Math.round(x * 100)}%` : L(lang, "Igual", "Same"));
+  const dollars = (x: number) => (x > 0 ? `+${money(x, lang, x % 1 !== 0)}` : x < 0 ? `−${money(-x, lang)}` : L(lang, "Igual", "Same"));
   const say = L(lang,
     `Si sigues igual, te quedarían unos ${money(same, lang)} al mes. Con estos cambios, ${money(withChanges, lang)} al mes. En un año serían ${money(withChanges * 12, lang)}.`,
     `If nothing changes, you'd keep about ${money(same, lang)} a month. With these changes, ${money(withChanges, lang)} a month. In a year that's ${money(withChanges * 12, lang)}.`);
@@ -364,9 +380,13 @@ function Futuro() {
               : L(lang, `Calculado con tus últimas semanas: vendes unos ${money(base.weeklySales, lang)} a la semana.`, `Based on recent weeks: you sell about ${money(base.weeklySales, lang)} a week.`)}
           </p>
         </div>
-        <Choice label={L(lang, "…vendes más (o menos)", "…you sell more (or less)")} options={MORE} value={s.more} onPick={(v) => setS({ ...s, more: v })} fmt={pctLabel} />
-        <Choice label={L(lang, "…subes un poco tus precios", "…you raise prices a little")} options={PRICE} value={s.price} onPick={(v) => setS({ ...s, price: v })} fmt={pctLabel} />
-        <Choice label={L(lang, "…bajas tus gastos", "…you cut costs")} options={CUT} value={s.cut} onPick={(v) => setS({ ...s, cut: v })} fmt={(x) => (x ? `−${Math.round(x * 100)}%` : L(lang, "Igual", "Same"))} />
+        <Choice label={L(lang, "…vendes esto más cada semana", "…you sell this much more each week")} hint={L(lang, "En dinero de ventas. Ojo: vender más también cuesta más hacer.", "In sales dollars. Selling more also costs more to make.")} options={MORE} value={s.moreWeekly} onPick={(v) => setS({ ...s, moreWeekly: v })} fmt={dollars} />
+        {units > 0 ? (
+          <Choice label={L(lang, "…cobras esto más por cada pieza", "…you charge this much more per piece")} hint={L(lang, `Vendes unas ${units} piezas a la semana.`, `You sell about ${units} pieces a week.`)} options={PRICE} value={s.pricePerPiece} onPick={(v) => setS({ ...s, pricePerPiece: v })} fmt={dollars} />
+        ) : (
+          <p className="rounded-2xl bg-cream px-4 py-3 text-base text-muted">{L(lang, "Agrega lo que vendes en “Mis costos” para probar qué pasa si subes tus precios.", "Add what you sell in “My costs” to try raising prices.")}</p>
+        )}
+        <Choice label={L(lang, "…gastas esto menos cada semana", "…you spend this much less each week")} hint={L(lang, "Por ejemplo, comprando al mayoreo.", "For example, buying in bulk.")} options={CUT} value={s.cutWeekly} onPick={(v) => setS({ ...s, cutWeekly: v })} fmt={(x) => (x ? `−${money(x, lang)}` : L(lang, "Igual", "Same"))} />
       </Card>
 
       <div className="min-w-0 space-y-5 lg:col-span-3">
@@ -423,10 +443,12 @@ function Futuro() {
   );
 }
 
-function Choice({ label, options, value, onPick, fmt }: { label: string; options: number[]; value: number; onPick: (v: number) => void; fmt: (x: number) => string }) {
+function Choice({ label, hint, options, value, onPick, fmt }: { label: string; hint?: string; options: number[]; value: number; onPick: (v: number) => void; fmt: (x: number) => string }) {
   return (
     <div>
-      <p className="mb-2 text-lg font-bold">{label}</p>
+      <p className="text-lg font-bold">{label}</p>
+      {hint && <p className="text-base text-muted">{hint}</p>}
+      <div className="mb-2" />
       <div className="flex flex-wrap gap-2">
         {options.map((o) => (
           <button key={o} onClick={() => onPick(o)} aria-pressed={value === o} className={cx("h-12 min-w-16 rounded-2xl border-2 px-3 text-lg font-extrabold", value === o ? "border-ink bg-ink text-paper" : "border-sand bg-paper")}>
@@ -435,5 +457,201 @@ function Choice({ label, options, value, onPick, fmt }: { label: string; options
         ))}
       </div>
     </div>
+  );
+}
+
+// ---------- Inventory: what you have, how long it lasts, what to buy ----------
+const UNITS = [
+  { es: "piezas", en: "pieces" }, { es: "kilos", en: "kilos" }, { es: "libras", en: "pounds" },
+  { es: "paquetes", en: "packs" }, { es: "cajas", en: "boxes" }, { es: "litros", en: "liters" },
+];
+
+function daysLeft(i: StockItem) {
+  return i.perWeek > 0 ? (i.have / i.perWeek) * 7 : Infinity;
+}
+
+function Inventario() {
+  const { biz, lang } = useBiz();
+  const addBizEntries = useStore((s) => s.addBizEntries);
+  const updateStock = useStore((s) => s.updateStock);
+  const [edit, setEdit] = useState<StockItem | "new" | null>(null);
+  const [bought, setBought] = useState<StockItem | null>(null);
+  const [recount, setRecount] = useState<StockItem | null>(null);
+  const [count, setCount] = useState("");
+  useEffect(() => { if (recount) setCount(String(recount.have)); }, [recount]);
+  const [weeks, setWeeks] = useState(2);
+  const [season, setSeason] = useState(false);
+  if (!biz) return null;
+  const stock = biz.stock ?? [];
+  const unitLabel = (u: string) => (lang === "en" ? UNITS.find((x) => x.es === u)?.en ?? u : u);
+  const plan = stock.map((i) => {
+    const need = Math.max(0, Math.ceil(i.perWeek * weeks * (season ? 1.5 : 1) - i.have));
+    return { i, need, cost: need * i.cost };
+  });
+  const total = plan.reduce((a, p) => a + p.cost, 0);
+  const say = stock.length
+    ? L(lang,
+      `Para las próximas ${weeks} semanas${season ? ", en temporada alta," : ""} necesitas comprar: ${plan.filter((p) => p.need > 0).map((p) => `${p.need} ${p.i.unit} de ${p.i.name}`).join(", ") || "nada, ya tienes suficiente"}. En total, unos ${money(total, lang)}.`,
+      `For the next ${weeks} weeks${season ? ", in the busy season," : ""} you need to buy: ${plan.filter((p) => p.need > 0).map((p) => `${p.need} ${unitLabel(p.i.unit)} of ${p.i.name}`).join(", ") || "nothing, you have enough"}. About ${money(total, lang)} in total.`)
+    : "";
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-2xl font-semibold"><Boxes size={26} className="text-clay" /> {L(lang, "Mi inventario", "My inventory")}</h2>
+          <p className="text-lg text-muted">{L(lang, "Lo que tienes guardado, para cuántos días te alcanza y cuánto comprar.", "What you have, how many days it lasts and how much to buy.")}</p>
+        </div>
+        <Button variant="soft" className="min-h-12 px-4 text-base" onClick={() => setEdit("new")}><Plus size={20} /> {L(lang, "Agregar", "Add")}</Button>
+      </div>
+
+      {stock.length === 0 ? (
+        <Card><p className="text-lg text-muted">{L(lang, "Agrega tus ingredientes, materiales o productos: por ejemplo, masa, hojas, vasos.", "Add your ingredients, materials or products: for example dough, husks, cups.")}</p></Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {stock.map((i) => {
+            const d = daysLeft(i);
+            const light = d < 3 ? "rojo" : d < 7 ? "amarillo" : "verde";
+            return (
+              <Card key={i.id} className="min-w-0">
+                <div className="flex items-start gap-3">
+                  <LightDot light={light} />
+                  <h3 className="-mt-1 min-w-0 flex-1 truncate text-xl font-extrabold">{i.name}</h3>
+                  <button onClick={() => setEdit(i)} aria-label={L(lang, "Cambiar", "Edit")} className="-mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-sand/60"><Pencil size={20} /></button>
+                </div>
+                <p className="mt-2 text-lg">{L(lang, "Tienes", "You have")} <b>{i.have} {unitLabel(i.unit)}</b> · {L(lang, "usas", "you use")} {i.perWeek} {L(lang, "a la semana", "a week")}</p>
+                <p className={cx("mt-2 rounded-2xl px-3 py-2 text-lg font-extrabold", light === "rojo" ? "bg-clay/10 text-clay" : light === "amarillo" ? "bg-sun-soft" : "bg-leaf/12 text-leaf")}>
+                  {d === Infinity ? L(lang, "No lo usas cada semana", "Not used weekly") : d < 1 ? L(lang, "¡Se te acaba hoy!", "Runs out today!") : L(lang, `Te alcanza para ${Math.floor(d)} días`, `Lasts ${Math.floor(d)} days`)}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={() => setBought(i)} className="h-12 rounded-2xl bg-leaf px-2 text-base font-extrabold text-paper">{L(lang, "Compré más", "I bought more")}</button>
+                  <button onClick={() => setRecount(i)} className="h-12 rounded-2xl border-2 border-sand px-2 text-base font-bold">{L(lang, "Contar otra vez", "Recount")}</button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {stock.length > 0 && (
+        <Card dark>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-xl font-extrabold">{L(lang, "¿Cuánto comprar para las próximas semanas?", "How much to buy for the coming weeks?")}</h3>
+            <ListenButton compact light text={say} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[1, 2, 4].map((w) => (
+              <button key={w} onClick={() => setWeeks(w)} aria-pressed={weeks === w} className={cx("h-12 rounded-2xl px-4 text-lg font-extrabold", weeks === w ? "bg-sun text-ink" : "bg-paper/10")}>
+                {w === 1 ? L(lang, "1 semana", "1 week") : L(lang, `${w} semanas`, `${w} weeks`)}
+              </button>
+            ))}
+            <button onClick={() => setSeason(!season)} aria-pressed={season} className={cx("h-12 rounded-2xl px-4 text-lg font-extrabold", season ? "bg-sun text-ink" : "bg-paper/10")}>
+              🎉 {L(lang, "Temporada alta (vendo más)", "Busy season (selling more)")}
+            </button>
+          </div>
+          <ul className="mt-4 divide-y divide-paper/15">
+            {plan.map(({ i, need, cost }) => (
+              <li key={i.id} className="flex items-center justify-between gap-3 py-2.5 text-lg">
+                <span className="min-w-0 truncate font-bold">{i.name}</span>
+                <span className="shrink-0 text-right">{need > 0 ? <>{L(lang, "Compra", "Buy")} <b>{need} {unitLabel(i.unit)}</b> <span className="text-paper/70">≈ {money(cost, lang)}</span></> : <span className="text-sun">✓ {L(lang, "Te alcanza", "Enough")}</span>}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 flex justify-between border-t border-paper/20 pt-3 text-xl font-extrabold"><span>{L(lang, "Necesitas guardar", "You'll need")}</span><span className="text-sun">{money(total, lang)}</span></p>
+        </Card>
+      )}
+
+      <StockSheet item={edit} onClose={() => setEdit(null)} unitLabel={unitLabel} />
+      <Sheet open={!!recount} onClose={() => setRecount(null)} title={recount ? L(lang, `¿Cuánto ${recount.name} tienes ahora?`, `How much ${recount.name} now?`) : ""}>
+        {recount && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setCount(String(Math.max(0, (Number(count) || 0) - 1)))} aria-label="−" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-sand/60 text-3xl font-bold">−</button>
+              <input inputMode="decimal" value={count} onChange={(e) => setCount(e.target.value.replace(/[^\d.]/g, ""))} className="h-16 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper text-center text-3xl font-bold outline-none focus:border-clay" aria-label={unitLabel(recount.unit)} />
+              <button onClick={() => setCount(String((Number(count) || 0) + 1))} aria-label="+" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-leaf text-3xl font-bold text-paper">+</button>
+            </div>
+            <p className="text-center text-lg text-muted">{unitLabel(recount.unit)}</p>
+            <Button variant="green" className="w-full" onClick={() => { updateStock(recount.id, { have: Math.max(0, Number(count) || 0) }); playSaved(); setRecount(null); }}><Check size={22} /> {L(lang, "Guardar", "Save")}</Button>
+          </div>
+        )}
+      </Sheet>
+      <BoughtSheet item={bought} onClose={() => setBought(null)} onSave={(qty, record) => {
+        if (!bought) return;
+        updateStock(bought.id, { have: bought.have + qty });
+        if (record && qty * bought.cost > 0) addBizEntries([{ kind: "out", category: "mercancia", amount: Math.round(qty * bought.cost * 100) / 100, repeat: "once", note: `${qty} ${bought.unit} ${bought.name}`, date: new Date().toISOString(), source: "manual" }]);
+        playSaved(); setBought(null);
+      }} unitLabel={unitLabel} />
+    </section>
+  );
+}
+
+function StockSheet({ item, onClose, unitLabel }: { item: StockItem | "new" | null; onClose: () => void; unitLabel: (u: string) => string }) {
+  const { lang } = useBiz();
+  const addStock = useStore((s) => s.addStock);
+  const updateStock = useStore((s) => s.updateStock);
+  const removeStock = useStore((s) => s.removeStock);
+  const [name, setName] = useState(""); const [unit, setUnit] = useState("piezas");
+  const [have, setHave] = useState(""); const [perWeek, setPerWeek] = useState(""); const [cost, setCost] = useState("");
+  useEffect(() => {
+    if (!item) return;
+    const i = item === "new" ? null : item;
+    setName(i?.name ?? ""); setUnit(i?.unit ?? "piezas"); setHave(i ? String(i.have) : ""); setPerWeek(i ? String(i.perWeek) : ""); setCost(i ? String(i.cost) : "");
+  }, [item]);
+  if (!item) return null;
+  const ok = name.trim() && Number(perWeek) >= 0 && have !== "";
+  const num = (v: string) => v.replace(/[^\d.]/g, "");
+  return (
+    <Sheet open={!!item} onClose={onClose} title={item === "new" ? L(lang, "Algo de mi inventario", "An inventory item") : item.name}>
+      <div className="space-y-4">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L(lang, "¿Qué es? Ej. Masa", "What is it? e.g. Dough")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
+        <div>
+          <p className="mb-2 text-lg font-bold">{L(lang, "¿Cómo lo cuentas?", "How do you count it?")}</p>
+          <div className="flex flex-wrap gap-2">
+            {UNITS.map((u) => (
+              <button key={u.es} onClick={() => setUnit(u.es)} aria-pressed={unit === u.es} className={cx("h-11 rounded-full border-2 px-4 text-base font-bold", unit === u.es ? "border-ink bg-ink text-paper" : "border-sand bg-paper")}>{unitLabel(u.es)}</button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block min-w-0"><span className="mb-1 block text-base font-bold">{L(lang, `¿Cuántos ${unit} tienes?`, `How many ${unitLabel(unit)} now?`)}</span>
+            <input inputMode="decimal" value={have} onChange={(e) => setHave(num(e.target.value))} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" /></label>
+          <label className="block min-w-0"><span className="mb-1 block text-base font-bold">{L(lang, "¿Cuántos usas a la semana?", "How many a week?")}</span>
+            <input inputMode="decimal" value={perWeek} onChange={(e) => setPerWeek(num(e.target.value))} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" /></label>
+        </div>
+        <AmountInput label={L(lang, `¿Cuánto te cuesta cada ${unit.replace(/s$/, "")}? (opcional)`, `Cost of each? (optional)`)} value={cost} onChange={setCost} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button variant="green" disabled={!ok} onClick={() => {
+            const data = { name: name.trim(), unit, have: Number(have) || 0, perWeek: Number(perWeek) || 0, cost: Number(cost) || 0 };
+            if (item === "new") addStock(data); else updateStock(item.id, data);
+            playSaved(); onClose();
+          }}><Check size={22} /> {L(lang, "Guardar", "Save")}</Button>
+          {item !== "new" && <Button variant="soft" onClick={() => { removeStock(item.id); onClose(); }}><Trash2 size={20} /> {L(lang, "Borrar", "Delete")}</Button>}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+function BoughtSheet({ item, onClose, onSave, unitLabel }: { item: StockItem | null; onClose: () => void; onSave: (qty: number, record: boolean) => void; unitLabel: (u: string) => string }) {
+  const { lang } = useBiz();
+  const [qty, setQty] = useState("");
+  const [record, setRecord] = useState(true);
+  useEffect(() => { if (item) { setQty(""); setRecord(true); } }, [item]);
+  if (!item) return null;
+  const cost = (Number(qty) || 0) * item.cost;
+  return (
+    <Sheet open={!!item} onClose={onClose} title={L(lang, `Compré ${item.name}`, `I bought ${item.name}`)}>
+      <div className="space-y-4">
+        <label className="block"><span className="mb-1 block text-lg font-bold">{L(lang, `¿Cuántos ${item.unit} compraste?`, `How many ${unitLabel(item.unit)}?`)}</span>
+          <input inputMode="decimal" autoFocus value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d.]/g, ""))} className="h-16 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-2xl font-bold outline-none focus:border-clay" /></label>
+        {item.cost > 0 && (
+          <button onClick={() => setRecord(!record)} aria-pressed={record} className={cx("flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-4 text-left text-lg font-bold", record ? "border-leaf bg-leaf/10" : "border-sand")}>
+            <span className={cx("flex h-7 w-7 items-center justify-center rounded-lg border-2", record ? "border-leaf bg-leaf text-paper" : "border-sand-dark")}>{record && <Check size={16} />}</span>
+            {L(lang, `Anotar el gasto (${money(cost, lang, cost % 1 !== 0)}) en mis gastos`, `Add the cost (${money(cost, lang, cost % 1 !== 0)}) to my costs`)}
+          </button>
+        )}
+        <Button variant="green" className="w-full" disabled={!(Number(qty) > 0)} onClick={() => onSave(Number(qty), record)}><Check size={22} /> {L(lang, "Guardar", "Save")}</Button>
+      </div>
+    </Sheet>
   );
 }

@@ -29,10 +29,10 @@ const NEGOCIO: NavItem[] = [
   { href: "/negocio", key: "home", icon: Store, exact: true },
   { href: "/negocio/dinero", key: "myMoney", icon: Wallet },
   { href: "/negocio/metas", key: "myGoals", icon: Target },
-  { href: "/aprender", key: "learn", icon: BookOpen },
+  { href: "/negocio/aprender", key: "learn", icon: BookOpen },
 ];
 const NEGOCIO_MORE: NavItem[] = [
-  { href: "/aprender", key: "learn", icon: BookOpen },
+  { href: "/negocio/aprender", key: "learn", icon: BookOpen },
   { href: "/casita/documentos", key: "documents", icon: FileSearch },
 ];
 

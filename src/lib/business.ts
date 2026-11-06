@@ -1,7 +1,7 @@
 // Mi Negocio: categories, the business "semáforo", product costs, the
 // look-ahead calculator and plain-language suggestions. All of it works
 // offline, without AI.
-import type { Label } from "./catalog";
+import { pick, type Label } from "./catalog";
 import type { Repeat } from "./catalog";
 import type { Lang } from "./i18n";
 import { toMonthly, money } from "./money";
@@ -27,6 +27,20 @@ export type Product = {
   perWeek: number;      // how many you sell in a normal week
   createdAt: string;
 };
+
+/** Something you keep in stock: ingredients, materials or products. */
+export type StockItem = {
+  id: string;
+  name: string;
+  unit: string;         // piezas, kilos, paquetes…
+  have: number;         // how many you have now
+  perWeek: number;      // how many you use or sell in a normal week
+  cost: number;         // what one unit costs you
+  updatedAt: string;
+};
+
+/** Your salary from the business: how much and how often. */
+export type MyPay = { amount: number; every: "week" | "2weeks" | "month"; since: string; paid: string[] };
 
 export type BizType = "comida" | "tienda" | "ropa" | "belleza" | "limpieza" | "construccion" | "catalogo" | "transporte" | "otro";
 
@@ -204,10 +218,33 @@ export function monthlyProfit(base: { weeklySales: number; weeklyVar: number; fi
   return (sales - vars) * WEEKS_PER_MONTH - base.fixed * (1 - s.cut);
 }
 
+/** "What if" in plain dollars: sell $X more a week, charge $Y more per piece, spend $Z less a week. */
+export type DollarScenario = { moreWeekly: number; pricePerPiece: number; cutWeekly: number };
+
+export function monthlyProfitDollars(base: { weeklySales: number; weeklyVar: number; fixed: number }, unitsPerWeek: number, s: DollarScenario): number {
+  const costShare = base.weeklySales > 0 ? base.weeklyVar / base.weeklySales : 0; // selling more also costs more to make
+  const sales = base.weeklySales + s.moreWeekly + s.pricePerPiece * unitsPerWeek;
+  const vars = base.weeklyVar + s.moreWeekly * costShare;
+  const weeklyCosts = vars + base.fixed / WEEKS_PER_MONTH;
+  const cut = Math.min(s.cutWeekly, weeklyCosts);
+  return (sales - weeklyCosts + cut) * WEEKS_PER_MONTH;
+}
+
 // ---------- Suggestions ----------
 export type Tip = { id: string; tone: "good" | "warn" | "bad" | "tip"; icon: string; text: string; action?: { href: string; label: string } };
 
-export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[], goals: { preset: string }[], lang: Lang): Tip[] {
+const INDUSTRY_TIPS: Record<string, Label> = {
+  comida: { es: "Anota lo que se te echa a perder cada semana: si tiras mucho, prepara un poco menos o véndelo en combo antes de que se pase.", en: "Write down what spoils each week: if you throw out a lot, make a bit less or sell it as a combo before it goes bad." },
+  tienda: { es: "Revisa qué productos no se vendieron en un mes y no los vuelvas a surtir; mete más de los que se acaban rápido.", en: "Check which products didn't sell in a month and don't restock them; buy more of the ones that sell out." },
+  ropa: { es: "Pide la mitad por adelantado en arreglos y pedidos: así no pones tu dinero en material que no te pagan.", en: "Ask for half upfront on alterations and orders, so you don't pay for material nobody picks up." },
+  belleza: { es: "Confirma tus citas por WhatsApp un día antes: menos citas perdidas, más dinero.", en: "Confirm appointments by WhatsApp the day before: fewer no-shows, more money." },
+  limpieza: { es: "Ofrece un precio fijo por mes a los clientes que se repiten: te da un ingreso seguro.", en: "Offer a fixed monthly price to repeat clients: it gives you steady income." },
+  construccion: { es: "Pide anticipo para materiales antes de empezar cada trabajo y deja todo por escrito.", en: "Ask for a deposit for materials before each job and put everything in writing." },
+  catalogo: { es: "Lleva una lista de quién te debe y desde cuándo: cobra cada semana el mismo día.", en: "Keep a list of who owes you and since when: collect the same day each week." },
+  transporte: { es: "Calcula cuánto gastas de gasolina por viaje y súmalo a tu precio.", en: "Work out the gas per trip and add it to your price." },
+};
+
+export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[], goals: { preset: string }[], lang: Lang, extra: { type?: string; stock?: StockItem[]; hasPay?: boolean } = {}): Tip[] {
   const L = (es: string, en: string) => (lang === "en" ? en : es);
   const tips: Tip[] = [];
   const lastSale = entries.filter((e) => e.kind === "in").map((e) => new Date(e.date).getTime()).sort((a, b) => b - a)[0];
@@ -221,12 +258,41 @@ export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[],
       `Este mes salió más dinero del que entró.${top ? ` Tu gasto más grande es ${top}: revisa si puedes pagar menos.` : ""}`,
       `More money went out than came in this month.${top ? ` Your biggest cost is ${top}: see if you can pay less.` : ""}`) });
   }
+  // Stock running out
+  for (const i of extra.stock ?? []) {
+    const d = i.perWeek > 0 ? (i.have / i.perWeek) * 7 : Infinity;
+    if (d < 3) tips.push({ id: "stock-" + i.id, tone: "bad", icon: "package", text: L(
+      `Se te acaba ${i.name} ${d < 1 ? "hoy" : `en ${Math.floor(d)} días`}. Cómpralo antes para no dejar de vender.`,
+      `You're running out of ${i.name} ${d < 1 ? "today" : `in ${Math.floor(d)} days`}. Buy more so you don't stop selling.`), action: { href: "/negocio/dinero?tab=costos", label: L("Ver mi inventario", "See my inventory") } });
+  }
   for (const p of products) {
     if (productLight(p) === "rojo" || productLight(p) === "amarillo") {
       const sp = suggestedPrice(p.cost);
       if (sp > p.price) tips.push({ id: "price-" + p.id, tone: "warn", icon: "coins", text: L(
         `Tu ${p.name} te cuesta ${money(p.cost, lang, true)} y lo vendes a ${money(p.price, lang, true)}. Si lo cobras a ${money(sp, lang, true)}, ganas 40 centavos de cada dólar.`,
         `Your ${p.name} costs ${money(p.cost, lang, true)} and sells for ${money(p.price, lang, true)}. At ${money(sp, lang, true)} you'd keep 40 cents of every dollar.`), action: { href: "/negocio/dinero?tab=costos", label: L("Ver mis costos", "See my costs") } });
+    }
+  }
+  // What earns the most
+  const best = [...products].filter((p) => p.price > p.cost && p.perWeek > 0).sort((a, b) => (b.price - b.cost) * b.perWeek - (a.price - a.cost) * a.perWeek)[0];
+  if (best && products.length > 1) {
+    tips.push({ id: "best", tone: "good", icon: "star", text: L(
+      `Tu ${best.name} es lo que más te deja: unos ${money((best.price - best.cost) * best.perWeek, lang)} a la semana. Ofrécelo primero o en combo con lo que menos se vende.`,
+      `Your ${best.name} earns you the most: about ${money((best.price - best.cost) * best.perWeek, lang)} a week. Offer it first or in a combo with slower items.`) });
+  }
+  // Best days of the week
+  const DAYS = lang === "en" ? ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] : ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const recentSales = entries.filter((e) => e.kind === "in" && e.repeat === "once" && Date.now() - new Date(e.date).getTime() < 56 * DAY);
+  if (recentSales.length >= 6) {
+    const byDay = Array(7).fill(0) as number[];
+    for (const e of recentSales) byDay[new Date(e.date).getDay()] += e.amount;
+    const tot = byDay.reduce((a, b) => a + b, 0);
+    const top = byDay.map((v, d) => ({ v, d })).sort((a, b) => b.v - a.v).slice(0, 2).filter((x) => x.v > 0);
+    if (tot > 0 && top.reduce((a, x) => a + x.v, 0) / tot >= 0.45) {
+      const names = top.map((x) => DAYS[x.d]).join(L(" y ", " and "));
+      tips.push({ id: "days", tone: "tip", icon: "calendar-days", text: L(
+        `Tus mejores días son ${names}: ahí vendes ${Math.round((top.reduce((a, x) => a + x.v, 0) / tot) * 100)} de cada 100 dólares. Prepara más esos días y descansa o surte los días flojos.`,
+        `Your best days are ${names}: ${Math.round((top.reduce((a, x) => a + x.v, 0) / tot) * 100)} of every 100 dollars come then. Prepare more on those days and restock on slow ones.`) });
     }
   }
   if (n.hasData && n.fixed === 0) {
@@ -244,7 +310,7 @@ export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[],
   if (lastSale && Date.now() - lastSale > 4 * DAY) {
     tips.push({ id: "log", tone: "tip", icon: "smartphone", text: L("Hace días no anotas ventas. Anótalas aunque sean pocas: así el semáforo dice la verdad.", "You haven't added sales in a few days. Add them even if small, so the light tells the truth.") });
   }
-  if (n.profit > 0 && n.paidMe < n.profit * 0.2) {
+  if (n.profit > 0 && n.paidMe < n.profit * 0.2 && !extra.hasPay) {
     tips.push({ id: "pay", tone: "tip", icon: "hand-coins", text: L(
       `Este mes te quedaron ${money(n.profit, lang)}. Págate un sueldo fijo y deja el resto para el negocio.`,
       `You kept ${money(n.profit, lang)} this month. Pay yourself a set amount and leave the rest in the business.`), action: { href: "/negocio?sueldo=1", label: L("Pagarme", "Pay myself") } });
@@ -255,11 +321,12 @@ export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[],
       `Junta un colchón para el negocio: lo de 1 mes de gastos, unos ${money(need, lang)}. Así una semana mala no te tumba.`,
       `Build a business cushion: one month of costs, about ${money(need, lang)}. Then a bad week won't knock you down.`), action: { href: "/negocio/metas?nueva=colchon", label: L("Crear meta", "Create goal") } });
   }
+  if (extra.type && INDUSTRY_TIPS[extra.type]) tips.push({ id: "industry", tone: "tip", icon: "lightbulb", text: pick(INDUSTRY_TIPS[extra.type], lang) });
   const m = new Date().getMonth();
   if (m === 9 || m === 10) {
     tips.push({ id: "season", tone: "tip", icon: "gift", text: L("Se acerca diciembre: compra tu mercancía con tiempo y al mayoreo, y avisa a tus clientes de los encargos.", "December is coming: buy stock early and in bulk, and tell customers to order ahead.") });
   }
-  tips.push({ id: "separate", tone: "tip", icon: "wallet", text: L("Separa el dinero de tu casa y el de tu negocio, aunque sea en dos sobres.", "Keep home and business money apart, even in two envelopes."), action: { href: "/aprender", label: L("Aprender cómo", "Learn how") } });
+  tips.push({ id: "separate", tone: "tip", icon: "wallet", text: L("Separa el dinero de tu casa y el de tu negocio, aunque sea en dos sobres.", "Keep home and business money apart, even in two envelopes."), action: { href: "/negocio/aprender", label: L("Aprender cómo", "Learn how") } });
   return tips;
 }
 
@@ -276,16 +343,52 @@ function topCost(entries: BizEntry[], lang: Lang): string | null {
 }
 
 // ---------- Goals for the business ----------
-export type BizGoalPreset = { id: string; label: Label; icon: string; visual: "house" | "jar"; hint: Label; suggested: (n: BizNumbers) => number };
+export type BizGoalPreset = { id: string; label: Label; icon: string; visual: "house" | "jar"; hint: Label; suggested: (n: BizNumbers, type?: string) => number; why?: (type?: string) => Label };
+
+// Rough costs by type of business, to start the conversation (the person can change them).
+const EQUIPO: Record<string, [number, string, string]> = {
+  comida: [2500, "un carrito, una estufa o una vaporera grande", "a cart, a stove or a big steamer"],
+  tienda: [2000, "un refrigerador o anaqueles", "a fridge or shelves"],
+  ropa: [1200, "una máquina de coser buena", "a good sewing machine"],
+  belleza: [1500, "un sillón y una secadora profesional", "a chair and a professional dryer"],
+  limpieza: [800, "una aspiradora y equipo de limpieza", "a vacuum and cleaning gear"],
+  construccion: [2000, "herramienta eléctrica", "power tools"],
+  catalogo: [300, "muestras y catálogos", "samples and catalogs"],
+  transporte: [1500, "mantenimiento y llantas", "maintenance and tires"],
+  otro: [1500, "lo que más usas para trabajar", "what you use most to work"],
+};
+const PERMISOS: Record<string, number> = { comida: 1200, construccion: 1000, transporte: 800, belleza: 700 };
+const round50 = (x: number) => Math.round(x / 50) * 50;
 
 export const BIZ_GOALS: BizGoalPreset[] = [
-  { id: "colchon", label: { es: "Colchón del negocio", en: "Business cushion" }, icon: "shield-check", visual: "jar", hint: { es: "1 mes de gastos, para las semanas malas", en: "1 month of costs, for slow weeks" }, suggested: (n) => Math.max(500, Math.round((n.varCosts + n.fixed) / 100) * 100) },
-  { id: "equipo", label: { es: "Equipo nuevo", en: "New equipment" }, icon: "hammer", visual: "jar", hint: { es: "Un carrito, una máquina, herramientas", en: "A cart, a machine, tools" }, suggested: () => 1500 },
-  { id: "mercancia", label: { es: "Comprar al mayoreo", en: "Buy in bulk" }, icon: "shopping-cart", visual: "jar", hint: { es: "Mercancía para temporada alta, más barata", en: "Stock for the busy season, cheaper" }, suggested: (n) => Math.max(400, Math.round((n.weeklyVar * 3) / 50) * 50) },
-  { id: "permisos", label: { es: "Permisos y en regla", en: "Permits and paperwork" }, icon: "file-text", visual: "jar", hint: { es: "Trabajar tranquilo y sin multas", en: "Work calmly, without fines" }, suggested: () => 800 },
-  { id: "local", label: { es: "Mi propio local", en: "My own place" }, icon: "store", visual: "house", hint: { es: "Depósito y primeros meses de renta", en: "Deposit and first months of rent" }, suggested: (n) => Math.max(5000, Math.round((n.fixed * 4) / 500) * 500) },
-  { id: "carro_negocio", label: { es: "Carro para el negocio", en: "Vehicle for the business" }, icon: "car", visual: "jar", hint: { es: "Para entregar y cargar mercancía", en: "To deliver and carry stock" }, suggested: () => 5000 },
+  { id: "colchon", label: { es: "Colchón del negocio", en: "Business cushion" }, icon: "shield-check", visual: "jar", hint: { es: "1 mes de gastos, para las semanas malas", en: "1 month of costs, for slow weeks" },
+    suggested: (n) => Math.max(500, round50(n.varCosts + n.fixed)),
+    why: () => ({ es: "Es lo que tu negocio gasta en un mes: así una semana mala no te tumba.", en: "It's what your business spends in a month, so a bad week won't knock you down." }) },
+  { id: "equipo", label: { es: "Equipo nuevo", en: "New equipment" }, icon: "hammer", visual: "jar", hint: { es: "Un carrito, una máquina, herramientas", en: "A cart, a machine, tools" },
+    suggested: (_n, t) => (EQUIPO[t ?? "otro"] ?? EQUIPO.otro)[0],
+    why: (t) => { const e = EQUIPO[t ?? "otro"] ?? EQUIPO.otro; return { es: `Es lo que cuesta más o menos ${e[1]}.`, en: `About what ${e[2]} costs.` }; } },
+  { id: "mercancia", label: { es: "Comprar al mayoreo", en: "Buy in bulk" }, icon: "shopping-cart", visual: "jar", hint: { es: "Mercancía para temporada alta, más barata", en: "Stock for the busy season, cheaper" },
+    suggested: (n) => Math.max(400, round50(n.weeklyVar * 3)),
+    why: () => ({ es: "Son unas 3 semanas de lo que compras: para surtirte antes de la temporada alta.", en: "About 3 weeks of what you buy, to stock up before the busy season." }) },
+  { id: "permisos", label: { es: "Permisos y en regla", en: "Permits and paperwork" }, icon: "file-text", visual: "jar", hint: { es: "Trabajar tranquilo y sin multas", en: "Work calmly, without fines" },
+    suggested: (_n, t) => PERMISOS[t ?? ""] ?? 500,
+    why: () => ({ es: "Una cantidad para empezar; pregunta el costo exacto en los centros gratis de la ciudad.", en: "A starting amount; ask the exact cost at the city's free centers." }) },
+  { id: "local", label: { es: "Mi propio local", en: "My own place" }, icon: "store", visual: "house", hint: { es: "Depósito y primeros meses de renta", en: "Deposit and first months of rent" },
+    suggested: (n) => Math.max(5000, round50(Math.max(n.fixed, 1200) * 4)),
+    why: () => ({ es: "Depósito y unos 3 meses de renta, para abrir sin apuros.", en: "Deposit and about 3 months of rent, to open without stress." }) },
+  { id: "carro_negocio", label: { es: "Carro para el negocio", en: "Vehicle for the business" }, icon: "car", visual: "jar", hint: { es: "Para entregar y cargar mercancía", en: "To deliver and carry stock" },
+    suggested: (_n, t) => (t === "transporte" ? 8000 : 5000),
+    why: () => ({ es: "Un carro usado en buen estado, para empezar.", en: "A good used vehicle, to start." }) },
 ];
+
+/** How much a week the business can set aside: part of what's left after costs, your salary and other goals. */
+export function bizFreeWeekly(n: BizNumbers, plansMonthly: number): number {
+  return (n.profit - n.paidMe - plansMonthly) / WEEKS_PER_MONTH;
+}
+export function recommendBizSaving(freeWeekly: number, missing: number): number | null {
+  if (freeWeekly <= 0 || missing <= 0) return null;
+  return Math.min(Math.ceil(missing), Math.max(5, Math.floor((freeWeekly * 0.4) / 5) * 5));
+}
 export const bizGoalPreset = (id: string): BizGoalPreset =>
   BIZ_GOALS.find((g) => g.id === id) ?? { id: "propia", label: { es: "Mi meta", en: "My goal" }, icon: "star", visual: "jar", hint: { es: "", en: "" }, suggested: () => 1000 };
 

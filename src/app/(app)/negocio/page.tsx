@@ -6,7 +6,7 @@ import { ArrowDownCircle, ArrowUpCircle, ArrowRight, Check, ChevronRight, HandCo
 import { Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { GoalVisual } from "@/components/GoalVisual";
-import { BizEntryRow, BizEntrySheet, L, PayMyselfSheet, Semaforo, Stat, TipList, useBiz } from "@/components/Biz";
+import { BizEntryRow, BizEntrySheet, L, MyPayCard, PayMyselfSheet, Semaforo, Stat, TipList, useBiz } from "@/components/Biz";
 import { goalSaved, useStore } from "@/lib/store";
 import { money } from "@/lib/money";
 import { pick } from "@/lib/catalog";
@@ -22,7 +22,7 @@ export default function NegocioPage() {
 }
 
 function Negocio() {
-  const { biz, n, health, lang } = useBiz();
+  const { biz, n, health, lang, goals30, free } = useBiz();
   const params = useSearchParams();
   const router = useRouter();
   const [pay, setPay] = useState(false);
@@ -35,7 +35,7 @@ function Negocio() {
 
   if (!biz) return <Setup />;
 
-  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang).slice(0, 3);
+  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay }).slice(0, 3);
   const recent = [...biz.entries].filter((e) => e.repeat === "once").sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const type = bizTypeById(biz.type);
   const lightBg = health.light === "verde" ? "bg-[#21412c]" : health.light === "amarillo" ? "bg-[#4a3a17]" : health.light === "rojo" ? "bg-[#4b1f16]" : "bg-ink";
@@ -77,8 +77,18 @@ function Negocio() {
           <div className="mt-3">
             <Stat label={n.profit >= 0 ? L(lang, "Te quedó (tu ganancia)", "You kept (your profit)") : L(lang, "Te faltó", "You were short")} value={money(Math.abs(n.profit), lang)} tone="big" />
           </div>
-          {n.paidMe > 0 && <p className="mt-2 text-base text-muted">{L(lang, `Ya te pagaste ${money(n.paidMe, lang)} este mes.`, `You've paid yourself ${money(n.paidMe, lang)} this month.`)}</p>}
-          <Button variant="soft" className="mt-auto w-full" onClick={() => setPay(true)}><HandCoins size={22} /> {L(lang, "Pagarme un sueldo", "Pay myself")}</Button>
+          {(n.paidMe > 0 || goals30 > 0) && (
+            <ul className="mt-3 space-y-1.5 text-base">
+              {n.paidMe > 0 && <li className="flex justify-between gap-2"><span>{L(lang, "Te pagaste de sueldo", "You paid yourself")}</span><b>−{money(n.paidMe, lang)}</b></li>}
+              {goals30 > 0 && <li className="flex justify-between gap-2"><span>{L(lang, "Apartaste para tus metas", "Set aside for goals")}</span><b>−{money(goals30, lang)}</b></li>}
+              <li className="flex justify-between gap-2 border-t border-sand pt-1.5 text-lg"><span className="font-bold">{L(lang, "Libre en el negocio", "Free in the business")}</span><b className={free < 0 ? "text-clay" : "text-leaf"}>{money(free, lang)}</b></li>
+            </ul>
+          )}
+          <div className="mt-auto pt-3">
+            {biz.pay ? <MyPayCard onEdit={() => setPay(true)} /> : (
+              <Button variant="soft" className="w-full" onClick={() => setPay(true)}><HandCoins size={22} /> {L(lang, "Ponerme un sueldo", "Set my salary")}</Button>
+            )}
+          </div>
         </Card>
       </div>
 
