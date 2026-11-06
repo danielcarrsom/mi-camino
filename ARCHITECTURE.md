@@ -33,6 +33,7 @@ src/app/                    Pages (App Router). Spanish URLs, matching what peop
   (app)/                    Everything behind sign-in. layout.tsx adds the frame, sync, tour and consent gate
     casita/                 Mi Casita: home, anotar, dinero, metas, tanda, enviar, documentos
     negocio/                Mi Negocio: home, anotar, dinero (movimientos/costos/futuro), metas, aprender
+                            Big screens keep their sections in a private _parts/ folder next to page.tsx
     aprender/  perfil/  inicio/
   api/                      Server routes (see above). Each paid route starts with guard()
 
@@ -54,14 +55,18 @@ src/lib/                    Logic, no UI
   money.ts                  Formatting dollars/pesos, weekly↔monthly, suggested amounts in pesos
   business.ts               Mi Negocio math: health light, product prices, projections, tips, goals
   understand.ts             Offline parser for what people type or say
-  i18n.ts                   On-screen words (Spanish + English) and the language list
+  i18n.ts                   Shared words, the language list, and tx()/txf() to show any message
   catalog.ts                Spending categories and goal presets
   learn.ts, learnBiz.ts     Games, lessons and help resources
   voice.ts                  Read aloud and listen (ElevenLabs, browser voice as backup)
   hooks.ts                  useHydrated, useT, useResetOn, useNow
   legal.ts                  Owner, contact and version of the privacy notice and terms
   server/ai.ts              Claude client and prompts (server only)
-  server/guard.ts           Origin check, size limit and rate limit for paid routes
+  server/guard.ts           Origin check, size limit and shared rate limit for paid routes
+  supabaseConfig.ts         The Supabase project URL and publishable key (public by design)
+
+src/messages/               Every text people read, one file per screen: { es, en } per message.
+                            An indigenous language is added per message (e.g. mix: "…").
 
 supabase/
   migrations/               Database schema, RLS and functions, in order
@@ -78,15 +83,15 @@ supabase/
 ## Conventions
 
 - **Calculations go in `src/lib/*.ts` as pure functions** with a test next to them. Screens only display.
-- **Words people read** are plain Spanish and English. Most screens keep short texts inline as `L(lang, "es", "en")`; shared words live in `i18n.ts`. A future step is moving all inline texts to `i18n.ts` so new languages are easier to add.
+- **Words people read** live in `src/messages/<screen>.ts` as `{ es, en }` and are shown with `tx(lang, TXT.key)`, or `txf(lang, TXT.key, [values])` when they have `{0}`, `{1}`… slots. Content that is data (lessons, games, help resources, tour steps) lives in `src/lib/learn*.ts`, `howto.ts` and `GuidedTour.tsx` with the same `{ es, en }` shape. Never write a sentence directly in a component.
 - **Resetting a form when a sheet opens** uses `useResetOn(key, reset)` instead of `useEffect` + `setState`.
 - **Server secrets** are only read in `src/lib/server/` and `src/app/api/`. Nothing secret starts with `NEXT_PUBLIC_`.
+- **Where people live** decides taxes, currency and which help resources, lessons and games appear (`useRegion()`, `forRegion()` in `learn.ts`).
 - **Money** is stored as plain numbers in the person's own currency (dollars, or pesos for people in México). `money()` formats it.
 - Comments explain *why*, in English; what people see is in Spanish first.
 
 ## Known limits (good first tasks)
 
-- `negocio/dinero/page.tsx` (≈650 lines) and `casita/tanda/page.tsx` (≈450) should be split into smaller components.
-- Inline texts should move to `i18n.ts`.
-- End-to-end coverage is one smoke script (`e2e/smoke.mjs`: demo screens, sign-up in México with consent, taxes, data download, account deletion, sign-in lock, route protection and security headers). Moving it to `@playwright/test` and adding more flows is a good next step.
-- The paid-route rate limit is per server instance (see SECURITY.md).
+- Some texts are built from data at runtime (country names, category labels) and stay inline; everything else is in `src/messages`.
+- The indigenous languages have no translated texts or recordings yet: add `mix`, `nah`, `yua`, `quc` or `qvi` to messages and recordings to `public/audio/<code>/`.
+- End-to-end coverage is two scripts (`e2e/smoke.mjs` for flows, `e2e/a11y.mjs` for accessibility). Moving them to `@playwright/test` and adding more flows is a good next step.

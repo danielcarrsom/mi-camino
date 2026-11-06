@@ -76,6 +76,10 @@ async function finishTour(p) {
   const sheet = await p.locator('[role="dialog"]').innerText();
   check(/ISR/.test(sheet) && /IMSS/.test(sheet), "México salary shows ISR and IMSS");
   await p.keyboard.press("Escape");
+  // help for people in México: Mexican agencies, not New York ones
+  await p.goto(BASE + "/aprender#ayuda"); await p.waitForTimeout(600);
+  const help = await p.locator("main").innerText();
+  check(/Condusef/.test(help) && /Profeco/.test(help) && !/NYC|311/.test(help), "México sees Mexican help resources, not New York ones");
   // download my data
   await p.goto(BASE + "/perfil"); await p.waitForTimeout(500);
   const [dl] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: /Descargar mis datos/ }).click()]);

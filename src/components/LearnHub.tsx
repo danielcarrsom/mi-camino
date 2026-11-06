@@ -373,6 +373,7 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
 // ---------- Trusted help ----------
 function Help({ needs: NEEDS, resources: RESOURCES, soon }: { needs: NeedItem[]; resources: Resource[]; soon?: LearnContent["soon"] }) {
   const lang = useLang();
+  const inNewYork = useRegion().state === "NY";
   const [need, setNeed] = useState<string>("todos");
   const list = RESOURCES.filter((r) => need === "todos" || r.needs.includes(need));
 
@@ -431,13 +432,13 @@ function Help({ needs: NEEDS, resources: RESOURCES, soon }: { needs: NeedItem[];
           </Card>
         ))}
 
-        <div className="flex min-w-0 items-start gap-3 rounded-3xl border-2 border-dashed border-sand-dark p-5 md:col-span-2">
+        {inNewYork && <div className="flex min-w-0 items-start gap-3 rounded-3xl border-2 border-dashed border-sand-dark p-5 md:col-span-2">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sand/60 text-muted"><Icon name="building-2" size={26} /></span>
           <div className="min-w-0">
             <p className="text-lg font-extrabold">{soon ? L(lang, ...soon.title) : tx(lang, TXT.prontoOrganizacionesAliadasDelConsulado)}</p>
             <p className="text-base text-muted">{soon ? L(lang, ...soon.text) : tx(lang, TXT.bancosCooperativasYAsesoresQue)}</p>
           </div>
-        </div>
+        </div>}
       </div>
 
       <p className="mt-5 text-sm text-muted">

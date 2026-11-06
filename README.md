@@ -36,9 +36,10 @@ npm run check     # types + lint + unit tests (run this before every push)
 npm test          # unit tests only (Vitest)
 npm run build     # production build
 npm run e2e       # browser smoke test against a running app (BASE_URL=http://localhost:3000)
+npm run a11y      # accessibility check with axe-core on every screen
 ```
 
-The browser test fakes Supabase, so it never creates real accounts. The unit tests cover the money math that people rely on: taxes for every US state and México (checked against hand calculations), the weekly summary, bills, goals, tandas, the text parsers, phone numbers and the rate limiter. See `src/lib/*.test.ts`.
+GitHub Actions runs all of this on every push and pull request. The browser test fakes Supabase, so it never creates real accounts. The unit tests cover the money math that people rely on: taxes for every US state and México (checked against hand calculations), the weekly summary, bills, goals, tandas, the text parsers, phone numbers and the rate limiter. See `src/lib/*.test.ts`.
 
 ## Deploy
 
@@ -55,6 +56,7 @@ Add these in Vercel → Project → Settings → Environment Variables, then Red
 | `CLAUDE_MODEL` | Optional. Defaults to `claude-sonnet-5-5` |
 | `ELEVENLABS_API_KEY` | Natural voice (read aloud) and speech-to-text |
 | `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_EN` | Optional. Voices for Spanish and English |
+| `RATE_LIMIT_SECRET` | Optional. Secret used to make anonymous visitor codes for the AI rate limit |
 | `ALLOWED_ORIGINS` | Optional. Extra domains (comma-separated) allowed to call the AI and voice routes, e.g. a custom domain |
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional. Defaults to the Mi Camino project (these are public by design) |
 

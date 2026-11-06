@@ -38,7 +38,7 @@ const TXT = {
   llamar: { es: "Llamar", en: "Call" },
   prontoOrganizacionesAliadasDelConsulado: { es: "Pronto: organizaciones aliadas del Consulado", en: "Coming soon: Consulate partner organizations" },
   bancosCooperativasYAsesoresQue: { es: "Bancos, cooperativas y asesores que trabajan con el Consulado de México en Nueva York.", en: "Banks, credit unions and advisors that work with the Mexican Consulate in New York." },
-  revisamosEstosDatosEnNoviembre: { es: "Revisamos estos datos en noviembre de 2026. Si un número cambió, llama al 311.", en: "We checked this information in November 2026. If a number changed, call 311." },
+  revisamosEstosDatosEnNoviembre: { es: "Revisamos estos datos en noviembre de 2026. Si un número cambió, búscalo en la página oficial de esa organización.", en: "We checked this information in November 2026. If a number changed, look it up on that organization’s official website." },
   tienesUnPapelQueNo: { es: "¿Tienes un papel que no entiendes?", en: "Have a paper you don't understand?" },
   deEstrellas: { es: "{0} de {1} estrellas", en: "{0} of {1} stars" },
   deLecciones: { es: "{0} de {1} lecciones", en: "{0} of {1} lessons" },
