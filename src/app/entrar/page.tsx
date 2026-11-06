@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -15,6 +15,7 @@ export default function Login() {
   const lang = useLang();
   const router = useRouter();
   const login = useStore((s) => s.login);
+  const loginProblem = useStore((s) => s.loginProblem);
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState<PhoneCountry>("us");
   const [pin, setPin] = useState("");
@@ -27,10 +28,6 @@ export default function Login() {
       else { setError(true); setPin(""); }
     });
 
-  useEffect(() => {
-    if (pin.length === 6) void tryLogin(pin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pin]);
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
 
@@ -54,8 +51,14 @@ export default function Login() {
           </>
         ) : (
           <>
-            <PinPad value={pin} onChange={(v) => { setError(false); setPin(v); }} />
-            {error && <p className="mt-5 text-center text-lg font-bold text-clay">{t("wrongLogin")}</p>}
+            <PinPad value={pin} onChange={(v) => { setError(false); setPin(v); if (v.length === 6) void tryLogin(v); }} />
+            {error && (
+              <p className="mt-5 text-center text-lg font-bold text-clay">
+                {loginProblem === "locked"
+                  ? (lang === "en" ? "Too many wrong PINs. For your safety, wait 15 minutes and try again, or recover your PIN." : "Demasiados intentos con la clave equivocada. Por tu seguridad, espera 15 minutos e intenta otra vez, o recupera tu clave.")
+                  : t("wrongLogin")}
+              </p>
+            )}
             <div className="mt-6 text-center">
               <Link href={`/recuperar?tel=${phoneKey(phone, country) ?? ""}`} className={error ? "inline-flex min-h-14 items-center justify-center rounded-2xl bg-ink px-6 text-lg font-extrabold text-paper" : "text-lg font-bold text-clay underline underline-offset-4"}>
                 {lang === "en" ? "Forgot your PIN?" : "¿Olvidaste tu clave?"}

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { NewPin } from "@/components/NewPin";
 import { GuidedTour } from "@/components/GuidedTour";
+import { ConsentGate } from "@/components/Consent";
 import { useHydrated } from "@/lib/hooks";
 import { useLang, useMe, useStore } from "@/lib/store";
 
@@ -62,6 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <>
       <AppShell>{children}</AppShell>
       {me && !me.profile.tourDone && <GuidedTour />}
+      <ConsentGate />
     </>
   );
 }

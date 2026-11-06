@@ -1,4 +1,5 @@
 "use client";
+import { useResetOn } from "@/lib/hooks";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Lightbulb, Minus, Pause, PiggyBank, Plus, Repeat as RepeatIcon, Trash2 } from "lucide-react";
@@ -27,10 +28,9 @@ function Metas() {
   const router = useRouter();
   const [create, setCreate] = useState<string | null>(null);
   useEffect(() => { if (!biz) router.replace("/negocio"); }, [biz, router]);
-  useEffect(() => {
-    const p = params.get("nueva");
-    if (p) { setCreate(p === "1" ? "" : p); router.replace("/negocio/metas", { scroll: false }); }
-  }, [params, router]);
+  const nueva = params.get("nueva");
+  useResetOn(nueva, () => { if (nueva) setCreate(nueva === "1" ? "" : nueva); });
+  useEffect(() => { if (nueva) router.replace("/negocio/metas", { scroll: false }); }, [nueva, router]);
   useEffect(() => {
     const h = window.location.hash.slice(1);
     if (h) setTimeout(() => document.getElementById(h)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
@@ -200,10 +200,10 @@ function CreateSheet({ preset, onClose }: { preset: string | null; onClose: () =
   };
   const preset0 = pid ? bizGoalPreset(pid) : null;
   const recWeekly = recommendBizSaving(freeWeekly, Number(target) || 0);
-  useEffect(() => {
+  useResetOn(preset, () => {
     if (preset === null) return;
     if (preset) choose(preset); else { setPid(""); setName(""); setTarget(""); setPlanDraft({ amount: "", every: "week" }); }
-  }, [preset]); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   const ok = pid && name.trim() && Number(target) > 0;
   return (

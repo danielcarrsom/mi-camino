@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, KeyRound, Phone, ShieldCheck } from "lucide-react";
 import { Button, ListenButton, Logo, MicButton, PinPad } from "@/components/ui";
 import { PhoneInput } from "@/components/PhoneInput";
-import { useHydrated } from "@/lib/hooks";
+import { useHydrated, useResetOn } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 import { altPhoneKey, phoneKey, type PhoneCountry } from "@/lib/phone";
 import { pick } from "@/lib/catalog";
@@ -46,11 +46,11 @@ function Recuperar() {
   const [pinOk, setPinOk] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    const tel = params.get("tel");
+  const tel = params.get("tel");
+  useResetOn(tel, () => {
     if (!tel) return;
     if (tel.length === 12 && tel.startsWith("52")) { setCountry("mx"); setPhone(tel.slice(2)); } else setPhone(tel);
-  }, [params]);
+  });
 
   const key = phoneKey(phone, country);
   const say: Record<Stage, string> = {
@@ -101,12 +101,16 @@ function Recuperar() {
   };
 
   // New PIN, twice
-  useEffect(() => { if (stage === "pin" && pin.length === 6) setTimeout(() => setStage("pin2"), 250); }, [pin, stage]);
-  useEffect(() => {
-    if (stage !== "pin2" || pin2.length !== 6) return;
-    if (pin2 === pin) { setPinOk(true); void submit(pin); }
+  const typePin = (v: string) => {
+    setPin(v);
+    if (v.length === 6) setTimeout(() => setStage("pin2"), 250);
+  };
+  const typePin2 = (v: string) => {
+    setPin2(v);
+    if (v.length !== 6) return;
+    if (v === pin) { setPinOk(true); void submit(pin); }
     else { setMsg(L("Las claves no son iguales. Intenta otra vez.", "The PINs don't match. Try again.")); setPin(""); setPin2(""); setTimeout(() => setStage("pin"), 900); }
-  }, [pin2, stage]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
 
@@ -193,8 +197,8 @@ function Recuperar() {
           </div>
         )}
 
-        {stage === "pin" && <PinPad value={pin} onChange={setPin} />}
-        {stage === "pin2" && <PinPad value={pin2} onChange={setPin2} />}
+        {stage === "pin" && <PinPad value={pin} onChange={typePin} />}
+        {stage === "pin2" && <PinPad value={pin2} onChange={typePin2} />}
       </main>
     </div>
   );

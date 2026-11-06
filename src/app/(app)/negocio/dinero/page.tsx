@@ -1,4 +1,5 @@
 "use client";
+import { useResetOn } from "@/lib/hooks";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownCircle, ArrowUpCircle, Boxes, Calculator, Check, ChevronDown, Pencil, Plus, Receipt, Repeat as RepeatIcon, Telescope, Trash2 } from "lucide-react";
@@ -25,7 +26,7 @@ function Dinero() {
   const router = useRouter();
   const initial = (params.get("tab") as Tab) || "movimientos";
   const [tab, setTab] = useState<Tab>(["movimientos", "costos", "futuro"].includes(initial) ? initial : "movimientos");
-  useEffect(() => { if (["movimientos", "costos", "futuro"].includes(initial)) setTab(initial); }, [initial]);
+  useResetOn(initial, () => { if (["movimientos", "costos", "futuro"].includes(initial)) setTab(initial); });
   useEffect(() => { if (!biz) router.replace("/negocio"); }, [biz, router]);
   if (!biz) return null;
 
@@ -262,15 +263,20 @@ function ProductSheet({ product, onClose }: { product: Product | "new" | null; o
   const [batch, setBatch] = useState(false);
   const [batchCost, setBatchCost] = useState("");
   const [batchUnits, setBatchUnits] = useState("");
-  useEffect(() => {
+  useResetOn(product, () => {
     if (!product) return;
     const p = product === "new" ? null : product;
     setName(p?.name ?? ""); setCost(p ? String(p.cost) : ""); setPrice(p ? String(p.price) : ""); setPerWeek(p ? String(p.perWeek) : "");
     setBatch(false); setBatchCost(""); setBatchUnits("");
-  }, [product]);
+  });
 
   const unitFromBatch = Number(batchCost) > 0 && Number(batchUnits) > 0 ? Number(batchCost) / Number(batchUnits) : 0;
-  useEffect(() => { if (batch && unitFromBatch) setCost(String(Math.round(unitFromBatch * 100) / 100)); }, [batch, unitFromBatch]);
+  /** "I buy a batch": the cost of one comes from the batch price ÷ how many it makes. */
+  const fromBatch = (costText: string, unitsText: string) => {
+    setBatchCost(costText); setBatchUnits(unitsText);
+    const unit = Number(costText) > 0 && Number(unitsText) > 0 ? Number(costText) / Number(unitsText) : 0;
+    if (unit) setCost(String(Math.round(unit * 100) / 100));
+  };
 
   if (!product) return null;
   const c = Number(cost) || 0, pr = Number(price) || 0;
@@ -294,11 +300,11 @@ function ProductSheet({ product, onClose }: { product: Product | "new" | null; o
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="block min-w-0">
                   <span className="mb-1 block text-base font-bold">{L(lang, "Gasté en todo", "I spent")}</span>
-                  <input inputMode="decimal" value={batchCost} onChange={(e) => setBatchCost(e.target.value.replace(/[^\d.]/g, ""))} placeholder="$50" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
+                  <input inputMode="decimal" value={batchCost} onChange={(e) => fromBatch(e.target.value.replace(/[^\d.]/g, ""), batchUnits)} placeholder="$50" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
                 </label>
                 <label className="block min-w-0">
                   <span className="mb-1 block text-base font-bold">{L(lang, "Me salieron", "I made")}</span>
-                  <input inputMode="numeric" value={batchUnits} onChange={(e) => setBatchUnits(e.target.value.replace(/\D/g, ""))} placeholder="40" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
+                  <input inputMode="numeric" value={batchUnits} onChange={(e) => fromBatch(batchCost, e.target.value.replace(/\D/g, ""))} placeholder="40" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
                 </label>
               </div>
               {unitFromBatch > 0 && <p className="mt-3 text-lg font-extrabold">= {money(unitFromBatch, lang, true)} {L(lang, "cada uno", "each")}</p>}
@@ -480,7 +486,7 @@ function Inventario() {
   const [bought, setBought] = useState<StockItem | null>(null);
   const [recount, setRecount] = useState<StockItem | null>(null);
   const [count, setCount] = useState("");
-  useEffect(() => { if (recount) setCount(String(recount.have)); }, [recount]);
+  useResetOn(recount, () => { if (recount) setCount(String(recount.have)); });
   const [weeks, setWeeks] = useState(2);
   const [season, setSeason] = useState(false);
   if (!biz) return null;
@@ -594,11 +600,11 @@ function StockSheet({ item, onClose, unitLabel }: { item: StockItem | "new" | nu
   const removeStock = useStore((s) => s.removeStock);
   const [name, setName] = useState(""); const [unit, setUnit] = useState("piezas");
   const [have, setHave] = useState(""); const [perWeek, setPerWeek] = useState(""); const [cost, setCost] = useState("");
-  useEffect(() => {
+  useResetOn(item, () => {
     if (!item) return;
     const i = item === "new" ? null : item;
     setName(i?.name ?? ""); setUnit(i?.unit ?? "piezas"); setHave(i ? String(i.have) : ""); setPerWeek(i ? String(i.perWeek) : ""); setCost(i ? String(i.cost) : "");
-  }, [item]);
+  });
   if (!item) return null;
   const ok = name.trim() && Number(perWeek) >= 0 && have !== "";
   const num = (v: string) => v.replace(/[^\d.]/g, "");
@@ -638,7 +644,7 @@ function BoughtSheet({ item, onClose, onSave, unitLabel }: { item: StockItem | n
   const { lang } = useBiz();
   const [qty, setQty] = useState("");
   const [record, setRecord] = useState(true);
-  useEffect(() => { if (item) { setQty(""); setRecord(true); } }, [item]);
+  useResetOn(item, () => { if (item) { setQty(""); setRecord(true); } });
   if (!item) return null;
   const cost = (Number(qty) || 0) * item.cost;
   return (

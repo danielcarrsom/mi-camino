@@ -1,12 +1,12 @@
 "use client";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownCircle, ArrowUpCircle, Mic, Keyboard, Camera, Check, Trash2, Hammer, Loader2, ImageUp, ShieldCheck, Repeat as RepeatIcon } from "lucide-react";
 import { AmountInput, Button, Card, Disclaimer, MicButton, PageHeader, Sheet, Tile, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useT } from "@/lib/hooks";
+import { useResetOn, useT } from "@/lib/hooks";
 import { useLang, useMe, useStore, type Source } from "@/lib/store";
-import { getCurrency, money, moneySpoken } from "@/lib/money";
+import { getCurrency, moneySpoken } from "@/lib/money";
 import { INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
 import { CategorySheet, RepeatPicker, WorkEditor, toSavedWork } from "@/components/MoneyForms";
 import type { Parsed, ParsedEntry, ParsedWork } from "@/lib/understand";
@@ -44,10 +44,10 @@ function Add() {
   const [saved, setSaved] = useState(false);
   const [savedRepeats, setSavedRepeats] = useState(false);
 
-  useEffect(() => {
+  useResetOn(tipo, () => {
     setKind(tipo === "gane" ? "in" : tipo === "gaste" ? "out" : null);
     setResult(null); setSaved(false);
-  }, [tipo]);
+  });
 
   async function understand(text: string, src: Source) {
     if (!kind) return;

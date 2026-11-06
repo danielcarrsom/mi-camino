@@ -1,3 +1,4 @@
+import { guard } from "@/lib/server/guard";
 import { ai, hasAI, model, textOf } from "@/lib/server/ai";
 
 // Photo(s) or a PDF of a letter, bill or contract → a plain-language
@@ -31,6 +32,8 @@ Return ONLY JSON:
 If you can't read the document, say so in "summary", set risk to "caution" and suggest taking a clearer photo.`;
 
 export async function POST(req: Request) {
+  const refused = guard(req, "explicar");
+  if (refused) return refused;
   if (!hasAI()) return Response.json({ error: "ai not configured" }, { status: 501 });
   let body: { parts?: Part[]; lang?: string };
   try { body = await req.json(); } catch { return Response.json({ error: "bad json" }, { status: 400 }); }

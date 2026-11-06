@@ -6,7 +6,7 @@ import { Plus, Pencil, Repeat } from "lucide-react";
 import { AmountInput, Button, Card, PageHeader, QuickAmounts, Sheet, Tile } from "@/components/ui";
 import { GoalVisual, unitsFor } from "@/components/GoalVisual";
 import { Icon } from "@/components/Icon";
-import { useT } from "@/lib/hooks";
+import { useResetOn, useT } from "@/lib/hooks";
 import { goalSaved, useLang, useMe, useStore } from "@/lib/store";
 import { money, toWeekly, localAmount } from "@/lib/money";
 import { PlanEditor, recommendedAmount, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
@@ -28,8 +28,9 @@ function Goals() {
   const lang = useLang();
   const me = useMe()!;
   const params = useSearchParams();
-  const [open, setOpen] = useState(false);
-  useEffect(() => { if (params.get("nueva")) setOpen(true); }, [params]);
+  const [open, setOpen] = useState(() => !!params.get("nueva"));
+  const nueva = params.get("nueva");
+  useResetOn(nueva, () => { if (nueva) setOpen(true); });
 
   return (
     <>
@@ -96,9 +97,12 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const [step, setStep] = useState<"amount" | "plan">("amount");
   const [plan, setPlanDraft] = useState<PlanDraft>({ amount: "", every: "week" });
 
+  useResetOn(open, () => {
+    if (open) { setPreset(null); setName(""); setAmount(""); setStep("amount"); setPlanDraft({ amount: "", every: "week" }); }
+  });
   useEffect(() => {
-    if (open) { setPreset(null); setName(""); setAmount(""); setStep("amount"); setPlanDraft({ amount: "", every: "week" }); speak(t("newGoalSay"), lang, "newGoal"); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) speak(t("newGoalSay"), lang, "newGoal");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- speak once when the sheet opens
   }, [open]);
 
   const choose = (p: GoalPreset | "own") => {

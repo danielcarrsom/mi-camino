@@ -1,4 +1,5 @@
 "use client";
+import { useNow, useResetOn } from "@/lib/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Check, Users, ShieldAlert, Lightbulb, HandCoins, CalendarDays, PartyPopper } from "lucide-react";
 import { AmountInput, Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
@@ -68,6 +69,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
   const me = useMe()!;
   const toggle = useStore((s) => s.toggleTandaPaid);
   const receive = useStore((s) => s.receiveTanda);
+  const now = useNow();
   const [party, setParty] = useState(false);
 
   const current = tandaCurrentRound(t);
@@ -84,7 +86,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
   const status =
     t.received ? L(lang, "Ya recibiste tu tanda", "You already got your tanda")
     : myTurnNow ? L(lang, "¡Esta vuelta te toca recibir!", "It's your turn to receive!")
-    : payout.getTime() > Date.now() ? `${L(lang, "Te toca recibir el", "Your turn is on")} ${dateWord(lang, payout)}`
+    : payout.getTime() > now ? `${L(lang, "Te toca recibir el", "Your turn is on")} ${dateWord(lang, payout)}`
     : L(lang, "Tu turno ya pasó: marca si ya recibiste", "Your turn passed: mark if you received it");
 
   const say = `${t.name}. ${L(lang, "Pones", "You put in")} ${moneySpoken(t.amount, lang)} ${everyWord(lang, t.every)}. ${L(lang, "Son", "There are")} ${t.people} ${L(lang, "personas, el que recibe se lleva", "people; whoever receives takes")} ${moneySpoken(pot, lang)}. ${status}.`;
@@ -130,7 +132,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
               <HandCoins size={24} /> {L(lang, "Ya recibí mi tanda", "I received my tanda")}
             </Button>
           )}
-          {!myTurnNow && !t.received && payout.getTime() < Date.now() && (
+          {!myTurnNow && !t.received && payout.getTime() < now && (
             <Button variant="soft" onClick={() => receive(t.id)} className="mt-5 w-full"><Check size={22} /> {L(lang, "Ya la recibí", "I received it")}</Button>
           )}
           {goal && (
@@ -284,7 +286,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
   const [names, setNames] = useState<string[]>([]);
   const [showNames, setShowNames] = useState(false);
 
-  useEffect(() => {
+  useResetOn(open, () => {
     if (!open) return;
     setName(tanda?.name ?? L(lang, "Tanda de la familia", "Family tanda"));
     setAmount(tanda ? String(tanda.amount) : "");
@@ -295,11 +297,12 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
     setGoalId(tanda?.goalId ?? null);
     setNames(tanda?.names ?? []);
     setShowNames(false);
-    if (!tanda) speak(L(lang, "Anota tu tanda: cuánto pone cada quien, cada cuánto, cuántas personas son y qué número te toca.", "Add your tanda: how much each person puts in, how often, how many people and which turn is yours."), lang);
+  });
+  useEffect(() => {
+    if (open && !tanda) speak(L(lang, "Anota tu tanda: cuánto pone cada quien, cada cuánto, cuántas personas son y qué número te toca.", "Add your tanda: how much each person puts in, how often, how many people and which turn is yours."), lang);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  useEffect(() => { if (myTurn > people) setMyTurn(people); }, [people, myTurn]);
 
   const draft: Tanda = useMemo(() => ({
     id: "x", name, amount: Number(amount) || 0, every, people, names, myTurn,
@@ -343,7 +346,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Stepper label={L(lang, "¿Cuántas personas son?", "How many people?")} value={people} min={2} max={40} step={1} onChange={setPeople} />
+          <Stepper label={L(lang, "¿Cuántas personas son?", "How many people?")} value={people} min={2} max={40} step={1} onChange={(n) => { setPeople(n); if (myTurn > n) setMyTurn(n); }} />
           <Stepper label={L(lang, "¿Qué número te toca?", "Which turn is yours?")} value={myTurn} min={1} max={people} step={1} onChange={setMyTurn} />
         </div>
 

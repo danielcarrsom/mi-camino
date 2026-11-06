@@ -1,6 +1,7 @@
 "use client";
 // Pieces shared by the Mi Negocio pages.
-import { useEffect, useMemo, useState } from "react";
+import { useNow, useResetOn } from "@/lib/hooks";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Pencil, Trash2, Repeat as RepeatIcon, HandCoins } from "lucide-react";
 import { AmountInput, Button, ListenButton, QuickAmounts, Sheet, cx } from "./ui";
@@ -21,10 +22,11 @@ export function useBiz() {
   const n = useMemo(() => bizNumbers(biz?.entries ?? []), [biz?.entries]);
   const health = useMemo(() => bizHealth(n, biz?.products ?? [], lang), [n, biz?.products, lang]);
   // Money set apart for business goals in the last 30 days, and what's really free
+  const now = useNow();
   const goals30 = useMemo(() => {
-    const since = Date.now() - 30 * 86400000;
+    const since = now - 30 * 86400000;
     return (biz?.goals ?? []).flatMap((g) => g.deposits).filter((d) => new Date(d.date).getTime() >= since).reduce((a, d) => a + d.amount, 0);
-  }, [biz?.goals]);
+  }, [biz?.goals, now]);
   const free = n.profit - n.paidMe - goals30;
   const region = regionOf(me?.profile);
   return { me, biz, n, health, lang, goals30, free, region };
@@ -106,10 +108,10 @@ export function BizEntrySheet({ entry, onClose }: { entry: BizEntry | null; onCl
   const [note, setNote] = useState("");
   const [cat, setCat] = useState("");
   const [repeat, setRepeat] = useState<Repeat>("once");
-  useEffect(() => {
+  useResetOn(entry, () => {
     if (!entry) return;
     setAmount(String(entry.amount)); setNote(entry.note); setCat(entry.category); setRepeat(entry.repeat);
-  }, [entry]);
+  });
   if (!entry) return null;
   const cats = BIZ_CATEGORIES.filter((c) => c.kind === entry.kind && (!c.hidden || c.id === entry.category));
   return (
@@ -173,13 +175,13 @@ export function PayMyselfSheet({ open, onClose, suggested }: { open: boolean; on
   const [amount, setAmount] = useState("");
   const [every, setEvery] = useState<"once" | "week" | "2weeks" | "month">("week");
   const [done, setDone] = useState(false);
-  useEffect(() => {
+  useResetOn(open, () => {
     if (!open) return;
     const p = biz?.pay;
     setAmount(p ? String(p.amount) : suggested > 0 ? String(Math.round(suggested / 4.33 / 5) * 5 || 5) : "");
     setEvery(p ? p.every : "week");
     setDone(false);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  });
   const per = { once: "", week: L(lang, "cada semana", "every week"), "2weeks": L(lang, "cada quincena", "every two weeks"), month: L(lang, "cada mes", "every month") }[every];
   return (
     <Sheet open={open} onClose={onClose} title={L(lang, "Mi sueldo del negocio", "My salary from the business")}>
@@ -264,7 +266,7 @@ export function Stat({ label, value, tone }: { label: string; value: string; ton
   );
 }
 
-export function TipList({ tips, lang }: { tips: Tip[]; lang: Lang }) {
+export function TipList({ tips }: { tips: Tip[]; lang?: Lang }) {
   const tone = { good: "bg-leaf/12 text-leaf", warn: "bg-sun-soft text-ink", bad: "bg-clay/12 text-clay", tip: "bg-cream text-clay" } as const;
   return (
     <ul className="divide-y divide-sand">

@@ -1,8 +1,9 @@
 "use client";
+import { useResetOn } from "@/lib/hooks";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDownCircle, ArrowUpCircle, ArrowRight, Check, ChevronRight, HandCoins, Lightbulb, Pencil, Store } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Check, ChevronRight, HandCoins, Lightbulb, Pencil, Store } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { GoalVisual } from "@/components/GoalVisual";
@@ -30,9 +31,9 @@ function Negocio() {
   const [edit, setEdit] = useState<BizEntry | null>(null);
   const [rename, setRename] = useState(false);
 
-  useEffect(() => {
-    if (params.get("sueldo")) { setPay(true); router.replace("/negocio"); }
-  }, [params, router]);
+  const sueldo = params.get("sueldo");
+  useResetOn(sueldo, () => { if (sueldo) setPay(true); });
+  useEffect(() => { if (sueldo) router.replace("/negocio"); }, [sueldo, router]);
 
   if (!biz) return <Setup />;
 
@@ -207,7 +208,7 @@ function RenameSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const update = useStore((s) => s.updateBusiness);
   const [name, setName] = useState("");
   const [type, setType] = useState<BizType>("otro");
-  useEffect(() => { if (open && biz) { setName(biz.name); setType(biz.type); } }, [open, biz]);
+  useResetOn(open, () => { if (open && biz) { setName(biz.name); setType(biz.type); } });
   return (
     <Sheet open={open} onClose={onClose} title={L(lang, "Mi negocio", "My business")}>
       <input value={name} onChange={(e) => setName(e.target.value)} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />

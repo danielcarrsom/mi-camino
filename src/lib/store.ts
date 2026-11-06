@@ -1,129 +1,24 @@
 "use client";
-// Prototype data layer: everything lives in this browser (localStorage).
-// Several people can share one device; each has their own phone + PIN.
-// This will move to Supabase for the pilot.
+// The app's state: the people who use this device (each with their phone + PIN),
+// who is signed in, and every change they make. Saved in this browser
+// (localStorage) and, when signed in, copied to Supabase (see cloud.ts).
+// Several people can share one device.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Lang } from "./i18n";
-import type { Repeat } from "./catalog";
-import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek, setCurrency } from "./money";
+import { uid, setCurrency } from "./money";
 import { altPhoneKey } from "./phone";
-import { cashSetAsideWeekly, takeHomeWeekly, weeklyTaxes, DEFAULT_TAX, DEFAULT_REGION, type Region, type WorkTax } from "./taxes";
+import type { Region } from "./taxes";
 import type { BizEntry, Product, BizType, StockItem, MyPay } from "./business";
-import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
+import { cloudChangePin, cloudDeleteAccount, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
+import { applyGoalPlans, goalSaved, periodKey, regionOf, tandaPot, withPlan } from "./model";
+import { DEMO_PHONE, DEMO_PIN, demoData } from "./demo";
+import type { Business, CloudStatus, Entry, Goal, Plan, Profile, Tanda, UserData, Work } from "./types";
 
-export type Profile = {
-  name: string;
-  lang: Lang;
-  casita: boolean;
-  negocio: boolean;
-  createdAt: string;
-  recoveryQ?: string;     // id of the security question chosen (the answer lives only on the server)
-  tourDone?: boolean;     // finished the guided tour
-  stepsHiddenCasita?: boolean;
-  stepsHiddenNegocio?: boolean;
-  // Where you live: decides taxes and whether money is in dollars or pesos
-  country?: "us" | "mx";
-  usState?: string;       // two letters, e.g. "NY"
-  nyc?: boolean;          // lives in one of New York City's five boroughs
-  married?: boolean;      // files taxes as married
-  avatar?: string;        // id of the animal picked as profile picture
-};
-
-/** Where this person lives, for taxes and money. Older accounts were all New York City. */
-export function regionOf(p: Profile | undefined): Region {
-  if (!p?.country) return DEFAULT_REGION;
-  if (p.country === "mx") return { country: "mx", married: !!p.married };
-  return { country: "us", state: p.usState || "NY", nyc: p.usState === "NY" || !p.usState ? p.nyc !== false : false, married: !!p.married };
-}
-
-export type Work = {
-  id: string;
-  name: string;           // e.g. "Restaurante" (optional)
-  pay: number;            // amount per pay period
-  every: Repeat;          // week | 2weeks | month
-  hoursPerWeek: number;
-  daysPerWeek: number;
-  source: Source;
-  createdAt: string;
-  tax?: WorkTax;          // are taxes taken out? where do you live? (missing = taken out, NYC)
-};
-
-export type Source = "voz" | "texto" | "foto" | "manual";
-
-export type Entry = {
-  id: string;
-  kind: "in" | "out";
-  category: string;       // category id from catalog
-  amount: number;
-  repeat: Repeat;         // once = only counts the week it happened
-  note: string;
-  date: string;
-  source: Source;
-  paid?: string[];        // fixed payments: the periods the person confirmed they paid
-};
-
-/** auto = added by a savings plan; from "tanda" = the tanda pot, which never came out of your pay. */
-export type Deposit = { id: string; amount: number; date: string; auto?: boolean; from?: "tanda" };
-
-/** A savings plan: set apart `amount` every `every`. It is counted as money
- *  leaving the budget each period, and a brick is added automatically. */
-export type Plan = { amount: number; every: "week" | "2weeks" | "month"; lastApplied: string };
-
-export type Goal = {
-  id: string;
-  preset: string;         // preset id or "propia"
-  name: string;
-  target: number;
-  deposits: Deposit[];
-  plan?: Plan | null;
-  createdAt: string;
-};
-
-/** A tanda (rotating savings group): everyone puts `amount` every period and
- *  each round one person takes the whole pot. */
-export type Tanda = {
-  id: string;
-  name: string;
-  amount: number;             // what each person puts per round
-  every: "week" | "2weeks" | "month";
-  people: number;
-  names: string[];            // optional names per turn (index 0 = turn 1)
-  myTurn: number;             // 1-based
-  start: string;              // date of round 1
-  paid: number[];             // rounds (0-based) I already paid
-  received: boolean;
-  goalId: string | null;      // where the pot goes when I receive it
-  createdAt: string;
-};
-
-export type UserData = {
-  profile: Profile;
-  work: Work[];
-  entries: Entry[];
-  goals: Goal[];
-  tandas?: Tanda[];
-  learn?: Learn;
-  business?: Business;
-  updatedAt?: string;          // last change on this device or in the cloud
-};
-
-/** Mi Negocio: its own money, products and goals, kept apart from the home. */
-export type Business = {
-  name: string;
-  type: BizType;
-  entries: BizEntry[];
-  products: Product[];
-  goals: Goal[];
-  createdAt: string;
-  pay?: MyPay | null;
-  stock?: StockItem[];
-};
-
-/** Best stars per game (0–3) and lessons finished. */
-export type Learn = { stars: Record<string, number>; read: string[] };
-
-export type CloudStatus = "off" | "syncing" | "saved" | "local";
+// The rest of the app imports data shapes and calculations from here.
+export * from "./types";
+export * from "./model";
+export { DEMO_PHONE, DEMO_PIN } from "./demo";
 
 type Account = { pinHash: string; data: UserData };
 
@@ -136,6 +31,7 @@ type State = {
   touring: boolean;                   // the guided tour is on screen
   cloud: CloudStatus;                 // is this person's data saved online?
   needsNewPin: boolean;               // signed in with an old 4-digit PIN
+  loginProblem: "wrong" | "locked" | null; // why the last sign-in failed
 
   setDeviceLang: (l: Lang) => void;
   setVoiceOn: (v: boolean) => void;
@@ -149,6 +45,8 @@ type State = {
   resetLocalPin: (phone: string, pin: string) => Promise<void>;
   login: (phone: string, pin: string) => Promise<boolean>;
   logout: () => void;
+  /** Erase this person's account on this device and online. Asks for the PIN again. */
+  deleteAccount: (pin: string) => Promise<"ok" | "wrong" | "offline">;
   loadDemo: () => Promise<void>;
 
   updateProfile: (p: Partial<Profile>) => void;
@@ -202,40 +100,6 @@ async function hashPin(phone: string, pin: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Adds the automatic bricks a savings plan owes since it was last applied. */
-function applyGoalPlans(goals: Goal[]): Goal[] | null {
-  let changed = false;
-  const out = goals.map((g) => {
-    if (!g.plan) return g;
-    let last = new Date(g.plan.lastApplied);
-    let saved = goalSaved(g);
-    const added: Deposit[] = [];
-    for (let next = nextPeriod(last, g.plan.every); next.getTime() <= Date.now() && saved < g.target && added.length < 60; next = nextPeriod(next, g.plan.every)) {
-      const amt = Math.min(g.plan.amount, g.target - saved);
-      added.push({ id: uid(), amount: amt, date: next.toISOString(), auto: true });
-      saved += amt;
-      last = next;
-    }
-    if (!added.length) return g;
-    changed = true;
-    return { ...g, deposits: [...g.deposits, ...added], plan: { ...g.plan, lastApplied: last.toISOString() } };
-  });
-  return changed ? out : null;
-}
-
-/** Starting a plan sets apart the first amount right away (this week). */
-function withPlan(g: Goal, plan: { amount: number; every: Plan["every"] } | null): Goal {
-  if (!plan) return { ...g, plan: null };
-  const now = new Date().toISOString();
-  const first = Math.min(plan.amount, Math.max(0, g.target - goalSaved(g)));
-  const startingNew = !g.plan;
-  return {
-    ...g,
-    plan: { ...plan, lastApplied: startingNew ? now : g.plan!.lastApplied },
-    deposits: startingNew && first > 0 ? [...g.deposits, { id: uid(), amount: first, date: now, auto: true }] : g.deposits,
-  };
-}
-
 function withBiz(d: UserData, fn: (b: Business) => Business): UserData {
   if (!d.business) return d;
   const next = fn(d.business);
@@ -251,108 +115,6 @@ function mutateCurrent(state: State, fn: (d: UserData) => UserData): Partial<Sta
   return { accounts: { ...state.accounts, [state.current]: { ...acc, data: { ...next, updatedAt: new Date().toISOString() } } } };
 }
 
-export const DEMO_PHONE = "0000000000";
-export const DEMO_PIN = "123456";
-
-function daysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString();
-}
-
-function demoData(lang: Lang): UserData {
-  const now = new Date().toISOString();
-  const casaId = uid();
-  return {
-    profile: { name: "María", lang, casita: true, negocio: true, createdAt: now, country: "us", usState: "NY", nyc: true, avatar: "ajolote" },
-    work: [
-      { id: uid(), name: "Restaurante", pay: 864, every: "week", hoursPerWeek: 48, daysPerWeek: 6, source: "foto", createdAt: now, tax: { mode: "withheld" } },
-    ],
-    entries: [
-      { id: uid(), kind: "in", category: "mi_negocio", amount: 200, repeat: "once", note: "Tamales María", date: daysAgo(0), source: "manual" },
-      { id: uid(), kind: "out", category: "renta", amount: 1100, repeat: "month", note: "Cuarto en Corona", date: daysAgo(20), source: "voz" },
-      { id: uid(), kind: "out", category: "luz", amount: 45, repeat: "month", note: "", date: daysAgo(12), source: "foto" },
-      { id: uid(), kind: "out", category: "telefono", amount: 40, repeat: "month", note: "", date: daysAgo(10), source: "texto" },
-      { id: uid(), kind: "out", category: "metro", amount: 34, repeat: "week", note: "", date: daysAgo(6), source: "voz" },
-      { id: uid(), kind: "out", category: "super", amount: 90, repeat: "week", note: "", date: daysAgo(4), source: "foto" },
-      { id: uid(), kind: "out", category: "envio", amount: 300, repeat: "month", note: "A mi mamá en Puebla", date: daysAgo(3), source: "voz" },
-      { id: uid(), kind: "out", category: "comida_fuera", amount: 18, repeat: "once", note: "", date: daysAgo(1), source: "texto" },
-      { id: uid(), kind: "in", category: "propinas", amount: 60, repeat: "once", note: "", date: daysAgo(1), source: "voz" },
-    ],
-    goals: [
-      {
-        id: casaId, preset: "casa_mexico", name: "Mi casita en Puebla", target: 12000, createdAt: daysAgo(90),
-        deposits: [
-          { id: uid(), amount: 1500, date: daysAgo(80) },
-          { id: uid(), amount: 1200, date: daysAgo(50) },
-          { id: uid(), amount: 1300, date: daysAgo(20) },
-          { id: uid(), amount: 800, date: daysAgo(9) },
-          { id: uid(), amount: 120, date: daysAgo(1), auto: true },
-        ],
-        plan: { amount: 120, every: "week", lastApplied: daysAgo(1) },
-      },
-      {
-        id: uid(), preset: "emergencias", name: "Dinero para emergencias", target: 1500, createdAt: daysAgo(40),
-        deposits: [
-          { id: uid(), amount: 300, date: daysAgo(30) },
-          { id: uid(), amount: 250, date: daysAgo(12) },
-        ],
-      },
-    ],
-    tandas: [
-      {
-        id: uid(), name: "Tanda de las compañeras", amount: 100, every: "week", people: 10,
-        names: ["Lupe", "Rosa", "Carmen", "Juana", "Elena", "", "Paty", "Sofía", "Inés", "Marta"],
-        myTurn: 6, start: daysAgo(21), paid: [0, 1, 2], received: false, goalId: casaId, createdAt: daysAgo(25),
-      },
-    ],
-    business: demoBusiness(),
-  };
-}
-
-/** María sells tamales on weekends: about 8 weeks of history, a little better each month. */
-function demoBusiness(): Business {
-  const entries: BizEntry[] = [];
-  const add = (kind: "in" | "out", category: string, amount: number, ago: number, note = "", repeat: Repeat = "once") =>
-    entries.push({ id: uid(), kind, category, amount, repeat, note, date: daysAgo(ago), source: "voz" });
-  for (let ago = 1; ago <= 58; ago++) {
-    const d = new Date(); d.setDate(d.getDate() - ago);
-    const dow = d.getDay();
-    const lift = ago < 30 ? 1.12 : 1; // this month went better
-    if (dow === 6 || dow === 0) add("in", "ventas", Math.round((dow === 0 ? 330 : 270) * lift + ((ago * 37) % 40)), ago, "Tamales y champurrado");
-    if (dow === 5) add("out", "mercancia", Math.round(165 * lift + ((ago * 13) % 20)), ago, "Masa, carne y hojas");
-    if (dow === 3 && ago % 2 === 1) add("in", "pedidos", 90 + ((ago * 7) % 50), ago, "Encargo para fiesta");
-    if (dow === 5 && ago % 14 < 7) add("out", "empaque", 28, ago, "Vasos y bolsas");
-  }
-  add("out", "local", 300, 25, "Cocina compartida", "month");
-  add("out", "permisos", 30, 25, "Permiso de comida", "month");
-  add("out", "servicios", 45, 20, "Gas", "month");
-  add("out", "mi_sueldo", 200, 8);
-  add("out", "mi_sueldo", 200, 0);
-  const since = daysAgo(8);
-  return {
-    name: "Tamales María", type: "comida", createdAt: daysAgo(60), entries,
-    pay: { amount: 200, every: "week", since, paid: [periodKey({ repeat: "week", date: since })] },
-    stock: [
-      { id: uid(), name: "Masa", unit: "kilos", have: 12, perWeek: 20, cost: 1.8, updatedAt: daysAgo(1) },
-      { id: uid(), name: "Hojas de maíz", unit: "paquetes", have: 6, perWeek: 3, cost: 4.5, updatedAt: daysAgo(1) },
-      { id: uid(), name: "Vasos para champurrado", unit: "piezas", have: 40, perWeek: 50, cost: 0.15, updatedAt: daysAgo(1) },
-    ],
-    products: [
-      { id: uid(), name: "Tamal", cost: 1.1, price: 3, perWeek: 140, createdAt: daysAgo(40) },
-      { id: uid(), name: "Champurrado", cost: 0.6, price: 2.5, perWeek: 50, createdAt: daysAgo(40) },
-      { id: uid(), name: "Torta de tamal", cost: 3.9, price: 4.5, perWeek: 20, createdAt: daysAgo(20) },
-    ],
-    goals: [
-      {
-        id: uid(), preset: "equipo", name: "Carrito para vender", target: 2500, createdAt: daysAgo(45),
-        deposits: [{ id: uid(), amount: 400, date: daysAgo(40) }, { id: uid(), amount: 300, date: daysAgo(20) }, { id: uid(), amount: 50, date: daysAgo(2), auto: true }],
-        plan: { amount: 50, every: "week", lastApplied: daysAgo(2) },
-      },
-    ],
-  };
-}
-
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
@@ -364,6 +126,7 @@ export const useStore = create<State>()(
       touring: false,
       cloud: "off",
       needsNewPin: false,
+      loginProblem: null,
 
       setDeviceLang: (l) =>
         set((s) => ({ deviceLang: l, ...mutateCurrent(s, (d) => ({ ...d, profile: { ...d.profile, lang: l } })) })),
@@ -432,13 +195,19 @@ export const useStore = create<State>()(
       },
       login: async (phone, pin) => {
         const first = onlyDigits(phone);
+        let locked = false;
+        const tryOnline = async (p: string) => {
+          const r = await cloudSignIn(p, pin);
+          if (r === "locked") locked = true;
+          return r;
+        };
         // Try the number as typed, then the same digits as the other country (US ↔ Mexico)
         for (const p of [first, altPhoneKey(first)].filter((x): x is string => !!x)) {
           const ok = await (async (): Promise<boolean> => {
             const acc = get().accounts[p];
             if (acc && (await hashPin(p, pin)) !== acc.pinHash) {
               // The PIN may have been changed on another device or recovered online
-              if (pin.length < 6 || p === DEMO_PHONE || (await cloudSignIn(p, pin)) !== "ok") return false;
+              if (pin.length < 6 || p === DEMO_PHONE || (await tryOnline(p)) !== "ok") return false;
               const pinHash = await hashPin(p, pin);
               set((s) => ({ accounts: { ...s.accounts, [p]: { ...acc, pinHash } }, current: p, deviceLang: acc.data.profile.lang, cloud: "syncing" }));
               void get().syncDown();
@@ -462,7 +231,7 @@ export const useStore = create<State>()(
               return true;
             }
             // Not on this device: try the online account (e.g. a new phone or computer)
-            const r = await cloudSignIn(p, pin);
+            const r = await tryOnline(p);
             if (r !== "ok") return false;
             const remote = await cloudLoad();
             const data: UserData = remote?.data ?? {
@@ -473,11 +242,33 @@ export const useStore = create<State>()(
             set((s) => ({ accounts: { ...s.accounts, [p]: { pinHash: h, data } }, current: p, deviceLang: data.profile.lang, cloud: "saved" }));
             return true;
           })();
-          if (ok) return true;
+          if (ok) { set({ loginProblem: null }); return true; }
         }
+        set({ loginProblem: locked ? "locked" : "wrong" });
         return false;
       },
       logout: () => { void cloudSignOut(); set({ current: null, cloud: "off", needsNewPin: false }); },
+      deleteAccount: async (pin) => {
+        const { current, accounts } = get();
+        if (!current || !accounts[current]) return "wrong";
+        if ((await hashPin(current, pin)) !== accounts[current].pinHash) return "wrong";
+        if (current !== DEMO_PHONE) {
+          // Make sure we're signed in online as this person, then erase the online copy.
+          let online = await cloudSignedInAs(current);
+          if (!online) {
+            const r = await cloudSignIn(current, pin);
+            if (r === "offline" || r === "locked") return "offline";
+            online = r === "ok"; // "wrong" here means this account was never saved online
+          }
+          if (online && !(await cloudDeleteAccount())) return "offline";
+        }
+        set((s) => {
+          const rest = { ...s.accounts };
+          delete rest[current];
+          return { accounts: rest, current: null, cloud: "off", needsNewPin: false };
+        });
+        return "ok";
+      },
       changePin: async (newPin) => {
         const { current, accounts } = get();
         if (!current || !accounts[current]) return;
@@ -716,37 +507,6 @@ export const useStore = create<State>()(
   ),
 );
 
-function nextPeriod(from: Date, every: Plan["every"]): Date {
-  const d = new Date(from);
-  if (every === "month") d.setMonth(d.getMonth() + 1);
-  else d.setDate(d.getDate() + (every === "2weeks" ? 14 : 7));
-  return d;
-}
-
-// ---------- tanda helpers ----------
-export function tandaRoundDate(t: Tanda, round: number): Date {
-  const d = new Date(t.start);
-  if (t.every === "month") d.setMonth(d.getMonth() + round);
-  else d.setDate(d.getDate() + round * (t.every === "2weeks" ? 14 : 7));
-  return d;
-}
-/** 0-based round happening now (the last one that already started), or -1 before it starts. */
-export function tandaCurrentRound(t: Tanda, now = new Date()): number {
-  let r = -1;
-  for (let i = 0; i < t.people; i++) if (tandaRoundDate(t, i).getTime() <= now.getTime()) r = i;
-  return r;
-}
-export function tandaEnded(t: Tanda, now = new Date()): boolean {
-  return tandaRoundDate(t, t.people).getTime() <= now.getTime();
-}
-/** The person whose turn it is doesn't pay that round, so the pot is
- *  everyone else's payment. */
-export const tandaPot = (t: Tanda) => t.amount * (t.people - 1);
-export const tandaPayoutDate = (t: Tanda) => tandaRoundDate(t, t.myTurn - 1);
-
-/** A plan only counts while the goal still needs money. */
-export const planActive = (g: Goal) => Boolean(g.plan && goalSaved(g) < g.target);
-
 /** The signed-in person's data, or null. */
 export function useMe(): UserData | null {
   return useStore((s) => (s.current ? s.accounts[s.current]?.data ?? null : null));
@@ -761,132 +521,6 @@ export function useRegion(): Region {
 
 export function useLang(): Lang {
   return useStore((s) => (s.current ? s.accounts[s.current]?.data.profile.lang : undefined) ?? s.deviceLang);
-}
-
-// ---------- plain-language summaries ----------
-
-export const goalSaved = (g: Goal) => g.deposits.reduce((a, d) => a + d.amount, 0);
-
-export type Summary = {
-  monthIn: number;
-  monthOut: number;
-  monthGoals: number;
-  monthKeep: number;
-  weekIn: number;
-  weekOut: number;
-  weekGoals: number;
-  weekLeft: number;
-  perHour: number | null;
-  perDay: number | null;
-  byGroup: Record<string, number>; // monthly spend by group id
-  workGrossWeekly: number;         // pay before taxes
-  taxWeekly: number;               // estimated taxes taken out of paychecks
-  cashTaxWeekly: number;           // paid without withholding: what to set aside for taxes
-};
-
-/** Which pay period we're in for a fixed payment: this month, this week, or this two-week stretch. */
-export function periodKey(e: Pick<Entry, "repeat" | "date">, at = new Date()): string {
-  if (e.repeat === "month") return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}`;
-  const wk = startOfWeek(at);
-  if (e.repeat === "2weeks") {
-    const first = startOfWeek(new Date(e.date)).getTime();
-    return `q${Math.floor((wk.getTime() - first) / (14 * 86400000))}`;
-  }
-  return `w${wk.getFullYear()}-${String(wk.getMonth() + 1).padStart(2, "0")}-${String(wk.getDate()).padStart(2, "0")}`;
-}
-export const isPaidNow = (e: Entry) => e.repeat !== "once" && (e.paid ?? []).includes(periodKey(e));
-
-export function summarize(d: UserData, groupOf: (catId: string) => string): Summary {
-  // Pay that actually reaches you: estimated taxes come out of paychecks first
-  const workGrossWeekly = d.work.reduce((a, w) => a + toWeekly(w.pay, w.every), 0);
-  const region = regionOf(d.profile);
-  const workWeekly = d.work.reduce((a, w) => a + takeHomeWeekly(toWeekly(w.pay, w.every), w.tax, region), 0);
-  const workMonthly = (workWeekly * 52) / 12;
-  const taxWeekly = d.work.reduce((a, w) => a + ((w.tax ?? DEFAULT_TAX).mode === "withheld" ? weeklyTaxes(toWeekly(w.pay, w.every), region).total : 0), 0);
-  const cashTaxWeekly = d.work.reduce((a, w) => a + (w.tax?.mode === "cash" ? cashSetAsideWeekly(toWeekly(w.pay, w.every), region) : 0), 0);
-  const hours = d.work.reduce((a, w) => a + (w.hoursPerWeek || 0), 0);
-  const days = d.work.length ? Math.max(...d.work.map((w) => w.daysPerWeek || 0)) : 0;
-
-  let monthInRepeat = 0, monthOutRepeat = 0, weekInRepeat = 0, weekOutRepeat = 0;
-  let weekInOnce = 0, weekOutOnce = 0;
-  const byGroup: Record<string, number> = {};
-
-  for (const e of d.entries) {
-    if (e.repeat === "once") {
-      if (isThisWeek(e.date)) e.kind === "in" ? (weekInOnce += e.amount) : (weekOutOnce += e.amount);
-      if (e.kind === "out") {
-        // one-time costs this month still count toward "where your money goes"
-        const dt = new Date(e.date), n = new Date();
-        if (dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear()) {
-          const g = groupOf(e.category);
-          byGroup[g] = (byGroup[g] ?? 0) + e.amount;
-        }
-      }
-    } else {
-      const m = toMonthly(e.amount, e.repeat), w = toWeekly(e.amount, e.repeat);
-      if (e.kind === "in") { monthInRepeat += m; weekInRepeat += w; }
-      else {
-        monthOutRepeat += m; weekOutRepeat += w;
-        const g = groupOf(e.category);
-        byGroup[g] = (byGroup[g] ?? 0) + m;
-      }
-    }
-  }
-
-  const monthOnceOut = d.entries
-    .filter((e) => e.repeat === "once" && e.kind === "out")
-    .filter((e) => { const dt = new Date(e.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
-    .reduce((a, e) => a + e.amount, 0);
-  const monthOnceIn = d.entries
-    .filter((e) => e.repeat === "once" && e.kind === "in")
-    .filter((e) => { const dt = new Date(e.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
-    .reduce((a, e) => a + e.amount, 0);
-
-  // Savings plans are fixed money leaving the budget every period; money
-  // set apart by hand is added on top in the week/month it happened.
-  const plans = d.goals.filter(planActive).map((g) => g.plan!);
-  const planWeekly = plans.reduce((a, p) => a + toWeekly(p.amount, p.every), 0);
-  const planMonthly = plans.reduce((a, p) => a + toMonthly(p.amount, p.every), 0);
-  // The tanda pot goes straight to a goal: it never came out of your pay.
-  const manual = d.goals.flatMap((g) => g.deposits).filter((x) => !x.auto && x.from !== "tanda");
-  const weekGoals = planWeekly + manual.filter((x) => isThisWeek(x.date)).reduce((a, x) => a + x.amount, 0);
-  const monthGoals = planMonthly + manual
-    .filter((x) => { const dt = new Date(x.date), n = new Date(); return dt.getMonth() === n.getMonth() && dt.getFullYear() === n.getFullYear(); })
-    .reduce((a, x) => a + x.amount, 0);
-
-  // Tandas: the payment is a fixed expense while the tanda runs; the pot is
-  // money in the week/month it's my turn.
-  let tandaWeekOut = 0, tandaMonthOut = 0, tandaWeekIn = 0, tandaMonthIn = 0;
-  for (const t of d.tandas ?? []) {
-    if (tandaCurrentRound(t) < 0 && tandaRoundDate(t, 0).getTime() - Date.now() > 7 * 864e5) continue; // not started yet
-    if (tandaEnded(t)) continue;
-    const payout = tandaPayoutDate(t).toISOString();
-    const pd = new Date(payout), n = new Date();
-    const payoutThisWeek = isThisWeek(payout);
-    const payoutThisMonth = pd.getMonth() === n.getMonth() && pd.getFullYear() === n.getFullYear();
-    // You don't pay in the round when it's your turn.
-    tandaWeekOut += payoutThisWeek ? 0 : toWeekly(t.amount, t.every);
-    tandaMonthOut += Math.max(0, toMonthly(t.amount, t.every) - (payoutThisMonth ? t.amount : 0));
-    // If the pot goes to a goal it never passes through your budget.
-    if (!t.goalId) {
-      if (payoutThisWeek) tandaWeekIn += tandaPot(t);
-      if (payoutThisMonth) tandaMonthIn += tandaPot(t);
-    }
-  }
-
-  const monthIn = workMonthly + monthInRepeat + monthOnceIn + tandaMonthIn;
-  const monthOut = monthOutRepeat + monthOnceOut + tandaMonthOut;
-  const weekIn = workWeekly + weekInRepeat + weekInOnce + tandaWeekIn;
-  const weekOut = weekOutRepeat + weekOutOnce + tandaWeekOut;
-
-  return {
-    monthIn, monthOut, monthGoals, monthKeep: monthIn - monthOut - monthGoals,
-    weekIn, weekOut, weekGoals, weekLeft: weekIn - weekOut - weekGoals,
-    perHour: hours > 0 ? workGrossWeekly / hours : null,
-    perDay: days > 0 ? workGrossWeekly / days : null,
-    byGroup,
-    workGrossWeekly, taxWeekly, cashTaxWeekly,
-  };
 }
 
 // Money shows in pesos for people who live in México, in dollars for everyone else.

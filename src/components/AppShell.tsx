@@ -3,11 +3,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  House, Target, Wallet, Users, Cloud, CloudOff, RefreshCw, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX
+  House, Target, Wallet, Users, Cloud, CloudOff, RefreshCw, FileSearch, Send, BookOpen, Store, Plus, Menu, LogOut, Languages, Volume2, VolumeX, ShieldCheck
 } from "lucide-react";
 import { Logo, Sheet, cx } from "./ui";
 import { RecoveryNudge } from "./RecoverySetup";
 import { Avatar } from "./Avatars";
+import { BetaBadge } from "./LegalPage";
 import { useLang, useMe, useStore } from "@/lib/store";
 import { useT } from "@/lib/hooks";
 import { LANGS, langInfo } from "@/lib/i18n";
@@ -53,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:flex">
       {/* ---------- Computer: sidebar ---------- */}
       <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col overflow-y-auto bg-ink p-5 text-paper md:flex">
-        <Link href="/inicio" className="mb-6 px-2"><Logo light /></Link>
+        <Link href="/inicio" className="mb-6 flex items-center gap-2 px-2"><Logo light /><BetaBadge light /></Link>
         {me && (
           <Link href="/perfil" data-tour="perfil" className={cx("mb-5 flex items-center gap-3 rounded-2xl px-3 py-2 font-bold", path === "/perfil" ? "bg-paper text-ink" : "text-paper/85 hover:bg-paper/10")}>
             <Avatar id={me.profile.avatar} name={me.profile.name} size={40} />
@@ -247,6 +248,7 @@ function SettingsButtons({ onLang, dark }: { onLang: () => void; dark?: boolean 
         <span className="flex h-[22px] w-[22px] items-center justify-center text-lg">🧭</span>
         {lang === "en" ? "See the tour again" : "Ver el recorrido otra vez"}
       </button>
+      <Link className={row} href="/privacidad"><ShieldCheck size={22} /> {lang === "en" ? "Privacy and terms" : "Privacidad y términos"}</Link>
       <button className={row} onClick={() => { logout(); router.push("/"); }}><LogOut size={22} /> {t("logout")}</button>
     </>
   );

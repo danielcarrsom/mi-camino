@@ -1,4 +1,5 @@
 "use client";
+import { useNow } from "@/lib/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { Send, RefreshCw, ShieldAlert, ShieldCheck, CreditCard, Lightbulb, Check, ExternalLink, ArrowRight, Store, ChevronDown, Repeat as RepeatIcon } from "lucide-react";
 import { Card, ListenButton, PageHeader, cx } from "@/components/ui";
@@ -52,10 +53,9 @@ export default function SendMoney() {
     document.addEventListener("visibilitychange", onFocus);
     return () => { clearInterval(id); document.removeEventListener("visibilitychange", onFocus); };
   }, []);
-  const [, tick] = useState(0);
-  useEffect(() => { const id = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(id); }, []);
+  const now = useNow(30000);
   const updatedLabel = rate?.updated ? (() => {
-    const mins = Math.max(0, Math.round((Date.now() - new Date(rate.updated!).getTime()) / 60000));
+    const mins = Math.max(0, Math.round((now - new Date(rate.updated!).getTime()) / 60000));
     return mins < 1 ? L(lang, "actualizado hace un momento", "updated just now") : L(lang, `actualizado hace ${mins} min`, `updated ${mins} min ago`);
   })() : null;
 

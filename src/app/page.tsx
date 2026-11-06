@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Languages, ShieldCheck, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { Button, ListenButton, Logo } from "@/components/ui";
+import { BetaBadge } from "@/components/LegalPage";
 import { LanguageSheet } from "@/components/AppShell";
 import { GoalVisual } from "@/components/GoalVisual";
 import { useHydrated, useT } from "@/lib/hooks";
@@ -34,7 +36,7 @@ export default function Welcome() {
   return (
     <div className="flex min-h-dvh flex-col bg-ink text-paper">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 md:px-10">
-        <Logo light />
+        <span className="flex items-center gap-2"><Logo light /><BetaBadge light /></span>
         <button onClick={() => setLangOpen(true)} className="flex h-12 items-center gap-2 rounded-full bg-paper/10 px-4 font-bold hover:bg-paper/20">
           <Languages size={22} /> {langInfo(lang).name}
         </button>
@@ -59,6 +61,12 @@ export default function Welcome() {
 
           <p className="mt-8 flex max-w-md items-start gap-2 text-base text-paper/70">
             <ShieldCheck size={22} className="mt-0.5 shrink-0 text-leaf" /> {t("privacyNote")}
+          </p>
+          <p className="mt-3 max-w-md text-base text-paper/60">
+            {lang === "en" ? "Beta version: it may have mistakes and change. " : "Versión beta: puede tener errores y cambiar. "}
+            <Link href="/privacidad" className="font-bold text-paper/85 underline underline-offset-4">{lang === "en" ? "Privacy" : "Privacidad"}</Link>
+            {" · "}
+            <Link href="/terminos" className="font-bold text-paper/85 underline underline-offset-4">{lang === "en" ? "Terms" : "Términos"}</Link>
           </p>
         </section>
 

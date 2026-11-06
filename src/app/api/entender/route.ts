@@ -1,9 +1,13 @@
+import { guard } from "@/lib/server/guard";
 import { ai, currencyLine, hasAI, model, MONEY_SYSTEM, parseModelJson, textOf } from "@/lib/server/ai";
 import { understandLocally } from "@/lib/understand";
 
 // What someone said or typed → money entries. Tolerates spelling mistakes.
 export async function POST(req: Request) {
-  const { text, kind, currency } = (await req.json()) as { text?: string; kind?: "in" | "out"; currency?: string };
+  const refused = guard(req, "entender");
+  if (refused) return refused;
+  const { text, kind, currency } = ((await req.json().catch(() => ({}))) ?? {}) as { text?: string; kind?: "in" | "out"; currency?: string };
+  if (typeof text !== "undefined" && typeof text !== "string") return Response.json({ error: "bad text" }, { status: 400 });
   const k = kind === "in" ? "in" : "out";
   if (!text?.trim()) return Response.json({ entries: [], work: null, heard: "" });
   const clean = text.slice(0, 1000);

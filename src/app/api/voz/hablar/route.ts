@@ -1,3 +1,4 @@
+import { guard } from "@/lib/server/guard";
 import { hasVoice } from "@/lib/server/ai";
 
 // Text → natural voice with ElevenLabs. The key stays on the server.
@@ -5,9 +6,11 @@ import { hasVoice } from "@/lib/server/ai";
 // multilingual model, slightly slower and steadier for older listeners.
 // To change it for everyone, set ELEVENLABS_VOICE_ID in Vercel.
 export async function POST(req: Request) {
+  const refused = guard(req, "hablar");
+  if (refused) return refused;
   if (!hasVoice()) return new Response("voice not configured", { status: 501 });
-  const { text, locale } = (await req.json()) as { text?: string; locale?: string };
-  if (!text || text.length > 1200) return new Response("bad text", { status: 400 });
+  const { text, locale } = ((await req.json().catch(() => ({}))) ?? {}) as { text?: string; locale?: string };
+  if (typeof text !== "string" || !text || text.length > 1200) return new Response("bad text", { status: 400 });
 
   const voiceId =
     (locale?.startsWith("en") ? process.env.ELEVENLABS_VOICE_ID_EN : undefined) ||

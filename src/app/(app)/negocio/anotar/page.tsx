@@ -1,5 +1,6 @@
 "use client";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useResetOn } from "@/lib/hooks";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownCircle, ArrowUpCircle, Check, Keyboard, Minus, Plus, Sparkles } from "lucide-react";
@@ -42,21 +43,24 @@ function Anotar() {
   const [heard, setHeard] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ amount: number; kind: Kind } | null>(null);
 
-  useEffect(() => {
+  useResetOn(tipo, () => {
     const k: Kind | null = tipo === "venta" ? "in" : tipo === "gasto" ? "out" : null;
     setKind(k); setCat(k === "in" ? "ventas" : null); setAmount(""); setNote(""); setRepeat("once"); setQty({}); setSaved(null); setHeard(null); setWhen(0);
-  }, [tipo]);
+  });
 
   useEffect(() => { if (!biz) router.replace("/negocio"); }, [biz, router]);
 
   const products = biz?.products ?? [];
-  const fromProducts = useMemo(() => products.reduce((a, p) => a + (qty[p.id] ?? 0) * p.price, 0), [products, qty]);
-  useEffect(() => {
-    if (fromProducts > 0) {
-      setAmount(String(Math.round(fromProducts * 100) / 100));
-      setNote(products.filter((p) => qty[p.id]).map((p) => `${qty[p.id]} ${p.name}`).join(", "));
+  const fromProducts = products.reduce((a, p) => a + (qty[p.id] ?? 0) * p.price, 0);
+  /** Tapping products fills in the amount and the note. */
+  const changeQty = (next: Record<string, number>) => {
+    setQty(next);
+    const total = products.reduce((a, p) => a + (next[p.id] ?? 0) * p.price, 0);
+    if (total > 0) {
+      setAmount(String(Math.round(total * 100) / 100));
+      setNote(products.filter((p) => next[p.id]).map((p) => `${next[p.id]} ${p.name}`).join(", "));
     }
-  }, [fromProducts]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   if (!biz) return null;
 
@@ -154,9 +158,9 @@ function Anotar() {
                     <span className="block text-lg leading-tight font-extrabold">{p.name}</span>
                     <span className="text-base text-muted">{money(p.price, lang, true)} {L(lang, "cada uno", "each")}</span>
                   </span>
-                  <span className="ml-auto flex items-center gap-2"><button onClick={() => setQty({ ...qty, [p.id]: Math.max(0, q - 1) })} aria-label="−" className="flex h-12 w-12 items-center justify-center rounded-xl bg-paper"><Minus size={22} /></button>
-                  <input inputMode="numeric" value={q || ""} placeholder="0" onChange={(e) => setQty({ ...qty, [p.id]: Number(e.target.value.replace(/\D/g, "")) || 0 })} className="h-12 w-14 rounded-xl border-2 border-sand bg-paper text-center text-xl font-extrabold outline-none focus:border-clay" aria-label={p.name} />
-                  <button onClick={() => setQty({ ...qty, [p.id]: q + 1 })} aria-label="+" className="flex h-12 w-12 items-center justify-center rounded-xl bg-leaf text-paper"><Plus size={22} /></button></span>
+                  <span className="ml-auto flex items-center gap-2"><button onClick={() => changeQty({ ...qty, [p.id]: Math.max(0, q - 1) })} aria-label="−" className="flex h-12 w-12 items-center justify-center rounded-xl bg-paper"><Minus size={22} /></button>
+                  <input inputMode="numeric" value={q || ""} placeholder="0" onChange={(e) => changeQty({ ...qty, [p.id]: Number(e.target.value.replace(/\D/g, "")) || 0 })} className="h-12 w-14 rounded-xl border-2 border-sand bg-paper text-center text-xl font-extrabold outline-none focus:border-clay" aria-label={p.name} />
+                  <button onClick={() => changeQty({ ...qty, [p.id]: q + 1 })} aria-label="+" className="flex h-12 w-12 items-center justify-center rounded-xl bg-leaf text-paper"><Plus size={22} /></button></span>
                 </li>
               );
             })}

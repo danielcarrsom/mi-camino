@@ -1,38 +1,23 @@
 # Mi Camino
 
-Educación financiera y planeación para cada paisano en Nueva York: en su lengua, con su voz y sin necesidad de leer.
+Educación financiera y planeación para cada paisano: en su lengua, con su voz y sin necesidad de leer.
+
+> **Beta.** Mi Camino is a test version. Features and texts may change.
+> Live: https://mi-camino-eight.vercel.app · Privacy: `/privacidad` · Terms: `/terminos`
 
 Mi Camino has two sides, so people learn to keep their home money and their business money apart:
 
-- **Mi Casita**: personal and family money. Goals built brick by brick, what you earn (per hour and per day from your paystub), what you spend (rent, electricity, water, groceries…), and a plain-language balance: *Ganas, Gastas, Para tus metas, Te queda*.
-- **Mi Negocio**: sales and costs (voice, typing or tapping products), a traffic-light health check, product cost and price calculator, "what if" look-ahead, business goals with automatic savings, plain-language suggestions, and "pay yourself" into Mi Casita.
+- **Mi Casita**: personal and family money. What you earn (after estimated taxes), what you spend, fixed bills with "Ya lo pagué", goals built brick by brick with savings plans, tandas, sending money home, explaining a confusing letter, and games and lessons.
+- **Mi Negocio**: sales and costs (by voice, typing or tapping products), a traffic-light health check, product costs and inventory, "what if" projections, business goals, a salary for the owner, and tips made for the kind of business.
 
-Everything can be done three ways: **talking, typing (spelling mistakes are fine) or taking a photo**. Every screen can be read aloud.
+Everything can be done three ways: **talking, typing (spelling mistakes are fine) or taking a photo**. Every screen can be read aloud, and a guided tour walks new people through the whole app.
 
 ## Design rules
 
 1. Anyone, whatever their language and even if they can't read or write, must be able to use it alone.
 2. No financial jargon: "cuánto ganaste", never "revenue".
 3. One decision per screen, big buttons, icons from daily life.
-4. We never ask for immigration status or account numbers. Photos are read for numbers and not stored.
-
-## What works today
-
-| Area | Status |
-| --- | --- |
-| Welcome, language picker, phone + 6-digit PIN | ✅ |
-| Demo profile ("Probar con un ejemplo") | ✅ |
-| Mi Casita home: "Esta semana te quedan" | ✅ |
-| Goals: 10 ready-made goals + your own, bricks/coins, sounds, weekly plan, share on WhatsApp | ✅ |
-| Add income/spending by voice, typing or photo, with review screen | ✅ (photo needs AI key) |
-| Paystub → pay per hour and per day | ✅ |
-| Mi dinero: monthly/weekly balance, where the money goes | ✅ |
-| Read-aloud on every screen | ✅ (ElevenLabs, or the browser's voice as backup) |
-| Explain a document + scam check | 🔜 |
-| Remittance calculator + Finabien | 🔜 |
-| Learn: games and audio lessons | 🔜 |
-| Mi Negocio | ✅ |
-| Indigenous-language audio (Mixteco, Náhuatl, Maya, K'iche', Kichwa) | 🔜 recorded with native speakers |
+4. We never ask for immigration status or account numbers. Photos, papers and recordings are read for numbers and not stored.
 
 ## Run it
 
@@ -42,32 +27,42 @@ cp .env.example .env.local   # add keys (optional: everything has a fallback)
 npm run dev                  # http://localhost:3000
 ```
 
-Without keys the platform still works: voice uses the browser's built-in voice (best in Chrome), and typed/spoken entries are understood by a built-in parser that tolerates spelling mistakes. Photos need the Anthropic key.
+Without keys the app still works: voice uses the browser's own voice, and typed or spoken entries are understood by a built-in parser that tolerates spelling mistakes. Photos and "Explicar un papel" need the Anthropic key.
+
+## Check it
+
+```bash
+npm run check     # types + lint + unit tests (run this before every push)
+npm test          # unit tests only (Vitest)
+npm run build     # production build
+npm run e2e       # browser smoke test against a running app (BASE_URL=http://localhost:3000)
+```
+
+The browser test fakes Supabase, so it never creates real accounts. The unit tests cover the money math that people rely on: taxes for every US state and México (checked against hand calculations), the weekly summary, bills, goals, tandas, the text parsers, phone numbers and the rate limiter. See `src/lib/*.test.ts`.
+
+## Deploy
+
+- **Web app:** every push to `main` deploys on Vercel.
+- **Database and server functions:** Supabase project `hfdnzasqblxjdsenmpfc` (us-east-1). The SQL is in `supabase/migrations/` and the edge functions in `supabase/functions/`. Deploy with the Supabase CLI (`supabase db push`, `supabase functions deploy <name> --no-verify-jwt`).
 
 ## Settings (environment variables)
 
-Add these in Vercel → Project → Settings → Environment Variables. Never commit them.
+Add these in Vercel → Project → Settings → Environment Variables, then Redeploy. Never commit them.
 
 | Name | What it does |
 | --- | --- |
-| `ANTHROPIC_API_KEY (or MI_CAMINO_AI_KEY)` | Claude: reads photos, understands what people say/type |
+| `ANTHROPIC_API_KEY` (or `MI_CAMINO_AI_KEY`) | Claude: reads photos, understands what people say/type, explains papers |
 | `CLAUDE_MODEL` | Optional. Defaults to `claude-sonnet-5-5` |
-| `ELEVENLABS_API_KEY` | Natural voices (read aloud) and speech-to-text |
-| `ELEVENLABS_VOICE_ID` | Optional. Voice used for Spanish |
-| `ELEVENLABS_VOICE_ID_EN` | Optional. Voice used for English |
+| `ELEVENLABS_API_KEY` | Natural voice (read aloud) and speech-to-text |
+| `ELEVENLABS_VOICE_ID`, `ELEVENLABS_VOICE_ID_EN` | Optional. Voices for Spanish and English |
+| `ALLOWED_ORIGINS` | Optional. Extra domains (comma-separated) allowed to call the AI and voice routes, e.g. a custom domain |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Optional. Defaults to the Mi Camino project (these are public by design) |
 
 ## Forgotten PIN
 
-No email or SMS is needed. People pick a security question when they sign up
-(or from the green reminder inside the app). "¿Olvidaste tu clave?" on the
-sign-in screen asks that question; the answer is checked on the server
-(Supabase function `recuperar`), ignoring accents, capitals and spaces.
-After 5 wrong tries the phone is locked for one hour.
+No email or SMS is needed. People pick a security question when they sign up (or later in Mi perfil). "¿Olvidaste tu clave?" asks that question; the answer is checked on the server (function `recuperar`), ignoring accents, capitals and spaces. After 5 wrong tries the phone is locked for one hour.
 
-If someone has no question or forgot the answer, a person who helps them
-(e.g. at the Consulate) checks their ID and creates a **one-time code** that
-expires in 24 hours. In the Supabase SQL editor, replace the phone (10 digits
-for US, `52` + 10 digits for Mexico) and the code:
+If someone has no question or forgot the answer, a person who helps them (e.g. at the Consulate) checks their ID and creates a **one-time code** that expires in 24 hours. In the Supabase SQL editor, replace the phone (10 digits for US, `52` + 10 digits for México) and the code:
 
 ```sql
 insert into public.recovery_codes (user_id, code_hash, expires_at)
@@ -78,29 +73,13 @@ select public.user_id_by_login('3475550123@usuarios.micamino.app'),
 
 ## Indigenous languages
 
-ElevenLabs and current AI models don't support Mixteco, Náhuatl, Maya, K'iche' or Kichwa. Those languages are handled with **recordings from native speakers**: put them in `public/audio/<code>/<key>.mp3` and list the keys in `AUDIO_READY` in `src/lib/i18n.ts`. Codes: `mix` (Mixteco), `nah` (Náhuatl), `yua` (Maya), `quc` (K'iche'), `qvi` (Kichwa). Until a recording exists, the Spanish voice is used.
+ElevenLabs and current AI models don't support Mixteco, Náhuatl, Maya, K'iche' or Kichwa. Those languages will use **recordings from native speakers**: put them in `public/audio/<code>/<key>.mp3` and list the keys in `AUDIO_READY` in `src/lib/i18n.ts`. Until a recording exists, Spanish text and voice are used.
+
+## More
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the code is organized and how data flows.
+- [SECURITY.md](SECURITY.md): the protections in place, what's left to do, and how to report a problem.
 
 ## Tech
 
-Next.js · TypeScript · Tailwind · Claude API · ElevenLabs · Supabase.
-
-### Online saving (Supabase)
-
-- Project **Mi Camino** (`hfdnzasqblxjdsenmpfc`, us-east-1).
-- Tables: `profiles` (name, language, modules) and `user_data` (each person's money data as one JSON document). Row level security: each person can only read and write their own rows.
-- Sign-up goes through the `registro` edge function, which creates a confirmed account from phone + 6-digit PIN (no email or SMS). The phone becomes an internal login name.
-- The app saves on the device first and syncs online a moment after each change; on another device, signing in with the same phone + PIN brings the data back. If Supabase can't be reached, everything keeps working on the device.
-- The demo profile ("Probar con un ejemplo") never goes online.
-- `stats_overview` view: anonymous totals by language for the Consulate (no personal data).
-
-## Structure
-
-```
-src/app/              pages (bienvenida, entrar, casita/*, negocio, aprender) and api/ routes
-src/components/       shared UI: big buttons, PIN pad, talk button, goal bricks, app frame
-src/lib/i18n.ts       all on-screen words (Spanish + English) and language list
-src/lib/catalog.ts    spending categories, income kinds, goal presets
-src/lib/store.ts      saved data and the plain-language balance math
-src/lib/voice.ts      read aloud + listen (ElevenLabs with browser fallback)
-src/lib/understand.ts offline understanding of typed/spoken money
-```
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Zustand · Supabase (Postgres, Auth, Edge Functions) · Claude API · ElevenLabs · Vitest.

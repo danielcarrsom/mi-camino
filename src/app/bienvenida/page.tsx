@@ -8,6 +8,8 @@ import { useLang, useStore } from "@/lib/store";
 import { PhoneInput } from "@/components/PhoneInput";
 import { RecoveryForm } from "@/components/RecoverySetup";
 import { RegionPicker, regionReady, type RegionValue } from "@/components/RegionPicker";
+import { ConsentCheck } from "@/components/Consent";
+import { LEGAL } from "@/lib/legal";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { speak, stopSpeaking } from "@/lib/voice";
@@ -36,6 +38,7 @@ export default function Onboarding() {
   const [phoneTaken, setPhoneTaken] = useState(false);
   const [recovery, setRecovery] = useState<{ question: string; answer: string } | null>(null);
   const [where, setWhere] = useState<RegionValue>({});
+  const [accepted, setAccepted] = useState(false);
 
   const idx = ORDER.indexOf(step);
   const go = (s: Step) => setStep(s);
@@ -62,13 +65,17 @@ export default function Onboarding() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, hydrated, lang, voiceOn]);
 
-  // PIN steps advance on the 4th digit
-  useEffect(() => { if (step === "pin" && pin.length === 6) setTimeout(() => go("pin2"), 250); }, [pin, step]);
-  useEffect(() => {
-    if (step !== "pin2" || pin2.length !== 6) return;
-    if (pin2 === pin) { setPinError(false); setTimeout(() => go("safety"), 250); }
+  // PIN steps move on by themselves after the 6th digit
+  const typePin = (v: string) => {
+    setPin(v);
+    if (v.length === 6) setTimeout(() => go("pin2"), 250);
+  };
+  const typePin2 = (v: string) => {
+    setPin2(v);
+    if (v.length !== 6) return;
+    if (v === pin) { setPinError(false); setTimeout(() => go("safety"), 250); }
     else { setPinError(true); setTimeout(() => { setPin(""); setPin2(""); go("pin"); }, 1400); }
-  }, [pin2, pin, step]);
+  };
 
   async function finish() {
     const key = country ? phoneKey(phone, country) : null;
@@ -81,6 +88,8 @@ export default function Onboarding() {
       createdAt: new Date().toISOString(),
       country: where.country,
       usState: where.country === "us" ? where.usState : undefined,
+      termsAccepted: LEGAL.version,
+      termsAcceptedAt: new Date().toISOString(),
       nyc: where.country === "us" && where.usState === "NY" ? !!where.nyc : undefined,
     }, recovery);
     router.replace(modules === "negocio" ? "/negocio" : "/casita");
@@ -172,10 +181,10 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === "pin" && <PinPad value={pin} onChange={setPin} />}
+        {step === "pin" && <PinPad value={pin} onChange={typePin} />}
         {step === "pin2" && (
           <>
-            <PinPad value={pin2} onChange={setPin2} />
+            <PinPad value={pin2} onChange={typePin2} />
             {pinError && <p className="mt-5 text-center text-lg font-bold text-clay">{t("pinMismatch")}</p>}
           </>
         )}
@@ -202,7 +211,8 @@ export default function Onboarding() {
               onClick={() => setModules("both")}
             />
             <p className="mt-2 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {t("privacyNote")}</p>
-            <Button onClick={finish} className="mt-3 w-full">{t("start")}</Button>
+            <ConsentCheck checked={accepted} onChange={setAccepted} lang={lang} />
+            <Button onClick={finish} disabled={!accepted} className="mt-3 w-full">{t("start")}</Button>
           </div>
         )}
       </main>

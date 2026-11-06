@@ -1,13 +1,17 @@
 "use client";
 // Mi perfil: picture, name, where you live (taxes and money), language and security.
-import { useEffect, useState } from "react";
-import { Check, KeyRound, Languages, MapPin, Pencil, ShieldCheck } from "lucide-react";
+import { useResetOn } from "@/lib/hooks";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Check, Download, FileText, KeyRound, Languages, Lock, MapPin, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { BetaBadge } from "@/components/LegalPage";
 import { Button, Card, PageHeader, PinPad, Sheet, cx } from "@/components/ui";
 import { AVATARS, Avatar, avatarById, avatarFact, avatarName } from "@/components/Avatars";
 import { RegionPicker, regionReady, type RegionValue } from "@/components/RegionPicker";
 import { RecoveryForm } from "@/components/RecoverySetup";
 import { LanguageSheet } from "@/components/AppShell";
-import { DEMO_PHONE, regionOf, useLang, useMe, useStore } from "@/lib/store";
+import { DEMO_PHONE, regionOf, useLang, useMe, useStore, type UserData } from "@/lib/store";
 import { langInfo } from "@/lib/i18n";
 import { formatPhoneKey } from "@/lib/phone";
 import { regionLabel } from "@/lib/taxes";
@@ -28,9 +32,10 @@ export default function Perfil() {
   const [editWhere, setEditWhere] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [name, setName] = useState(p.name);
   const [savedName, setSavedName] = useState(false);
-  useEffect(() => setName(p.name), [p.name]);
+  useResetOn(p.name, () => setName(p.name));
 
   const pic = avatarById(p.avatar);
   const hasMoney = me.work.length > 0 || me.entries.length > 0 || me.goals.length > 0 || (me.business?.entries.length ?? 0) > 0;
@@ -114,12 +119,25 @@ export default function Perfil() {
             </button>
           </div>
         </Card>
+
+        {/* Privacy and my data */}
+        <Card className="md:col-span-2">
+          <h2 className="flex items-center gap-2 text-2xl font-semibold"><Lock className="text-clay" /> {L("Mi privacidad y mis datos", "My privacy and my data")} <BetaBadge className="ml-1" /></h2>
+          <p className="mt-2 text-base text-muted">{L("Mi Camino está en beta: puede tener errores y cambiar. Tus datos son tuyos.", "Mi Camino is in beta: it may have mistakes and change. Your data is yours.")}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Link href="/privacidad" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><ShieldCheck size={22} className="text-leaf" /> {L("Aviso de privacidad", "Privacy notice")}</Link>
+            <Link href="/terminos" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><FileText size={22} className="text-leaf" /> {L("Términos y condiciones", "Terms of use")}</Link>
+            <button onClick={() => downloadMyData(me, current)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark"><Download size={22} className="text-clay" /> {L("Descargar mis datos", "Download my data")}</button>
+            <button onClick={() => setDeleteOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-clay/40 px-4 text-left text-lg font-bold text-clay hover:border-clay"><Trash2 size={22} /> {L("Borrar mi cuenta", "Delete my account")}</button>
+          </div>
+        </Card>
       </div>
 
       <AvatarSheet open={picking} onClose={() => setPicking(false)} value={p.avatar} onPick={(id) => updateProfile({ avatar: id })} />
       <WhereSheet open={editWhere} onClose={() => setEditWhere(false)} hasMoney={hasMoney} />
       <PinSheet open={pinOpen} onClose={() => setPinOpen(false)} />
       <SafetySheet open={safetyOpen} onClose={() => setSafetyOpen(false)} />
+      <DeleteSheet open={deleteOpen} onClose={() => setDeleteOpen(false)} />
       <LanguageSheet open={langOpen} onClose={() => setLangOpen(false)} />
     </>
   );
@@ -128,7 +146,7 @@ export default function Perfil() {
 function AvatarSheet({ open, onClose, value, onPick }: { open: boolean; onClose: () => void; value?: string; onPick: (id: string) => void }) {
   const lang = useLang();
   const [sel, setSel] = useState(value);
-  useEffect(() => { if (open) setSel(value); }, [open, value]);
+  useResetOn(open, () => { if (open) setSel(value); });
   const a = avatarById(sel);
   return (
     <Sheet open={open} onClose={onClose} title={lang === "en" ? "Pick your picture" : "Elige tu foto"} wide>
@@ -158,8 +176,7 @@ function WhereSheet({ open, onClose, hasMoney }: { open: boolean; onClose: () =>
     return { country: r.country, usState: r.state, nyc: r.nyc };
   };
   const [v, setV] = useState<RegionValue>(start);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (open) setV(start()); }, [open]);
+  useResetOn(open, () => { if (open) setV(start()); });
   const switching = v.country !== regionOf(me.profile).country;
   return (
     <Sheet open={open} onClose={onClose} title={en ? "Where do you live?" : "¿Dónde vives?"} wide>
@@ -193,13 +210,17 @@ function PinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [pin2, setPin2] = useState("");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [error, setError] = useState(false);
-  useEffect(() => { if (open) { setPin(""); setPin2(""); setStep(1); setError(false); } }, [open]);
-  useEffect(() => { if (step === 1 && pin.length === 6) setTimeout(() => setStep(2), 250); }, [pin, step]);
-  useEffect(() => {
-    if (step !== 2 || pin2.length !== 6) return;
-    if (pin2 === pin) { void changePin(pin).then(() => setStep(3)); }
+  useResetOn(open, () => { if (open) { setPin(""); setPin2(""); setStep(1); setError(false); } });
+  const typePin = (v: string) => {
+    setPin(v);
+    if (v.length === 6) setTimeout(() => setStep(2), 250);
+  };
+  const typePin2 = (v: string) => {
+    setPin2(v);
+    if (v.length !== 6) return;
+    if (v === pin) void changePin(pin).then(() => setStep(3));
     else { setError(true); setTimeout(() => { setPin(""); setPin2(""); setStep(1); setError(false); }, 1400); }
-  }, [pin2, pin, step, changePin]);
+  };
   return (
     <Sheet open={open} onClose={onClose} title={en ? "Change my PIN" : "Cambiar mi clave"}>
       {step === 3 ? (
@@ -210,7 +231,7 @@ function PinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
       ) : (
         <>
           <p className="mb-4 text-center text-xl font-bold">{step === 1 ? (en ? "Type your new 6-digit PIN" : "Escribe tu nueva clave de 6 números") : (en ? "Type it again" : "Escríbela otra vez")}</p>
-          {step === 1 ? <PinPad value={pin} onChange={setPin} /> : <PinPad value={pin2} onChange={setPin2} />}
+          {step === 1 ? <PinPad value={pin} onChange={typePin} /> : <PinPad value={pin2} onChange={typePin2} />}
           {error && <p className="mt-4 text-center text-lg font-bold text-clay">{en ? "They don't match. Try again." : "No son iguales. Intenta otra vez."}</p>}
         </>
       )}
@@ -223,7 +244,7 @@ function SafetySheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   const setRecovery = useStore((s) => s.setRecovery);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => { if (open) setMsg(null); }, [open]);
+  useResetOn(open, () => { if (open) setMsg(null); });
   const en = lang === "en";
   return (
     <Sheet open={open} onClose={onClose} title={en ? "In case you forget your PIN" : "Por si olvidas tu clave"}>
@@ -243,6 +264,61 @@ function SafetySheet({ open, onClose }: { open: boolean; onClose: () => void }) 
             setMsg(ok ? (en ? "Saved. Only you know the answer." : "Guardada. Solo tú sabes la respuesta.") : (en ? "We couldn't save it online. Check your internet and try again." : "No pudimos guardarla en línea. Revisa tu internet e intenta otra vez."));
           }}
         />
+      )}
+    </Sheet>
+  );
+}
+
+/** Everything this person saved, as a file they can keep (their right to access their data). */
+function downloadMyData(me: UserData, phone: string | null) {
+  const file = { app: "Mi Camino", exportedAt: new Date().toISOString(), phone, data: me };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mi-camino-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function DeleteSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const lang = useLang();
+  const en = lang === "en";
+  const deleteAccount = useStore((s) => s.deleteAccount);
+  const router = useRouter();
+  const [sure, setSure] = useState(false);
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  useResetOn(open, () => { if (open) { setSure(false); setPin(""); setBusy(false); setMsg(null); } });
+  const typePin = async (v: string) => {
+    setPin(v);
+    setMsg(null);
+    if (v.length !== 6) return;
+    setBusy(true);
+    const r = await deleteAccount(v);
+    setBusy(false);
+    if (r === "ok") { router.replace("/"); return; }
+    setPin("");
+    setMsg(r === "wrong"
+      ? (en ? "That PIN isn't right. Try again." : "Esa clave no es correcta. Intenta otra vez.")
+      : (en ? "We couldn't reach the internet, so nothing was deleted. Try again when you're online." : "No pudimos conectarnos a internet, así que no se borró nada. Intenta otra vez cuando tengas conexión."));
+  };
+  return (
+    <Sheet open={open} onClose={onClose} title={en ? "Delete my account" : "Borrar mi cuenta"}>
+      {!sure ? (
+        <>
+          <p className="text-lg">{en ? "This erases your account and everything you saved: your money, goals, tandas and business, on this device and online. It can't be undone." : "Esto borra tu cuenta y todo lo que guardaste: tu dinero, metas, tandas y negocio, en este aparato y en línea. No se puede deshacer."}</p>
+          <p className="mt-3 text-base text-muted">{en ? "Tip: download your data first if you want to keep a copy." : "Consejo: descarga tus datos antes si quieres guardar una copia."}</p>
+          <Button onClick={() => setSure(true)} className="mt-5 w-full bg-clay">{en ? "Yes, I want to delete it" : "Sí, quiero borrarla"}</Button>
+          <Button variant="soft" onClick={onClose} className="mt-3 w-full">{en ? "Keep my account" : "No, conservar mi cuenta"}</Button>
+        </>
+      ) : (
+        <>
+          <p className="mb-4 text-center text-xl font-bold">{en ? "Type your PIN to confirm" : "Escribe tu clave para confirmar"}</p>
+          <PinPad value={pin} onChange={(v) => { if (!busy) void typePin(v); }} />
+          {busy && <p className="mt-4 text-center text-lg font-bold">{en ? "Deleting…" : "Borrando…"}</p>}
+          {msg && <p className="mt-4 text-center text-lg font-bold text-clay">{msg}</p>}
+        </>
       )}
     </Sheet>
   );

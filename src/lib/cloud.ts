@@ -15,16 +15,31 @@ export function cloud(): SupabaseClient {
   return client;
 }
 
-// People sign in with phone + PIN; Supabase needs an email-like login name
-// and a longer password, so both are derived. Nothing is ever emailed.
+// People sign in with phone + PIN. The real Supabase password is made on the
+// server from the PIN and a secret only the server knows (supabase/functions/
+// _shared/auth.ts), so PINs can't be guessed against Supabase directly: every
+// try goes through the `entrar` function, which locks a phone after 5 wrong PINs.
 const loginEmail = (phone: string) => `${phone}@usuarios.micamino.app`;
-const loginPassword = (phone: string, pin: string) => `micamino-${pin}-${phone}`;
 
 function withTimeout<T>(p: Promise<T>, ms = 12000): Promise<T> {
   return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 }
 
-export type CloudResult = "ok" | "exists" | "wrong" | "offline";
+export type CloudResult = "ok" | "exists" | "wrong" | "locked" | "offline";
+
+async function fnCall(name: string, body: Record<string, unknown>, token?: string) {
+  return withTimeout(
+    fetch(`${URL}/functions/v1/${name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+async function sessionToken(): Promise<string | null> {
+  const { data } = await cloud().auth.getSession();
+  return data.session?.access_token ?? null;
+}
 
 export async function cloudRegister(phone: string, pin: string, profile: Profile): Promise<CloudResult> {
   try {
@@ -46,9 +61,14 @@ export async function cloudRegister(phone: string, pin: string, profile: Profile
 
 export async function cloudSignIn(phone: string, pin: string): Promise<CloudResult> {
   try {
-    const { error } = await withTimeout(cloud().auth.signInWithPassword({ email: loginEmail(phone), password: loginPassword(phone, pin) }));
-    if (!error) return "ok";
-    return /invalid|credentials/i.test(error.message) ? "wrong" : "offline";
+    const r = await fnCall("entrar", { action: "login", phone, pin });
+    if (r.status === 429) return "locked";
+    if (r.status === 403 || r.status === 400) return "wrong";
+    if (!r.ok) return "offline";
+    const j = (await r.json()) as { access_token?: string; refresh_token?: string };
+    if (!j.access_token || !j.refresh_token) return "offline";
+    const { error } = await withTimeout(cloud().auth.setSession({ access_token: j.access_token, refresh_token: j.refresh_token }));
+    return error ? "offline" : "ok";
   } catch {
     return "offline";
   }
@@ -150,10 +170,25 @@ export async function recoverySet(question: string, answer: string): Promise<boo
 }
 
 /** Change the online PIN while signed in. */
-export async function cloudChangePin(phone: string, pin: string): Promise<boolean> {
+export async function cloudChangePin(_phone: string, pin: string): Promise<boolean> {
   try {
-    const { error } = await withTimeout(cloud().auth.updateUser({ password: loginPassword(phone, pin) }));
-    return !error;
+    const token = await sessionToken();
+    if (!token) return false;
+    const r = await fnCall("entrar", { action: "change_pin", pin }, token);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Erase the account and everything saved online. */
+export async function cloudDeleteAccount(): Promise<boolean> {
+  try {
+    const token = await sessionToken();
+    if (!token) return false;
+    const r = await fnCall("cuenta", { action: "delete" }, token);
+    if (r.ok) await cloudSignOut();
+    return r.ok;
   } catch {
     return false;
   }

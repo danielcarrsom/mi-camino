@@ -24,7 +24,8 @@ export function LearnHub({ c }: { c: LearnContent }) {
   const { games: GAMES, lessons: LESSONS } = c;
   const lang = useLang();
   const me = useMe();
-  const [tab, setTab] = useState<Tab>("juegos");
+  // Links like /aprender#ayuda open the help tab (this screen only renders in the browser)
+  const [tab, setTab] = useState<Tab>(() => (typeof window !== "undefined" && window.location.hash === "#ayuda" ? "ayuda" : "juegos"));
   const [game, setGame] = useState<Game | null>(null);
   const [lesson, setLesson] = useState<Lesson | null>(null);
 
@@ -32,10 +33,6 @@ export function LearnHub({ c }: { c: LearnContent }) {
   const stars = GAMES.reduce((n, g) => n + (learn.stars[g.id] ?? 0), 0);
   const readHere = learn.read.filter((id) => LESSONS.some((l) => l.id === id)).length;
 
-  // Open the help tab from links like /aprender#ayuda
-  useEffect(() => {
-    if (window.location.hash === "#ayuda") setTab("ayuda");
-  }, []);
 
   const goHelp = () => { setGame(null); setLesson(null); setTab("ayuda"); window.scrollTo({ top: 0 }); };
 

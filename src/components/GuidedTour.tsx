@@ -3,6 +3,7 @@
 // every part, on the real screens, one step at a time. Each step lights up the
 // part being explained and can be read aloud. The app can be used once the tour
 // is finished (the example account can skip it for demos).
+import { useResetOn } from "@/lib/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Volume2, VolumeX } from "lucide-react";
@@ -78,8 +79,9 @@ export function GuidedTour() {
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find and light up the part being explained
+  useResetOn(i, () => setRect(null));
   useEffect(() => {
-    setRect(null); targetRef.current = null;
+    targetRef.current = null;
     if (!step.targets) return;
     let tries = 0, stop = false;
     const find = () => {

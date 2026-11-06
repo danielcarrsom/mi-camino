@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Hammer, Plus, Pencil, ArrowDownCircle, ArrowUpCircle, Repeat as RepeatIcon, PiggyBank, Users } from "lucide-react";
-import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
+import { Button, Card, PageHeader, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
 import { planActive, tandaEnded, tandaPot, useLang, useMe, useRegion, type Entry, type Work } from "@/lib/store";

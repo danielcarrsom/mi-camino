@@ -1,12 +1,12 @@
 "use client";
 // Shared money forms: pay editor, category picker, and the sheets used to
 // change something already saved (the little pencil).
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Hammer, Trash2, Check, MapPin, Repeat as RepeatIcon } from "lucide-react";
 import { AmountInput, Button, Sheet, Tile, cx } from "./ui";
 import { Icon } from "./Icon";
-import { useT } from "@/lib/hooks";
+import { useResetOn, useT } from "@/lib/hooks";
 import { useLang, useRegion, useStore, type Entry, type Work } from "@/lib/store";
 import { money } from "@/lib/money";
 import { CATEGORIES, GROUPS, INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
@@ -145,10 +145,10 @@ export function EntryEditSheet({ entry, onClose }: { entry: Entry | null; onClos
   const [note, setNote] = useState("");
   const [catOpen, setCatOpen] = useState(false);
 
-  useEffect(() => {
+  useResetOn(entry, () => {
     if (!entry) return;
     setAmount(String(entry.amount)); setRepeat(entry.repeat); setCategory(entry.category); setNote(entry.note);
-  }, [entry]);
+  });
 
   if (!entry) return null;
   const c = entry.kind === "in" ? incomeCategoryById(category) : categoryById(category);
@@ -294,9 +294,9 @@ export function WorkEditSheet({ work, onClose }: { work: Work | null; onClose: (
   const updateWork = useStore((s) => s.updateWork);
   const removeWork = useStore((s) => s.removeWork);
   const [draft, setDraft] = useState<ParsedWork | null>(null);
-  useEffect(() => {
+  useResetOn(work, () => {
     if (work) setDraft({ name: work.name, pay: work.pay, every: work.every, hoursPerWeek: work.hoursPerWeek, daysPerWeek: work.daysPerWeek, perHour: false, tax: work.tax ?? DEFAULT_TAX });
-  }, [work]);
+  });
   if (!work || !draft) return null;
   return (
     <Sheet open onClose={onClose} title={t("incomeKindWork")}>
