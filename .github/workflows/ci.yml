@@ -23,7 +23,7 @@ jobs:
       # The rate limiter counts in memory during CI (no calls to the real database)
       RATE_LIMIT_LOCAL_ONLY: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
