@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
 import { goalSaved, useLang, useMe, useStore } from "@/lib/store";
 import { money, toWeekly } from "@/lib/money";
-import { PlanEditor, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
+import { PlanEditor, recommendedAmount, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
 import { useSummary } from "@/lib/useSummary";
 import { GOAL_PRESETS, goalPresetById, pick, type GoalPreset } from "@/lib/catalog";
 import { speak } from "@/lib/voice";
@@ -88,6 +88,8 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const setPlan = useStore((s) => s.setPlan);
   const router = useRouter();
   const summary = useSummary();
+  // What's left each week after expenses and the savings already planned
+  const freeWeekly = summary && summary.weekIn > 0 ? summary.weekLeft : null;
   const [preset, setPreset] = useState<GoalPreset | "own" | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -106,7 +108,8 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
 
   const toPlan = () => {
     const target = Number(amount);
-    setPlanDraft({ amount: String(suggestAmounts(target, "week")[1] ?? suggestAmounts(target, "week")[0]), every: "week" });
+    const rec = recommendedAmount(freeWeekly, target, "week");
+    setPlanDraft({ amount: String(rec ?? suggestAmounts(target, "week")[1] ?? suggestAmounts(target, "week")[0]), every: "week" });
     setStep("plan");
     speak(t("planAskSay"), lang, "planAsk");
   };
@@ -129,6 +132,7 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
             value={plan}
             onChange={setPlanDraft}
             missing={Number(amount)}
+            freeWeekly={freeWeekly}
             tight={summary ? summary.weekIn > 0 && summary.weekLeft - toWeekly(Number(plan.amount) || 0, plan.every) < 0 : false}
           />
           <Button onClick={() => create(true)} disabled={!Number(plan.amount)} className="w-full">{t("planStart")}</Button>

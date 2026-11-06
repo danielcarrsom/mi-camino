@@ -8,6 +8,7 @@ import { useT } from "@/lib/hooks";
 import { goalSaved, useLang, useMe, useStore, type Plan } from "@/lib/store";
 import { PlanEditor, finishText, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
 import { useSummary } from "@/lib/useSummary";
+import { CertificateSheet } from "@/components/Certificate";
 import { money, moneySpoken, shortDate, toWeekly } from "@/lib/money";
 import { goalPresetById } from "@/lib/catalog";
 import { speak } from "@/lib/voice";
@@ -27,6 +28,7 @@ export default function GoalDetail() {
   const [amount, setAmount] = useState("");
   const [highlightFrom, setHighlightFrom] = useState<number | undefined>();
   const [celebrate, setCelebrate] = useState<null | "brick" | "done">(null);
+  const [cert, setCert] = useState(false);
 
   if (!goal) {
     return (
@@ -75,17 +77,14 @@ export default function GoalDetail() {
     setTimeout(() => setCelebrate(null), 3500);
   };
 
-  const share = async () => {
-    const text = lang === "en"
-      ? `I'm building "${goal.name}" with Mi Camino: ${have} of ${units} ${unitWord} already! 🏠`
-      : `Estoy construyendo "${goal.name}" con Mi Camino: ¡ya llevo ${have} de ${units} ${unitWord}! 🏠`;
-    if (navigator.share) await navigator.share({ text }).catch(() => {});
-    else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-  };
+  const share = () => setCert(true);
+  const EMOJI: Record<string, string> = { casa_mexico: "🏡", casa_aqui: "🏠", emergencias: "🛟", escuela: "🎓", viaje: "✈️", carro: "🚗", negocio: "🏪", familia: "👨‍👩‍👧", deudas: "💳", retiro: "🌅" };
+  const since = new Date(goal.createdAt).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { month: "long", year: "numeric" });
 
   return (
     <>
       <PageHeader title={goal.name} say={say} back="/casita/metas" />
+      <CertificateSheet open={cert} onClose={() => setCert(false)} person={me.profile.name.split(" ")[0]} goal={goal.name} saved={saved} target={goal.target} since={since} emoji={EMOJI[goal.preset] ?? "⭐"} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_1fr] lg:gap-6">
         <Card className="relative flex flex-col items-center p-6 text-center md:p-8">
@@ -207,7 +206,7 @@ function PlanCard({ goalId, plan, missing }: { goalId: string; plan: Plan | null
       </div>
       {!plan && <p className="mt-2 mb-4 text-lg text-muted">{t("planNone")}</p>}
       {plan && <div className="mt-4" />}
-      <PlanEditor value={draft} onChange={setDraft} missing={missing} tight={tight} />
+      <PlanEditor value={draft} onChange={setDraft} missing={missing} tight={tight} freeWeekly={summary && summary.weekIn > 0 ? summary.weekLeft + currentWeekly : null} />
       <div className="mt-4 flex gap-3">
         {plan && <Button variant="soft" onClick={() => setEditing(false)} className="flex-1">{t("cancel")}</Button>}
         <Button

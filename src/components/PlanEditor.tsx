@@ -30,12 +30,39 @@ export function suggestAmounts(missing: number, every: Plan["every"]): number[] 
   return Array.from(new Set([round(missing / (per * 2)), round(missing / per), round(missing / (per / 2))])).filter((n) => n < missing || n === round(missing));
 }
 
-export function PlanEditor({ value, onChange, missing, tight }: { value: PlanDraft; onChange: (v: PlanDraft) => void; missing: number; tight?: boolean }) {
+/** What we'd suggest setting apart: half of what is left each week after
+ *  expenses and other savings, never more than what's missing. */
+export function recommendedAmount(freeWeekly: number | null | undefined, missing: number, every: Plan["every"]): number | null {
+  if (freeWeekly == null || freeWeekly <= 0 || missing <= 0) return null;
+  const perPeriod = every === "week" ? 1 : every === "2weeks" ? 2 : 52 / 12;
+  const raw = freeWeekly * 0.5 * perPeriod;
+  const rounded = Math.max(5, Math.floor(raw / 5) * 5);
+  return Math.min(rounded, Math.ceil(missing));
+}
+
+export function PlanEditor({ value, onChange, missing, tight, freeWeekly }: { value: PlanDraft; onChange: (v: PlanDraft) => void; missing: number; tight?: boolean; freeWeekly?: number | null }) {
   const t = useT();
   const lang = useLang();
   const finish = finishText(missing, Number(value.amount), value.every, lang);
+  const rec = recommendedAmount(freeWeekly, missing, value.every);
+  const per = value.every === "week" ? (lang === "en" ? "a week" : "a la semana") : value.every === "2weeks" ? (lang === "en" ? "every 2 weeks" : "cada quincena") : (lang === "en" ? "a month" : "al mes");
   return (
     <div className="space-y-4">
+      {rec != null ? (
+        <div className="rounded-2xl border-2 border-sun bg-sun-soft p-4">
+          <p className="text-lg font-extrabold">💡 {lang === "en" ? `We suggest ${rec ? "$" + rec.toLocaleString("en-US") : ""} ${per}` : `Te sugerimos $${rec.toLocaleString("es-MX")} ${per}`}</p>
+          <p className="mt-1 text-base">
+            {lang === "en"
+              ? `After your expenses you have about $${Math.round(freeWeekly!).toLocaleString("en-US")} left each week. Saving half still leaves you money to live on. You can change it.`
+              : `Después de tus gastos te sobran como $${Math.round(freeWeekly!).toLocaleString("es-MX")} a la semana. Apartar la mitad te deja dinero para vivir. Puedes cambiarlo.`}
+          </p>
+          {Number(value.amount) !== rec && (
+            <button onClick={() => onChange({ ...value, amount: String(rec) })} className="mt-2 inline-flex h-11 items-center rounded-xl bg-ink px-4 font-bold text-paper">{lang === "en" ? "Use this amount" : "Usar esta cantidad"}</button>
+          )}
+        </div>
+      ) : freeWeekly != null && freeWeekly <= 0 ? (
+        <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">{lang === "en" ? "Right now your expenses use up what you earn. Start with a little, even $5 a week, and review your expenses in My money." : "Ahora tus gastos se llevan lo que ganas. Empieza con poquito, aunque sean $5 a la semana, y revisa tus gastos en Mi dinero."}</p>
+      ) : null}
       <div className="grid grid-cols-3 gap-2">
         {EVERY.map((e) => (
           <button key={e.id} onClick={() => onChange({ ...value, every: e.id })} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", value.every === e.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>

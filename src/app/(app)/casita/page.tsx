@@ -1,4 +1,5 @@
 "use client";
+import { BillsCard } from "@/components/Bills";
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight, Pencil, Users } from "lucide-react";
@@ -129,6 +130,7 @@ export default function CasitaHome() {
             </Link>
           )}
 
+          <BillsCard compact />
           {recent.length > 0 && (
             <section>
               <h2 className="mb-3 text-2xl font-semibold">{t("recent")}</h2>

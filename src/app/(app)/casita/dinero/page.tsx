@@ -7,6 +7,7 @@ import { useT } from "@/lib/hooks";
 import { planActive, tandaEnded, tandaPot, useLang, useMe, type Entry, type Work } from "@/lib/store";
 import Link from "next/link";
 import { EntryEditSheet, WorkEditSheet } from "@/components/MoneyForms";
+import { BillsCard } from "@/components/Bills";
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate, toMonthly } from "@/lib/money";
 import { GROUPS, categoryById, incomeCategoryById, pick } from "@/lib/catalog";
@@ -44,9 +45,6 @@ export default function MoneyPage() {
 
   const say = `${view === "month" ? t("perMonth") : t("perWeek")}: ${t("youEarn")} ${moneySpoken(earn, lang)}. ${t("youSpend")} ${moneySpoken(spend, lang)}. ${t("youSave")} ${moneySpoken(save, lang)}. ${t("youKeep")} ${moneySpoken(keep, lang)}.`;
 
-  // stacked bar: where every dollar you earn goes
-  const base = Math.max(earn, spend + save, 1);
-  const pct = (n: number) => `${Math.max(0, (n / base) * 100)}%`;
 
   return (
     <>
@@ -68,29 +66,7 @@ export default function MoneyPage() {
         <Big label={t("youKeep")} value={money(keep, lang)} tone={keep < 0 ? "warn" : "ink"} icon={<Icon name="wallet" size={24} />} />
       </div>
 
-      <Card className="mt-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-lg font-bold">{lang === "en" ? "For every dollar you earn" : "De cada dólar que ganas"}</p>
-          <ListenButton compact text={say} />
-        </div>
-        <div className="mt-3 flex h-10 overflow-hidden rounded-full bg-sand">
-          <span className="bg-clay" style={{ width: pct(spend) }} title={t("youSpend")} />
-          <span className="bg-sun" style={{ width: pct(save) }} title={t("youSave")} />
-          <span className="bg-leaf" style={{ width: pct(Math.max(0, keep)) }} title={t("youKeep")} />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-base">
-          <Legend color="bg-clay" label={`${t("youSpend")} ${earn ? Math.round((spend / earn) * 100) : 0}¢`} />
-          <Legend color="bg-sun" label={`${t("youSave")} ${earn ? Math.round((save / earn) * 100) : 0}¢`} />
-          <Legend color="bg-leaf" label={`${t("youKeep")} ${earn ? Math.max(0, Math.round((keep / earn) * 100)) : 0}¢`} />
-        </div>
-        {keep < 0 && (
-          <p className="mt-4 rounded-2xl bg-sun-soft px-4 py-3 text-lg">
-            {lang === "en"
-              ? "You spend more than you earn. Look at the biggest bar below: that's the best place to start cutting."
-              : "Gastas más de lo que ganas. Mira la barra más grande de abajo: ahí es el mejor lugar para empezar a recortar."}
-          </p>
-        )}
-      </Card>
+      <div className="mt-4"><BillsCard keep={s.monthKeep} /></div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         {/* Work and pay */}
@@ -254,9 +230,6 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
-  return <span className="flex items-center gap-2"><span className={cx("h-3.5 w-3.5 rounded-full", color)} /> {label}</span>;
-}
 
 function PencilButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (

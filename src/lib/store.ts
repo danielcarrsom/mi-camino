@@ -6,7 +6,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
-import { uid, toMonthly, toWeekly, isThisWeek } from "./money";
+import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek } from "./money";
 import { altPhoneKey } from "./phone";
 import type { BizEntry, Product, BizType } from "./business";
 import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
@@ -42,6 +42,7 @@ export type Entry = {
   note: string;
   date: string;
   source: Source;
+  paid?: string[];        // fixed payments: the periods the person confirmed they paid
 };
 
 /** auto = added by a savings plan; from "tanda" = the tanda pot, which never came out of your pay. */
@@ -133,6 +134,7 @@ type State = {
   addEntries: (e: Omit<Entry, "id">[]) => void;
   removeEntry: (id: string) => void;
   updateEntry: (id: string, e: Partial<Omit<Entry, "id">>) => void;
+  togglePaid: (id: string) => void;
   addGoal: (g: { preset: string; name: string; target: number }) => string;
   updateGoal: (id: string, g: Partial<Pick<Goal, "name" | "target">>) => void;
   removeGoal: (id: string) => void;
@@ -466,6 +468,18 @@ export const useStore = create<State>()(
         set((s) => mutateCurrent(s, (d) => ({ ...d, entries: [...es.map((e) => ({ ...e, id: uid() })), ...d.entries] }))),
       removeEntry: (id) => set((s) => mutateCurrent(s, (d) => ({ ...d, entries: d.entries.filter((e) => e.id !== id) }))),
       updateEntry: (id, e) => set((s) => mutateCurrent(s, (d) => ({ ...d, entries: d.entries.map((x) => (x.id === id ? { ...x, ...e } : x)) }))),
+      togglePaid: (id) =>
+        set((s) =>
+          mutateCurrent(s, (d) => ({
+            ...d,
+            entries: d.entries.map((x) => {
+              if (x.id !== id || x.repeat === "once") return x;
+              const k = periodKey(x);
+              const paid = x.paid ?? [];
+              return { ...x, paid: paid.includes(k) ? paid.filter((p) => p !== k) : [...paid.slice(-23), k] };
+            }),
+          })),
+        ),
       addGoal: ({ preset, name, target }) => {
         const id = uid();
         set((s) =>
@@ -697,6 +711,18 @@ export type Summary = {
   perDay: number | null;
   byGroup: Record<string, number>; // monthly spend by group id
 };
+
+/** Which pay period we're in for a fixed payment: this month, this week, or this two-week stretch. */
+export function periodKey(e: Pick<Entry, "repeat" | "date">, at = new Date()): string {
+  if (e.repeat === "month") return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}`;
+  const wk = startOfWeek(at);
+  if (e.repeat === "2weeks") {
+    const first = startOfWeek(new Date(e.date)).getTime();
+    return `q${Math.floor((wk.getTime() - first) / (14 * 86400000))}`;
+  }
+  return `w${wk.getFullYear()}-${String(wk.getMonth() + 1).padStart(2, "0")}-${String(wk.getDate()).padStart(2, "0")}`;
+}
+export const isPaidNow = (e: Entry) => e.repeat !== "once" && (e.paid ?? []).includes(periodKey(e));
 
 export function summarize(d: UserData, groupOf: (catId: string) => string): Summary {
   const workMonthly = d.work.reduce((a, w) => a + toMonthly(w.pay, w.every), 0);
