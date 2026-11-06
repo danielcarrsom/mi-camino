@@ -4,7 +4,7 @@ Mi Camino holds money information of people who may be vulnerable, so it is buil
 
 ## Reporting a problem
 
-If you find a security problem, please write to **danielcarrsom@gmail.com** with the steps to reproduce it. Don't test against other people's accounts and don't publish it before it's fixed. We'll answer within a few days.
+If you find a security problem, please report it privately through GitHub: on the repository, go to **Security → Report a vulnerability**, with the steps to reproduce it. Don't test against other people's accounts and don't publish it before it's fixed.
 
 ## What we never collect
 
@@ -45,7 +45,7 @@ No immigration status, Social Security number, ITIN, CURP, RFC, passport or bank
 2. **Vercel Firewall.** Add a rate-limit rule for `/api/*` (e.g. 60 requests per minute per IP). This is a hard limit across all servers; ours is per server instance.
 3. **Supabase Auth.** In Authentication → Sign In / Providers, turn off "Allow new users to sign up". All sign-ups go through the `registro` function, which still works.
 4. **Two-step login** (2FA) on GitHub, Vercel, Supabase, Anthropic and ElevenLabs.
-5. **GitHub.** Turn on Dependabot alerts and secret scanning for the repository.
+5. **GitHub.** Turn on Dependabot alerts, secret scanning and private vulnerability reporting (Settings → Code security) for the repository.
 6. If a key ever leaks: rotate it in the provider's console, update it in Vercel, and Redeploy.
 
 ## Known risks and limits

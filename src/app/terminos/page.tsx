@@ -2,9 +2,7 @@
 // Términos y condiciones / Terms of use. Plain language first, then the details.
 import Link from "next/link";
 import { LegalPage, type LegalDoc } from "@/components/LegalPage";
-import { LEGAL } from "@/lib/legal";
 
-const mail = <a className="font-bold text-clay underline" href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>;
 const privEs = <Link className="font-bold text-clay underline" href="/privacidad">Aviso de privacidad</Link>;
 const privEn = <Link className="font-bold text-clay underline" href="/privacidad">Privacy notice</Link>;
 const List = ({ items }: { items: React.ReactNode[] }) => <ul className="list-disc space-y-1.5 pl-6">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>;
@@ -24,7 +22,7 @@ const es: LegalDoc = {
       title: "Qué es Mi Camino",
       body: (
         <>
-          <p>Mi Camino es una herramienta gratuita de educación financiera para anotar lo que ganas y gastas, ahorrar para tus metas, llevar tu tanda y entender tu negocio. La crea y opera {LEGAL.owner} ({LEGAL.city}). Al usarla aceptas estos términos y el {privEs}.</p>
+          <p>Mi Camino es una herramienta gratuita de educación financiera para anotar lo que ganas y gastas, ahorrar para tus metas, llevar tu tanda y entender tu negocio. Al usarla aceptas estos términos y el {privEs}.</p>
           <p>Mi Camino no es un servicio oficial del Gobierno de México, de la Secretaría de Relaciones Exteriores ni de ningún Consulado.</p>
         </>
       ),
@@ -55,7 +53,7 @@ const es: LegalDoc = {
           "Debes tener 13 años o más. Si tienes entre 13 y 17, necesitas permiso de tu mamá, papá o tutor.",
           "Usa tu propio número de teléfono y una clave que solo tú sepas. No la compartas con nadie: Mi Camino nunca te la va a pedir por mensaje o llamada.",
           "Eres responsable de lo que anotas en tu cuenta.",
-          "Si crees que alguien entró a tu cuenta, cambia tu clave en Mi perfil y escríbenos.",
+          "Si crees que alguien entró a tu cuenta, cambia tu clave en Mi perfil.",
         ]} />
       ),
     },
@@ -100,8 +98,8 @@ const es: LegalDoc = {
       body: <p>Podemos cambiar estos términos, sobre todo mientras estamos en beta. Si el cambio es importante, te lo diremos en la app y te pediremos aceptarlo otra vez.</p>,
     },
     {
-      title: "Ley aplicable y contacto",
-      body: <p>Estos términos se rigen por las leyes del Estado de Nueva York, Estados Unidos, sin quitarte los derechos que te den las leyes del lugar donde vives. Para cualquier duda o queja, escríbenos a {mail}.</p>,
+      title: "Ley aplicable",
+      body: <p>Estos términos se rigen por las leyes del Estado de Nueva York, Estados Unidos, sin quitarte los derechos que te den las leyes del lugar donde vives.</p>,
     },
   ],
 };
@@ -121,7 +119,7 @@ const en: LegalDoc = {
       title: "What Mi Camino is",
       body: (
         <>
-          <p>Mi Camino is a free financial education tool to write down what you earn and spend, save for goals, keep track of your tanda and understand your business. It is created and run by {LEGAL.owner} (New York, NY, United States). By using it you accept these terms and the {privEn}.</p>
+          <p>Mi Camino is a free financial education tool to write down what you earn and spend, save for goals, keep track of your tanda and understand your business. By using it you accept these terms and the {privEn}.</p>
           <p>Mi Camino is not an official service of the Government of Mexico, the Ministry of Foreign Affairs or any Consulate.</p>
         </>
       ),
@@ -152,7 +150,7 @@ const en: LegalDoc = {
           "You must be 13 or older. If you are 13 to 17, you need permission from your mother, father or guardian.",
           "Use your own phone number and a PIN only you know. Don’t share it: Mi Camino will never ask for it by text or call.",
           "You are responsible for what you write down in your account.",
-          "If you think someone got into your account, change your PIN in My profile and write to us.",
+          "If you think someone got into your account, change your PIN in My profile.",
         ]} />
       ),
     },
@@ -197,8 +195,8 @@ const en: LegalDoc = {
       body: <p>We may change these terms, especially while in beta. If a change is important, we’ll tell you in the app and ask you to accept it again.</p>,
     },
     {
-      title: "Governing law and contact",
-      body: <p>These terms are governed by the laws of the State of New York, United States, without taking away rights given to you by the laws where you live. For any question or complaint, write to {mail}.</p>,
+      title: "Governing law",
+      body: <p>These terms are governed by the laws of the State of New York, United States, without taking away rights given to you by the laws where you live.</p>,
     },
   ],
 };

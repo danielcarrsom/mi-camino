@@ -60,8 +60,6 @@ export function LegalPage({ es, en }: { es: LegalDoc; en: LegalDoc }) {
         </div>
 
         <p className="mt-10 border-t border-sand pt-5 text-base text-muted">
-          {english ? "Questions? Write to " : "¿Preguntas? Escribe a "}
-          <a className="font-bold text-clay underline" href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>.{" "}
           <Link className="font-bold text-clay underline" href="/privacidad">{english ? "Privacy notice" : "Aviso de privacidad"}</Link> ·{" "}
           <Link className="font-bold text-clay underline" href="/terminos">{english ? "Terms" : "Términos y condiciones"}</Link>
         </p>

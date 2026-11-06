@@ -3,9 +3,7 @@
 // Keep it true to what the code does: if data handling changes, update this
 // page and LEGAL.version in src/lib/legal.ts.
 import { LegalPage, type LegalDoc } from "@/components/LegalPage";
-import { LEGAL } from "@/lib/legal";
 
-const mail = <a className="font-bold text-clay underline" href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a>;
 const ext = (href: string, label: string) => <a className="font-bold text-clay underline" href={href} target="_blank" rel="noopener noreferrer">{label}</a>;
 const List = ({ items }: { items: React.ReactNode[] }) => <ul className="list-disc space-y-1.5 pl-6">{items.map((x, i) => <li key={i}>{x}</li>)}</ul>;
 
@@ -22,10 +20,10 @@ const es: LegalDoc = {
   ],
   sections: [
     {
-      title: "Quién es responsable de tus datos",
+      title: "Qué es Mi Camino",
       body: (
         <>
-          <p>Mi Camino es un proyecto independiente en versión beta, creado y operado por {LEGAL.owner}, en {LEGAL.city}. Puedes escribir a {mail} para cualquier tema de privacidad.</p>
+          <p>Mi Camino es un proyecto independiente en versión beta.</p>
           <p>Mi Camino <b>no es</b> un servicio oficial del Gobierno de México, de la Secretaría de Relaciones Exteriores ni de ningún Consulado, y no es un banco.</p>
         </>
       ),
@@ -61,7 +59,7 @@ const es: LegalDoc = {
             "Entender lo que dices, escribes o fotografías, y leerte la pantalla en voz alta.",
             "Ayudarte a recuperar tu clave y proteger tu cuenta.",
           ]} />
-          <p><b>Para mejorar Mi Camino</b> (opcional): contar cuántas personas usan la app y en qué idiomas, siempre en números totales que no dicen quién eres. Esos totales se pueden compartir con organizaciones aliadas para mostrar el impacto del proyecto. Si no quieres que tu cuenta se cuente, escríbenos a {mail}.</p>
+          <p><b>Para mejorar Mi Camino</b> (opcional): contar cuántas personas usan la app y en qué idiomas, siempre en números totales que no dicen quién eres. Esos totales se pueden compartir con organizaciones aliadas para mostrar el impacto del proyecto.</p>
           <p>No usamos tus datos para publicidad, no los vendemos y no hacemos perfiles para ofrecerte productos.</p>
         </>
       ),
@@ -129,9 +127,9 @@ const es: LegalDoc = {
             <><b>Ver y llevarte tus datos:</b> en Mi perfil, toca “Descargar mis datos”.</>,
             <><b>Corregirlos:</b> cambia cualquier cosa directamente en la app.</>,
             <><b>Borrarlos:</b> en Mi perfil, toca “Borrar mi cuenta”.</>,
-            <><b>Oponerte a un uso o retirar tu consentimiento:</b> escríbenos a {mail}.</>,
+            <><b>Retirar tu consentimiento:</b> borra tu cuenta; dejamos de usar tus datos en ese momento.</>,
           ]} />
-          <p>Te responderemos en un máximo de 20 días hábiles. Estos son tus derechos de acceso, rectificación, cancelación y oposición (ARCO) en México, y derechos parecidos que te dan las leyes de Estados Unidos.</p>
+          <p>Estos son tus derechos de acceso, rectificación, cancelación y oposición (ARCO) en México, y derechos parecidos que te dan las leyes de Estados Unidos.</p>
         </>
       ),
     },
@@ -159,10 +157,10 @@ const en: LegalDoc = {
   ],
   sections: [
     {
-      title: "Who is responsible for your data",
+      title: "What Mi Camino is",
       body: (
         <>
-          <p>Mi Camino is an independent project in beta, created and run by {LEGAL.owner}, in New York, NY, United States. Write to {mail} about anything related to privacy.</p>
+          <p>Mi Camino is an independent project in beta.</p>
           <p>Mi Camino is <b>not</b> an official service of the Government of Mexico, the Ministry of Foreign Affairs or any Consulate, and it is not a bank.</p>
         </>
       ),
@@ -198,7 +196,7 @@ const en: LegalDoc = {
             "Understand what you say, type or photograph, and read the screen aloud.",
             "Help you recover your PIN and protect your account.",
           ]} />
-          <p><b>To improve Mi Camino</b> (optional): counting how many people use the app and in which languages, always as totals that don’t say who you are. These totals may be shared with partner organizations to show the project’s impact. If you don’t want your account counted, write to {mail}.</p>
+          <p><b>To improve Mi Camino</b> (optional): counting how many people use the app and in which languages, always as totals that don’t say who you are. These totals may be shared with partner organizations to show the project’s impact.</p>
           <p>We don’t use your data for advertising, we don’t sell it, and we don’t build profiles to offer you products.</p>
         </>
       ),
@@ -264,9 +262,9 @@ const en: LegalDoc = {
             <><b>See and take your data:</b> in My profile, tap “Download my data”.</>,
             <><b>Correct it:</b> change anything directly in the app.</>,
             <><b>Delete it:</b> in My profile, tap “Delete my account”.</>,
-            <><b>Object to a use or withdraw consent:</b> write to {mail}.</>,
+            <><b>Withdraw your consent:</b> delete your account; we stop using your data right away.</>,
           ]} />
-          <p>We’ll answer within 20 business days. These are your access, correction, deletion and objection (ARCO) rights in Mexico, and similar rights under US laws.</p>
+          <p>These are your access, correction, deletion and objection (ARCO) rights in Mexico, and similar rights under US laws.</p>
         </>
       ),
     },
