@@ -6,6 +6,7 @@ import { ArrowDownCircle, ArrowUpCircle, ArrowRight, Check, ChevronRight, HandCo
 import { Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { GoalVisual } from "@/components/GoalVisual";
+import { FirstSteps } from "@/components/FirstSteps";
 import { BizEntryRow, BizEntrySheet, L, MyPayCard, PayMyselfSheet, Semaforo, Stat, TipList, useBiz } from "@/components/Biz";
 import { goalSaved, useStore } from "@/lib/store";
 import { money } from "@/lib/money";
@@ -48,6 +49,7 @@ function Negocio() {
         say={health.say}
         right={<button onClick={() => setRename(true)} aria-label={L(lang, "Cambiar nombre", "Rename")} className="flex h-12 w-12 items-center justify-center rounded-full text-muted hover:bg-sand/60"><Pencil size={20} /></button>}
       />
+      <FirstSteps where="negocio" />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Semáforo */}

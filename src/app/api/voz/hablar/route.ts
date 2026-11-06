@@ -1,6 +1,9 @@
 import { hasVoice } from "@/lib/server/ai";
 
 // Text → natural voice with ElevenLabs. The key stays on the server.
+// Everyone hears the same voice: "Sarah" (soft and calm) speaking through the
+// multilingual model, slightly slower and steadier for older listeners.
+// To change it for everyone, set ELEVENLABS_VOICE_ID in Vercel.
 export async function POST(req: Request) {
   if (!hasVoice()) return new Response("voice not configured", { status: 501 });
   const { text, locale } = (await req.json()) as { text?: string; locale?: string };
@@ -16,7 +19,7 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       text,
       model_id: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
-      voice_settings: { stability: 0.55, similarity_boost: 0.75, speed: 0.92 },
+      voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 0.9 },
     }),
   });
   if (!r.ok || !r.body) return new Response("tts failed", { status: 502 });

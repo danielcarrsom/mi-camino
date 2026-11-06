@@ -66,7 +66,7 @@ export default function MoneyPage() {
         <Big label={t("youKeep")} value={money(keep, lang)} tone={keep < 0 ? "warn" : "ink"} icon={<Icon name="wallet" size={24} />} />
       </div>
 
-      <div className="mt-4"><BillsCard keep={s.monthKeep} /></div>
+      <div className="mt-4" data-tour="pagos"><BillsCard keep={s.monthKeep} /></div>
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         {/* Work and pay */}

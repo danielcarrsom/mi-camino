@@ -3,8 +3,9 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { NewPin } from "@/components/NewPin";
+import { GuidedTour } from "@/components/GuidedTour";
 import { useHydrated } from "@/lib/hooks";
-import { useLang, useStore } from "@/lib/store";
+import { useLang, useMe, useStore } from "@/lib/store";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hydrated = useHydrated();
@@ -15,6 +16,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const syncDown = useStore((s) => s.syncDown);
   const syncUp = useStore((s) => s.syncUp);
   const needsNewPin = useStore((s) => s.needsNewPin);
+  const textBig = useStore((s) => s.textBig);
+  const me = useMe();
 
   // Savings plans add their bricks automatically when a new week/month arrives;
   // then bring in anything saved online from another device.
@@ -48,7 +51,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = lang === "en" ? "en" : "es";
   }, [lang]);
 
+  // Bigger letters for people who need them: everything grows together
+  useEffect(() => {
+    document.documentElement.style.fontSize = textBig ? "118%" : "";
+  }, [textBig]);
+
   if (!hydrated || !current) return <div className="min-h-dvh bg-cream" />;
   if (needsNewPin) return <NewPin />;
-  return <AppShell>{children}</AppShell>;
+  return (
+    <>
+      <AppShell>{children}</AppShell>
+      {me && !me.profile.tourDone && <GuidedTour />}
+    </>
+  );
 }

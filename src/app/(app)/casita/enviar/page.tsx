@@ -120,7 +120,7 @@ export default function SendMoney() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr] lg:gap-6">
         {/* ---------- The calculator ---------- */}
-        <Card className="min-w-0 p-5 md:p-7">
+        <Card className="min-w-0 p-5 md:p-7" data-tour="enviar">
           {/* where */}
           <p className="mb-2 flex flex-wrap items-center gap-2 text-lg font-bold">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-1"><span className="text-xl leading-none">🇺🇸</span> {L(lang, "Desde Estados Unidos", "From the United States")}</span>

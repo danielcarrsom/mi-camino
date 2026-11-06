@@ -1,5 +1,6 @@
 "use client";
 import { BillsCard } from "@/components/Bills";
+import { FirstSteps } from "@/components/FirstSteps";
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, PiggyBank, Plus, ChevronRight, Pencil, Users } from "lucide-react";
@@ -41,11 +42,12 @@ export default function CasitaHome() {
   return (
     <>
       <PageHeader title={`${t("hello")}, ${me.profile.name}`} sub={t("casitaWhat")} say={`${t("hello")}, ${me.profile.name}. ${weekSay}`} />
+      <FirstSteps where="casita" />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr] lg:gap-6">
         <div className="min-w-0 space-y-5">
           {/* The one number that matters this week */}
-          <Card dark className="relative overflow-hidden p-6 md:p-8">
+          <Card dark className="relative overflow-hidden p-6 md:p-8" data-tour="resumen">
             <div className="flex items-start justify-between gap-3">
               <p className="text-lg font-bold text-paper/75">{hasIncome && over ? t("overThisWeek") : t("leftThisWeek")}</p>
               <ListenButton text={weekSay} compact light />

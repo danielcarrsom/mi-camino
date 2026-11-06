@@ -18,6 +18,9 @@ export type Profile = {
   negocio: boolean;
   createdAt: string;
   recoveryQ?: string;     // id of the security question chosen (the answer lives only on the server)
+  tourDone?: boolean;     // finished the guided tour
+  stepsHiddenCasita?: boolean;
+  stepsHiddenNegocio?: boolean;
 };
 
 export type Work = {
@@ -114,11 +117,15 @@ type State = {
   current: string | null;
   deviceLang: Lang;                   // chosen before signing in
   voiceOn: boolean;                   // read screens aloud automatically
+  textBig: boolean;                   // bigger letters on this device
+  touring: boolean;                   // the guided tour is on screen
   cloud: CloudStatus;                 // is this person's data saved online?
   needsNewPin: boolean;               // signed in with an old 4-digit PIN
 
   setDeviceLang: (l: Lang) => void;
   setVoiceOn: (v: boolean) => void;
+  setTextBig: (v: boolean) => void;
+  setTouring: (v: boolean) => void;
   syncUp: () => Promise<void>;
   changePin: (newPin: string) => Promise<void>;
   syncDown: () => Promise<void>;
@@ -335,12 +342,16 @@ export const useStore = create<State>()(
       current: null,
       deviceLang: "es",
       voiceOn: false,
+      textBig: false,
+      touring: false,
       cloud: "off",
       needsNewPin: false,
 
       setDeviceLang: (l) =>
         set((s) => ({ deviceLang: l, ...mutateCurrent(s, (d) => ({ ...d, profile: { ...d.profile, lang: l } })) })),
       setVoiceOn: (v) => set({ voiceOn: v }),
+      setTextBig: (v) => set({ textBig: v }),
+      setTouring: (v) => set({ touring: v }),
 
       // ---------- online saving ----------
       syncUp: async () => {

@@ -82,13 +82,28 @@ export async function speak(text: string, lang: Lang, audioKey?: string) {
   if ("speechSynthesis" in window) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = locale;
-    u.rate = 0.92;
-    const voices = window.speechSynthesis.getVoices();
-    const v = voices.find((x) => x.lang === locale) ?? voices.find((x) => x.lang.startsWith(locale.slice(0, 2)));
+    u.rate = 0.9;
+    const v = bestBrowserVoice(locale);
     if (v) u.voice = v;
     u.onend = done; u.onerror = done;
     window.speechSynthesis.speak(u);
   } else done();
+}
+
+// The calmest, most natural voice the phone has, chosen the same way on every device.
+const PREFERRED: Record<string, string[]> = {
+  es: ["Paulina", "Mónica", "Monica", "Google español de Estados Unidos", "Google español", "Microsoft Dalia", "Microsoft Sabina", "Microsoft Paloma", "Microsoft Elvira", "Marisol", "Juan"],
+  en: ["Samantha", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Karen"],
+};
+function bestBrowserVoice(locale: string): SpeechSynthesisVoice | undefined {
+  const voices = window.speechSynthesis.getVoices();
+  const lang2 = locale.slice(0, 2);
+  const same = voices.filter((x) => x.lang.toLowerCase().startsWith(lang2));
+  for (const name of PREFERRED[lang2] ?? []) {
+    const hit = same.find((x) => x.name.includes(name) && (x.lang.includes("MX") || x.lang.includes("US"))) ?? same.find((x) => x.name.includes(name));
+    if (hit) return hit;
+  }
+  return same.find((x) => x.lang === locale) ?? same.find((x) => /MX|US|419/.test(x.lang)) ?? same[0];
 }
 
 export function useSpeaking(): boolean {

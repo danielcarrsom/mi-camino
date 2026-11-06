@@ -1,7 +1,9 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Volume2, Square, ArrowLeft, Mic, X, Delete } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { howtoFor } from "@/lib/howto";
+import { Volume2, Square, ArrowLeft, Mic, X, Delete, HelpCircle } from "lucide-react";
 import { speak, stopSpeaking, useSpeaking, useListen } from "@/lib/voice";
 import { useLang, useStore } from "@/lib/store";
 import { useT } from "@/lib/hooks";
@@ -59,11 +61,16 @@ export function ListenButton({ text, audioKey, compact = false, light = false }:
 export function PageHeader({ title, say, sub, back, audioKey, right }: { title: string; say: string; sub?: string; back?: string; audioKey?: string; right?: ReactNode }) {
   const lang = useLang();
   const voiceOn = useStore((s) => s.voiceOn);
+  const touring = useStore((s) => s.touring);
   const t = useT();
+  const path = usePathname();
+  const how = howtoFor(path);
+  const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => {
-    if (voiceOn) speak(say, lang, audioKey);
+    if (voiceOn && !touring) speak(say, lang, audioKey);
     return () => stopSpeaking();
-  }, [say, voiceOn, lang, audioKey]);
+  }, [say, voiceOn, lang, audioKey, touring]);
+  const steps = how ? (lang === "en" ? how.en : how.es) : [];
   return (
     <header className="mb-6">
       {back && (
@@ -78,9 +85,30 @@ export function PageHeader({ title, say, sub, back, audioKey, right }: { title: 
         </div>
         <div className="flex items-center gap-2">
           {right}
-          <ListenButton text={say} audioKey={audioKey} compact />
+          <span data-tour="escuchar"><ListenButton text={say} audioKey={audioKey} compact /></span>
         </div>
       </div>
+      {how && (
+        <>
+          <button data-tour="como" onClick={() => setHelpOpen(true)} className="mt-3 inline-flex h-11 items-center gap-2 rounded-full border-2 border-sand bg-paper px-4 text-base font-bold text-ink hover:border-clay">
+            <HelpCircle size={20} className="text-clay" /> {lang === "en" ? "How does this work?" : "¿Cómo se usa?"}
+          </button>
+          <Sheet open={helpOpen} onClose={() => setHelpOpen(false)} title={lang === "en" ? "How to use this screen" : "Cómo se usa esta pantalla"}>
+            <ol className="space-y-3">
+              {steps.map((st, i) => (
+                <li key={i} className="flex items-start gap-3 text-xl leading-snug">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-clay text-lg font-extrabold text-paper">{i + 1}</span>
+                  <span className="pt-1">{st}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-5 flex items-center gap-3">
+              <ListenButton text={steps.map((st, i) => `${i + 1}. ${st}`).join(" ")} />
+              <Button onClick={() => setHelpOpen(false)} className="flex-1">{lang === "en" ? "Got it" : "Entendido"}</Button>
+            </div>
+          </Sheet>
+        </>
+      )}
     </header>
   );
 }

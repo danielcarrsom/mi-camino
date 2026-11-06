@@ -62,7 +62,7 @@ export function LearnHub({ c }: { c: LearnContent }) {
       </div>
 
       {/* Tabs */}
-      <div role="tablist" className="mb-6 grid grid-cols-3 gap-2 rounded-3xl bg-sand/60 p-1.5">
+      <div role="tablist" data-tour="aprender" className="mb-6 grid grid-cols-3 gap-2 rounded-3xl bg-sand/60 p-1.5">
         {tabs.map((t) => (
           <button
             key={t.id}

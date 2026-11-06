@@ -338,7 +338,7 @@ function ManualPick({ kind, onPicked, top }: { kind: Kind; onPicked: (e: ParsedE
   const quick = kind === "out" ? ["renta", "luz", "agua", "super", "metro", "telefono", "envio", "otro"] : [];
 
   return (
-    <section className={top ? "mb-6" : "mt-6"}>
+    <section className={top ? "mb-6" : "mt-6"} data-tour={top ? "salario" : undefined}>
       <h2 className="mb-3 text-xl font-semibold">{top ? (lang === "en" ? "What money came in? Tap one" : "¿Qué dinero te llegó? Toca uno") : t("orChoose")}</h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {kind === "in" ? (
