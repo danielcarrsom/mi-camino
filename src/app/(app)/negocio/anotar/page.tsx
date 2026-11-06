@@ -112,6 +112,7 @@ function Anotar() {
   }
 
   const isIn = kind === "in";
+  const isOther = cat === "otro_out" || cat === "otro_fijo" || cat === "otro_in";
   const cats = BIZ_CATEGORIES.filter((c) => c.kind === kind && !c.hidden);
   const variable = cats.filter((c) => !c.fixed), fixed = cats.filter((c) => c.fixed);
 
@@ -185,7 +186,14 @@ function Anotar() {
           <QuickAmounts amounts={isIn ? [50, 100, 200, 300] : [20, 50, 100, 300]} onPick={(n) => setAmount(String(n))} />
         </div>
 
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={isIn ? L(lang, "¿Qué vendiste? (opcional)", "What did you sell? (optional)") : L(lang, "¿Qué compraste? (opcional)", "What did you buy? (optional)")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
+        {isOther ? (
+          <label className="block">
+            <span className="mb-2 block text-lg font-bold">{isIn ? L(lang, "¿De qué fue este dinero?", "What was this money for?") : L(lang, "¿Qué gasto es?", "What cost is it?")}</span>
+            <input value={note} onChange={(e) => setNote(e.target.value)} autoFocus placeholder={isIn ? L(lang, "Ej. Me pagaron un préstamo", "e.g. A loan was paid back") : L(lang, "Ej. Seguro del carrito", "e.g. Cart insurance")} className="h-14 w-full rounded-2xl border-2 border-clay bg-paper px-4 text-lg outline-none" />
+          </label>
+        ) : (
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={isIn ? L(lang, "¿Qué vendiste? (opcional)", "What did you sell? (optional)") : L(lang, "¿Qué compraste? (opcional)", "What did you buy? (optional)")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
+        )}
 
         {!isIn && cat && <RepeatPicker value={repeat} onChange={setRepeat} kind="out" />}
 
@@ -197,7 +205,7 @@ function Anotar() {
           </div>
         )}
 
-        <Button variant={isIn ? "green" : "primary"} className="w-full" disabled={!cat || !(Number(amount) > 0)} onClick={save}>
+        <Button variant={isIn ? "green" : "primary"} className="w-full" disabled={!cat || !(Number(amount) > 0) || (isOther && note.trim().length < 2)} onClick={save}>
           <Check size={24} /> {L(lang, "Guardar", "Save")} {Number(amount) > 0 ? money(Number(amount), lang, Number(amount) % 1 !== 0) : ""}
         </Button>
       </Card>

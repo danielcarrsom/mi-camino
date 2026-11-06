@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, FileText, X, Plus, Loader2, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Phone, Building2, Landmark, Scale, Mail, Wallet, RotateCcw } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { useLang, useStore } from "@/lib/store";
@@ -36,6 +36,10 @@ export default function ExplainPaper() {
   const camRef = useRef<HTMLInputElement>(null);
   const galRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
+  const [aiOn, setAiOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    fetch("/api/estado").then((r) => r.json()).then((j) => setAiOn(!!j.ai)).catch(() => setAiOn(null));
+  }, []);
 
   const intro = L(
     lang,
@@ -76,7 +80,7 @@ export default function ExplainPaper() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lang, parts: pages.map((p) => ({ type: p.kind, data: p.data, mediaType: p.mediaType })) }),
       });
-      if (r.status === 501) { setProblem(L(lang, "Para leer papeles falta conectar la inteligencia artificial. Pronto estará lista.", "Reading papers needs the AI connection. It will be ready soon.")); return; }
+      if (r.status === 501) { setAiOn(false); return; }
       if (r.status === 413) { setProblem(L(lang, "Las fotos son muy pesadas. Sube menos páginas.", "The photos are too large. Upload fewer pages.")); return; }
       const j = (await r.json()) as Result & { error?: string };
       if (j.error) { setProblem(L(lang, "No pude leer tu papel. Intenta con una foto más clara y con buena luz.", "I couldn't read your paper. Try a clearer photo with good light.")); return; }
@@ -96,7 +100,9 @@ export default function ExplainPaper() {
     <>
       <PageHeader title={L(lang, "Explicar un papel", "Explain a paper")} sub={L(lang, "Cartas, facturas, contratos y avisos", "Letters, bills, contracts and notices")} say={intro} back="/casita" />
 
-      {!result && (
+      {!result && aiOn === false && <ScamChecklist lang={lang} />}
+
+      {!result && aiOn !== false && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr] lg:gap-6">
           <Card className="min-w-0">
             {/* hidden pickers */}
@@ -318,5 +324,51 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
         })}
       </div>
     </div>
+  );
+}
+
+/** While the AI reader isn't switched on, the page still helps: five questions anyone can check. */
+function ScamChecklist({ lang }: { lang: Lang }) {
+  const qs = [
+    L(lang, "¿Te piden pagar con tarjetas de regalo, criptomonedas o a la cuenta de una persona?", "Do they ask you to pay with gift cards, crypto or into a person's account?"),
+    L(lang, "¿Te amenazan con arrestarte, deportarte o quitarte tus papeles?", "Do they threaten to arrest or deport you, or take your papers?"),
+    L(lang, "¿Te dan muy poco tiempo, como 24 horas, para pagar?", "Do they give you very little time, like 24 hours, to pay?"),
+    L(lang, "¿Te piden que no le cuentes a nadie, ni a tu consulado?", "Do they ask you not to tell anyone, not even your consulate?"),
+    L(lang, "¿Te piden tu clave, tu número de Seguro Social o los datos de tu tarjeta?", "Do they ask for your PIN, Social Security number or card details?"),
+  ];
+  const [yes, setYes] = useState<boolean[]>(qs.map(() => false));
+  const [done, setDone] = useState(false);
+  const any = yes.some(Boolean);
+  const intro = L(lang, "Muy pronto te explicaremos tus papeles con inteligencia artificial. Mientras, revisa tú mismo: toca las preguntas a las que tu papel diga que sí.", "Soon we'll explain your papers with AI. Meanwhile, check it yourself: tap the questions your paper says yes to.");
+  return (
+    <Card className="mb-5">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-2xl font-semibold"><ShieldAlert size={26} className="text-clay" /> {L(lang, "¿Es estafa? Revísalo en 1 minuto", "Is it a scam? Check in 1 minute")}</h2>
+        <ListenButton compact text={`${intro} ${qs.join(" ")}`} />
+      </div>
+      <p className="mt-2 text-lg text-muted">{intro}</p>
+      <div className="mt-4 space-y-2">
+        {qs.map((q, i) => (
+          <button key={i} onClick={() => { setYes(yes.map((v, j) => (j === i ? !v : v))); setDone(false); }} aria-pressed={yes[i]}
+            className={cx("flex min-h-16 w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left text-lg font-bold", yes[i] ? "border-clay bg-clay/10" : "border-sand bg-paper")}>
+            <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2", yes[i] ? "border-clay bg-clay text-paper" : "border-sand-dark")}>{yes[i] && <CheckCircle2 size={18} />}</span>
+            {q}
+          </button>
+        ))}
+      </div>
+      <Button className="mt-4 w-full" variant="dark" onClick={() => { setDone(true); speak(any ? L(lang, "Cuidado. Puede ser una estafa. No pagues nada y pide ayuda.", "Careful. It may be a scam. Don't pay anything and ask for help.") : L(lang, "No vemos señales claras de estafa. Si tienes dudas, pide ayuda gratis.", "No clear scam signs. If in doubt, get free help."), lang); }}>
+        {L(lang, "Ver resultado", "See result")}
+      </Button>
+      {done && (
+        <div className={cx("mt-4 rounded-2xl p-4", any ? "bg-clay text-paper" : "bg-leaf-soft")}>
+          <p className="text-xl font-extrabold">{any ? L(lang, "⚠️ Cuidado: puede ser una estafa", "⚠️ Careful: it may be a scam") : L(lang, "No vemos señales claras de estafa", "No clear scam signs")}</p>
+          <p className="mt-1 text-lg">{any ? L(lang, "No pagues nada ni des tus datos. Llama al Consulado o al 311 para revisarlo con una persona.", "Don't pay or share your details. Call the Consulate or 311 to check it with a person.") : L(lang, "Aun así, si no entiendes algo, pide ayuda gratis antes de firmar o pagar.", "Still, if something isn't clear, get free help before signing or paying.")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a href="tel:+12122176400" className={cx("inline-flex h-12 items-center gap-2 rounded-2xl px-4 font-extrabold", any ? "bg-paper text-clay" : "bg-leaf text-paper")}><Phone size={18} /> {L(lang, "Consulado", "Consulate")} (212) 217-6400</a>
+            <a href="tel:311" className={cx("inline-flex h-12 items-center gap-2 rounded-2xl border-2 px-4 font-extrabold", any ? "border-paper" : "border-leaf text-leaf")}><Phone size={18} /> 311</a>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

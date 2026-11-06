@@ -54,6 +54,7 @@ const es = {
   welcomeTitle: "Bienvenido a Mi Camino",
   welcomeSay: "Bienvenido a Mi Camino. Aquí aprendes a cuidar tu dinero y a cumplir tus metas. Toca el botón grande para empezar.",
   start: "Empezar",
+  createAccount: "Crear una cuenta",
   haveAccount: "Ya tengo cuenta",
   tryDemo: "Probar con un ejemplo",
   pickLang: "¿En qué idioma quieres usar Mi Camino?",
@@ -204,7 +205,7 @@ const es = {
   payHours: "¿Cuántas horas trabajas a la semana?",
   payDays: "¿Cuántos días trabajas a la semana?",
   workName: "¿Dónde trabajas? (opcional)",
-  incomeKindWork: "Mi pago del trabajo",
+  incomeKindWork: "Mi salario",
   incomeKindOther: "Otro dinero que me llegó",
 
   aiDisclaimer: "La inteligencia artificial puede equivocarse. Revisa que todo esté bien.",
@@ -255,6 +256,7 @@ const en: Record<TKey, string> = {
   welcomeTitle: "Welcome to Mi Camino",
   welcomeSay: "Welcome to Mi Camino. Here you learn to take care of your money and reach your goals. Tap the big button to start.",
   start: "Start",
+  createAccount: "Create an account",
   haveAccount: "I already have an account",
   tryDemo: "Try an example",
   pickLang: "Which language do you want to use?",
@@ -399,7 +401,7 @@ const en: Record<TKey, string> = {
   payHours: "How many hours do you work a week?",
   payDays: "How many days do you work a week?",
   workName: "Where do you work? (optional)",
-  incomeKindWork: "My pay from work",
+  incomeKindWork: "My salary",
   incomeKindOther: "Other money I received",
 
   aiDisclaimer: "AI can make mistakes. Check that everything is right.",

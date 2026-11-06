@@ -47,7 +47,7 @@ export default function Welcome() {
           <div className="mt-6"><ListenButton text={t("welcomeSay")} audioKey="welcome" light /></div>
 
           <div className="mt-8 flex max-w-md flex-col gap-3">
-            <Button href="/bienvenida" className="min-h-16 text-xl">{t("start")}</Button>
+            <Button href="/bienvenida" className="min-h-16 text-xl">{t("createAccount")}</Button>
             <Button href="/entrar" variant="soft" className="border-paper/20 bg-paper/5 text-paper hover:border-paper/40">{t("haveAccount")}</Button>
             <button
               onClick={async () => { await loadDemo(); router.push("/casita"); }}

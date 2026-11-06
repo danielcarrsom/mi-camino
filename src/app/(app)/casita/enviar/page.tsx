@@ -40,11 +40,24 @@ export default function SendMoney() {
   const [amount, setAmount] = useState("200");
   const [quoteFee, setQuoteFee] = useState("");
   const [quoteRate, setQuoteRate] = useState("");
+  const [cash, setCash] = useState(true);
   const [saved, setSaved] = useState<null | "once" | "month">(null);
 
+  // Today's rate, refreshed every 5 minutes and whenever you come back to the page
   useEffect(() => {
-    fetch("/api/tipo-de-cambio").then((r) => r.json()).then(setRate).catch(() => setRate({ rates: { MXN: 18.5, GTQ: 7.7, HNL: 26 }, updated: null, approx: true }));
+    const load = () => fetch("/api/tipo-de-cambio", { cache: "no-store" }).then((r) => r.json()).then(setRate).catch(() => setRate((r) => r ?? { rates: { MXN: 18.5, GTQ: 7.7, HNL: 26 }, updated: null, approx: true }));
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    const onFocus = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onFocus);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onFocus); };
   }, []);
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(id); }, []);
+  const updatedLabel = rate?.updated ? (() => {
+    const mins = Math.max(0, Math.round((Date.now() - new Date(rate.updated!).getTime()) / 60000));
+    return mins < 1 ? L(lang, "actualizado hace un momento", "updated just now") : L(lang, `actualizado hace ${mins} min`, `updated ${mins} min ago`);
+  })() : null;
 
   const fx = country.cur === "USD" ? 1 : rate?.rates[country.cur] ?? 0;
   const unit = L(lang, country.unitEs, country.unitEn);
@@ -70,7 +83,7 @@ export default function SendMoney() {
   const qFee = Number(quoteFee) || 0;
   const qRate = Number(quoteRate) || 0;
   const usdForQuote = calc?.sendUsd ?? 0;
-  const quoteArrives = qRate ? Math.max(0, usdForQuote - qFee - usdForQuote * CASH_TAX) * qRate : 0;
+  const quoteArrives = qRate ? Math.max(0, usdForQuote - qFee - (cash ? usdForQuote * CASH_TAX : 0)) * qRate : 0;
   const finabienArrives = calc ? Math.max(0, usdForQuote - FINABIEN_FEE) * fx : 0;
   const difference = finabienArrives - quoteArrives;
 
@@ -101,14 +114,18 @@ export default function SendMoney() {
     <>
       <PageHeader
         title={L(lang, "Enviar dinero", "Send money")}
-        sub={L(lang, "Cuánto le llega a tu familia, sin sorpresas", "How much your family gets, no surprises")}
-        say={L(lang, "Enviar dinero. Escribe cuánto quieres enviar y te decimos cuánto le llega a tu familia. También te mostramos opciones seguras.", "Send money. Type how much you want to send and we'll tell you how much your family gets. We also show you safe options.")}
+        sub={L(lang, `De Estados Unidos a ${country.es}: cuánto le llega a tu familia`, `From the United States to ${country.en}: how much your family gets`)}
+        say={L(lang, "Enviar dinero de Estados Unidos a tu país. Toca a qué país envías, escribe cuántos dólares quieres enviar y te decimos cuánto le llega a tu familia. También puedes comparar otra oferta.", "Send money from the United States to your country. Tap the country, type how many dollars you want to send and we'll tell you how much your family gets. You can also compare another offer.")}
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr] lg:gap-6">
         {/* ---------- The calculator ---------- */}
         <Card className="min-w-0 p-5 md:p-7">
           {/* where */}
+          <p className="mb-2 flex flex-wrap items-center gap-2 text-lg font-bold">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-cream px-3 py-1"><span className="text-xl leading-none">🇺🇸</span> {L(lang, "Desde Estados Unidos", "From the United States")}</span>
+            <ArrowRight size={20} className="text-muted" /> {L(lang, "¿A qué país envías?", "Which country?")}
+          </p>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={L(lang, "¿A dónde envías?", "Where are you sending?")}>
             {COUNTRIES.map((c) => (
               <button
@@ -126,7 +143,7 @@ export default function SendMoney() {
           {/* send → arrives */}
           <div className="mt-6 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[1fr_auto_1fr]">
             <label className="block rounded-3xl border-2 border-sand bg-cream/60 p-4 focus-within:border-clay">
-              <span className="block text-base font-bold text-muted">{L(lang, "Tú envías", "You send")}</span>
+              <span className="block text-base font-bold text-muted">{L(lang, "Tú envías desde EE. UU.", "You send from the US")} 🇺🇸</span>
               <span className="mt-1 flex items-baseline gap-1">
                 <span className="font-serif text-3xl text-muted">$</span>
                 <input inputMode="decimal" value={usdBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setMode("send"); setAmount(clean(e.target.value)); setSaved(null); }}
@@ -140,7 +157,7 @@ export default function SendMoney() {
             </span>
 
             <label className="block rounded-3xl border-2 border-leaf/40 bg-leaf-soft/70 p-4 focus-within:border-leaf">
-              <span className="block text-base font-bold text-leaf">{L(lang, "Le llega a tu familia", "Your family gets")}</span>
+              <span className="block text-base font-bold text-leaf">{L(lang, `Le llega a tu familia en ${country.es}`, `Your family in ${country.en} gets`)} {country.flag.slice(0, 4)}</span>
               <span className="mt-1 flex items-baseline gap-1">
                 {calc ? (
                   <input inputMode="decimal" value={localBox} onFocus={(e) => e.currentTarget.select()} onChange={(e) => { setMode("receive"); setAmount(clean(e.target.value)); setSaved(null); }}
@@ -166,6 +183,7 @@ export default function SendMoney() {
             <p className="text-base text-muted">
               {L(lang, "Con Tarjeta Finabien", "With Finabien card")} · {L(lang, "comisión", "fee")} {money(FINABIEN_FEE, lang, true)}
               {country.cur !== "USD" && rate && <> · 1 {L(lang, "dólar", "dollar")} = {fmt(fx, lang, 2)} {unit}{rate.approx ? ` (${L(lang, "aprox.", "approx.")})` : ""}</>}
+              {country.cur !== "USD" && updatedLabel && <span className="block text-sm"><RefreshCw size={12} className="mr-1 inline" />{L(lang, "Tipo de cambio del mercado", "Market rate")}, {updatedLabel}. {L(lang, "Cada servicio da el suyo.", "Each service sets its own.")}</span>}
             </p>
             <ListenButton compact text={say} />
           </div>
@@ -215,32 +233,57 @@ export default function SendMoney() {
         </div>
       </div>
 
-      {/* ---------- More help, folded so the page stays calm ---------- */}
-      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {country.cur !== "USD" && (
-          <Fold icon={<Store size={22} className="text-clay" />} title={L(lang, "¿Otra oferta?", "Another offer?")} sub={L(lang, "Compárala con Finabien", "Compare it with Finabien")}>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="mb-1 block text-base font-bold">{L(lang, "Comisión", "Fee")}</span>
-                <input inputMode="decimal" value={quoteFee} onChange={(e) => setQuoteFee(clean(e.target.value))} placeholder="$5.99" className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-base font-bold">1 $ = ¿{unit}?</span>
-                <input inputMode="decimal" value={quoteRate} onChange={(e) => setQuoteRate(clean(e.target.value))} placeholder={fx ? fmt(fx * 0.97, lang, 2) : ""} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-3 text-xl font-bold outline-none focus:border-clay" />
-              </label>
+      {/* ---------- Compare another offer, in plain sight ---------- */}
+      {country.cur !== "USD" && calc && (
+        <Card className="mt-6">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-2xl font-semibold"><Store size={26} className="text-clay" /> {L(lang, "¿Te ofrecieron otro precio? Compáralo", "Got another offer? Compare it")}</h2>
+            <ListenButton compact text={L(lang, "Pregunta en la tienda o en la aplicación dos cosas: cuánto te cobran de comisión y cuántos pesos te dan por cada dólar. Escríbelos aquí y te decimos con cuál le llega más dinero a tu familia.", "Ask the store or app two things: the fee and how much local money you get per dollar. Type them here and we'll tell you which one gets more money to your family.")} />
+          </div>
+          <p className="mt-1 text-lg text-muted">{L(lang, `Pregunta dos cosas en la tienda o la aplicación y escríbelas aquí. Usamos los mismos ${money(calc.sendUsd, lang, true)} que pusiste arriba.`, `Ask two things at the store or app and type them here. We use the same ${money(calc.sendUsd, lang, true)} from above.`)}</p>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <label className="block">
+              <span className="mb-1 block text-lg font-bold">1. {L(lang, "¿Cuánto te cobran de comisión?", "What's the fee?")}</span>
+              <span className="flex items-center rounded-2xl border-2 border-sand bg-paper px-3 focus-within:border-clay">
+                <span className="font-serif text-2xl text-muted">$</span>
+                <input inputMode="decimal" value={quoteFee} onChange={(e) => setQuoteFee(clean(e.target.value))} placeholder="5.99" className="h-16 w-full min-w-0 bg-transparent px-2 text-2xl font-bold outline-none" />
+              </span>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-lg font-bold">2. {L(lang, `¿Cuántos ${unit} te dan por 1 dólar?`, `How many ${unit} per 1 dollar?`)}</span>
+              <input inputMode="decimal" value={quoteRate} onChange={(e) => setQuoteRate(clean(e.target.value))} placeholder={fx ? fmt(fx * 0.97, lang, 2) : ""} className="h-16 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-2xl font-bold outline-none focus:border-clay" />
+            </label>
+            <div>
+              <span className="mb-1 block text-lg font-bold">3. {L(lang, "¿Pagas en efectivo?", "Paying in cash?")}</span>
+              <div className="grid grid-cols-2 gap-2">
+                {[true, false].map((v) => (
+                  <button key={String(v)} onClick={() => setCash(v)} aria-pressed={cash === v} className={cx("h-16 rounded-2xl border-2 text-lg font-bold", cash === v ? "border-ink bg-ink text-paper" : "border-sand bg-paper")}>{v ? L(lang, "Sí", "Yes") : L(lang, "No, con tarjeta", "No, card")}</button>
+                ))}
+              </div>
+              <span className="mt-1 block text-sm text-muted">{L(lang, "En efectivo se paga 1% de impuesto.", "Cash pays a 1% tax.")}</span>
             </div>
-            <p className="mt-2 text-sm text-muted">{L(lang, "Incluye el impuesto de 1% si pagas en efectivo.", "Includes the 1% tax if you pay cash.")}</p>
-            {qRate > 0 && calc && (
-              <p className={cx("mt-3 rounded-2xl px-4 py-3 text-lg", difference > 0.5 ? "bg-sun-soft" : "bg-leaf-soft")}>
-                {L(lang, "Llegan", "Arrives:")} <b>{fmt(quoteArrives, lang)} {unit}</b>.{" "}
-                {difference > 0.5
-                  ? <>{L(lang, "Con Finabien,", "With Finabien,")} <b>{fmt(difference, lang)} {L(lang, "más", "more")}</b>.</>
-                  : L(lang, "Es igual o mejor que Finabien.", "As good as or better than Finabien.")}
-              </p>
-            )}
-          </Fold>
-        )}
+          </div>
+          {qRate > 0 ? (
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className={cx("rounded-3xl border-2 p-4", difference < -0.5 ? "border-leaf bg-leaf-soft" : "border-sand bg-cream")}>
+                <p className="text-base font-bold text-muted">{L(lang, "Con la otra oferta llegan", "With the other offer")}</p>
+                <p className="font-serif text-4xl font-semibold">{fmt(quoteArrives, lang)} <span className="text-xl">{unit}</span></p>
+                {difference < -0.5 && <p className="mt-1 font-extrabold text-leaf">✓ {L(lang, "Esta da más", "This gives more")}</p>}
+              </div>
+              <div className={cx("rounded-3xl border-2 p-4", difference > 0.5 ? "border-leaf bg-leaf-soft" : "border-sand bg-cream")}>
+                <p className="text-base font-bold text-muted">{L(lang, "Con Finabien llegan", "With Finabien")}</p>
+                <p className="font-serif text-4xl font-semibold">{fmt(finabienArrives, lang)} <span className="text-xl">{unit}</span></p>
+                {difference > 0.5 && <p className="mt-1 font-extrabold text-leaf">✓ {L(lang, `Le llegan ${fmt(difference, lang)} ${unit} más`, `${fmt(difference, lang)} ${unit} more`)}</p>}
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-lg text-muted">{L(lang, "Escribe la comisión y el tipo de cambio para ver la comparación.", "Type the fee and rate to see the comparison.")}</p>
+          )}
+        </Card>
+      )}
 
+      {/* ---------- More help, folded so the page stays calm ---------- */}
+      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Fold icon={<Lightbulb size={22} className="text-sun" />} title={L(lang, "Para que llegue más", "So more arrives")} sub={L(lang, "3 consejos", "3 tips")}>
           <ul className="space-y-2.5 text-lg">
             <li>• {L(lang, "Mira la comisión y el tipo de cambio: los dos importan.", "Check the fee and the rate: both matter.")}</li>

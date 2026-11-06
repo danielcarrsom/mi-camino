@@ -156,6 +156,8 @@ function Add() {
     <>
       <PageHeader title={title} say={say} back="/casita/anotar" />
       <div className="mx-auto max-w-3xl">
+        {kind === "in" && <ManualPick top kind={kind} onPicked={(e, w) => save(e, w, "manual")} />}
+        {kind === "in" && <h2 className="mb-3 text-xl font-semibold">{lang === "en" ? "Or tell me how much you earned" : "O dime cuánto ganaste"}</h2>}
         <div className="grid grid-cols-3 gap-2 rounded-3xl bg-sand/50 p-2" role="tablist">
           {methods.map((m) => {
             const I = m.icon;
@@ -192,7 +194,7 @@ function Add() {
           {problem && <p className="mt-6 rounded-2xl bg-sun-soft px-4 py-3 text-center text-lg font-bold">{problem}</p>}
         </Card>
 
-        <ManualPick kind={kind} onPicked={(e, w) => save(e, w, "manual")} />
+        {kind === "out" && <ManualPick kind={kind} onPicked={(e, w) => save(e, w, "manual")} />}
       </div>
     </>
   );
@@ -320,7 +322,7 @@ function Review({ kind, initial, onCancel, onSave }: { kind: Kind; initial: Pars
 }
 
 // ---------- "Or choose yourself" ----------
-function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[], w: ParsedWork | null) => void }) {
+function ManualPick({ kind, onPicked, top }: { kind: Kind; onPicked: (e: ParsedEntry[], w: ParsedWork | null) => void; top?: boolean }) {
   const t = useT();
   const lang = useLang();
   const [open, setOpen] = useState(false);
@@ -336,16 +338,18 @@ function ManualPick({ kind, onPicked }: { kind: Kind; onPicked: (e: ParsedEntry[
   const quick = kind === "out" ? ["renta", "luz", "agua", "super", "metro", "telefono", "envio", "otro"] : [];
 
   return (
-    <section className="mt-6">
-      <h2 className="mb-3 text-xl font-semibold">{t("orChoose")}</h2>
+    <section className={top ? "mb-6" : "mt-6"}>
+      <h2 className="mb-3 text-xl font-semibold">{top ? (lang === "en" ? "What money came in? Tap one" : "¿Qué dinero te llegó? Toca uno") : t("orChoose")}</h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {kind === "in" ? (
           <>
-            <button onClick={() => { reset(); setWorkMode(true); setOpen(true); }} className="col-span-2 flex min-h-20 items-center gap-3 rounded-2xl border-2 border-sand bg-paper px-4 text-left text-lg font-extrabold hover:border-leaf">
-              <Hammer size={26} className="text-leaf" /> {t("incomeKindWork")}
+            <button onClick={() => { reset(); setWorkMode(true); setOpen(true); }} className="col-span-2 flex min-h-24 items-center gap-4 rounded-3xl border-2 border-leaf/40 bg-paper px-5 text-left text-xl font-extrabold shadow-[0_4px_0_#d9cfbd] hover:border-leaf active:translate-y-0.5">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-leaf text-paper"><Hammer size={30} /></span>
+              <span>{t("incomeKindWork")}<span className="block text-base font-bold text-muted">{lang === "en" ? "What you earn at your job" : "Lo que ganas en tu trabajo"}</span></span>
             </button>
-            <button onClick={() => { reset(); setCat("otro_ingreso"); setOpen(true); }} className="col-span-2 flex min-h-20 items-center gap-3 rounded-2xl border-2 border-sand bg-paper px-4 text-left text-lg font-extrabold hover:border-leaf">
-              <Icon name="coins" size={26} className="text-leaf" /> {t("incomeKindOther")}
+            <button onClick={() => { reset(); setCat("otro_ingreso"); setOpen(true); }} className="col-span-2 flex min-h-24 items-center gap-4 rounded-3xl border-2 border-leaf/40 bg-paper px-5 text-left text-xl font-extrabold shadow-[0_4px_0_#d9cfbd] hover:border-leaf active:translate-y-0.5">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-leaf-soft text-leaf"><Icon name="coins" size={30} /></span>
+              <span>{t("incomeKindOther")}<span className="block text-base font-bold text-muted">{lang === "en" ? "A gift, a side job, a refund…" : "Un regalo, un trabajito, un reembolso…"}</span></span>
             </button>
           </>
         ) : (

@@ -40,7 +40,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
   { id: "servicio", kind: "in", label: { es: "Cobré un trabajo", en: "Paid for a job" }, icon: "wrench", fixed: false, repeat: "once", keywords: ["cobre", "servicio", "trabajo", "limpieza", "corte", "arregle", "job"] },
   { id: "otro_in", kind: "in", label: { es: "Otro dinero", en: "Other money" }, icon: "wallet", fixed: false, repeat: "once", keywords: [] },
   // costs that go up and down with what you sell
-  { id: "mercancia", kind: "out", label: { es: "Mercancía o ingredientes", en: "Stock or ingredients" }, icon: "shopping-cart", fixed: false, repeat: "once", keywords: ["mercancia", "ingrediente", "masa", "maiz", "carne", "material", "producto", "surtir", "mayoreo", "restaurant depot", "compre", "stock"] },
+  { id: "mercancia", kind: "out", label: { es: "Mercancía o ingredientes", en: "Stock or ingredients" }, icon: "shopping-cart", fixed: false, repeat: "once", keywords: ["mercancia", "ingrediente", "masa", "maiz", "carne", "pollo", "queso", "tortilla", "harina", "aceite", "azucar", "frijol", "verdura", "fruta", "chile", "tela", "hilo", "pintura", "jabon", "cloro", "material", "producto", "surtir", "mayoreo", "restaurant depot", "compre", "stock"] },
   { id: "empaque", kind: "out", label: { es: "Empaques y bolsas", en: "Packaging" }, icon: "package", fixed: false, repeat: "once", keywords: ["empaque", "bolsa", "caja", "vaso", "plato", "servilleta", "hoja", "packaging"] },
   { id: "transporte", kind: "out", label: { es: "Gasolina y transporte", en: "Gas and transport" }, icon: "fuel", fixed: false, repeat: "once", keywords: ["gasolina", "gas del carro", "uber", "taxi", "metro", "transporte", "envio", "delivery"] },
   // fixed costs
@@ -51,6 +51,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
   { id: "ayudantes", kind: "out", label: { es: "Pago a ayudantes", en: "Helpers' pay" }, icon: "users", fixed: true, repeat: "week", keywords: ["ayudante", "empleado", "trabajador", "le pague a", "sueldo de"] },
   { id: "equipo", kind: "out", label: { es: "Equipo y herramientas", en: "Equipment and tools" }, icon: "hammer", fixed: false, repeat: "once", keywords: ["equipo", "herramienta", "maquina", "estufa", "olla", "carrito", "hielera"] },
   { id: "publicidad", kind: "out", label: { es: "Anuncios y volantes", en: "Ads and flyers" }, icon: "megaphone", fixed: false, repeat: "once", keywords: ["anuncio", "volante", "publicidad", "facebook", "instagram", "ads"] },
+  { id: "otro_fijo", kind: "out", label: { es: "Otro gasto fijo", en: "Other fixed cost" }, icon: "circle-ellipsis", fixed: true, repeat: "month", keywords: [] },
   { id: "impuestos", kind: "out", label: { es: "Impuestos", en: "Taxes" }, icon: "landmark", fixed: false, repeat: "once", keywords: ["impuesto", "tax", "irs"] },
   { id: "otro_out", kind: "out", label: { es: "Otro gasto", en: "Other cost" }, icon: "circle-ellipsis", fixed: false, repeat: "once", keywords: [] },
   // owner's pay: not a cost of the business, money moved to your home
@@ -304,10 +305,12 @@ export function parseBiz(text: string, kindHint?: "in" | "out"): ParsedBiz | nul
   if (!amount) amount = numbersIn(text)[0] ?? 0;
   if (!amount) return null;
 
+  // Whole words only ("gasté" must not count as "gas"); plurals are fine.
+  const has = (k: string) => new RegExp(`(^|[^a-z0-9])${k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(s|es)?([^a-z0-9]|$)`).test(t);
   let category: string | null = null, best = 0;
   for (const c of BIZ_CATEGORIES) {
     if (c.hidden || (kind && c.kind !== kind)) continue;
-    for (const k of c.keywords) if (t.includes(k) && k.length > best) { best = k.length; category = c.id; }
+    for (const k of c.keywords) if (k.length > best && has(k)) { best = k.length; category = c.id; }
   }
   if (!kind && category) kind = bizCategoryById(category).kind;
   if (!category && kind) category = kind === "in" ? "ventas" : "otro_out";

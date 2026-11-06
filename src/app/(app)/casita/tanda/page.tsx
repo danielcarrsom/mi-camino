@@ -420,8 +420,8 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
 function WhatIsTanda({ lang }: { lang: Lang }) {
   const what = L(
     lang,
-    "Una tanda es un grupo de personas que juntan dinero. Cada vuelta, los demás ponen lo mismo y una persona se lleva todo; esa vuelta ella no paga. Así hasta que a todos les toca.",
-    "A tanda is a group of people who pool money. Each round the others put in the same amount and one person takes it all; that round they don't pay. It goes on until everyone has had a turn.",
+    "Una tanda es un grupo de personas que se juntan para ahorrar. Cada semana (o cada quincena) todos ponen la misma cantidad y a una persona le toca recibir el dinero de los demás. Cuando te toca a ti, no pones dinero esa vez: solo recibes. Se sigue así hasta que a cada quien le toca una vez.",
+    "A tanda is a group of people who save together. Every week (or every two weeks) everyone puts in the same amount and one person receives what the others put in. When it's your turn, you don't pay that time: you only receive. It continues until everyone has had one turn.",
   );
   const safe = L(
     lang,
@@ -436,7 +436,7 @@ function WhatIsTanda({ lang }: { lang: Lang }) {
           <ListenButton compact text={what} />
         </div>
         <p className="mt-2 text-lg">{what}</p>
-        <p className="mt-3 text-base text-muted">{L(lang, "Ejemplo: son 10 personas y cada una pone $100 cada semana. Cada semana una se lleva $900, lo que ponen las otras 9.", "Example: 10 people, $100 each every week. Each week one person takes $900, what the other 9 put in.")}</p>
+        <p className="mt-3 text-base text-muted">{L(lang, "Ejemplo: son 10 personas y cada quien pone $100 a la semana. La semana que te toca a ti, recibes $900 (los $100 de cada una de las otras 9 personas) y tú no pones nada esa semana. Al final, todos pusieron $900 y todos recibieron $900.", "Example: 10 people put in $100 a week. The week it's your turn, you receive $900 ($100 from each of the other 9) and you don't put in anything that week. In the end, everyone put in $900 and everyone received $900.")}</p>
       </Card>
       <div className="rounded-3xl border-2 border-sun bg-sun-soft/60 p-5">
         <div className="flex items-start justify-between gap-3">
