@@ -25,6 +25,7 @@ function Dinero() {
   const router = useRouter();
   const initial = (params.get("tab") as Tab) || "movimientos";
   const [tab, setTab] = useState<Tab>(["movimientos", "costos", "futuro"].includes(initial) ? initial : "movimientos");
+  useEffect(() => { if (["movimientos", "costos", "futuro"].includes(initial)) setTab(initial); }, [initial]);
   useEffect(() => { if (!biz) router.replace("/negocio"); }, [biz, router]);
   if (!biz) return null;
 
@@ -159,7 +160,7 @@ function Costos() {
         </p>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-tour="costos">
         {biz.products.map((p) => {
           const gain = p.price - p.cost;
           const m = p.price > 0 ? gain / p.price : 0;
@@ -371,7 +372,7 @@ function Futuro() {
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-      <Card className="min-w-0 space-y-5 lg:col-span-2">
+      <Card className="min-w-0 space-y-5 lg:col-span-2" data-tour="futuro">
         <div>
           <h2 className="text-xl font-extrabold">{L(lang, "¿Y si…?", "What if…?")}</h2>
           <p className="text-base text-muted">

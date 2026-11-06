@@ -137,9 +137,9 @@ export function Button({ children, onClick, href, variant = "primary", disabled,
   return <button type={type} onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
 }
 
-export function Card({ children, className, dark }: { children: ReactNode; className?: string; dark?: boolean }) {
+export function Card({ children, className, dark, ...rest }: { children: ReactNode; className?: string; dark?: boolean; "data-tour"?: string }) {
   return (
-    <div className={cx("rounded-3xl p-5 md:p-6", dark ? "bg-ink text-paper" : "border border-sand bg-paper", className)}>
+    <div {...rest} className={cx("rounded-3xl p-5 md:p-6", dark ? "bg-ink text-paper" : "border border-sand bg-paper", className)}>
       {children}
     </div>
   );

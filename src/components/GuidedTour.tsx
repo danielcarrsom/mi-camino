@@ -11,10 +11,10 @@ import { speak, stopSpeaking } from "@/lib/voice";
 import { playGoal } from "@/lib/sound";
 import { ListenButton, cx } from "./ui";
 
-type Step = { path?: string; targets?: string[]; title: [string, string]; text: [string, string]; setup?: "welcome" };
+type Step = { path?: string; targets?: string[]; title: [string, string]; text: [string, string]; setup?: "welcome"; when?: "biz" | "nobiz" };
 
 const STEPS: Step[] = [
-  { path: "/casita", setup: "welcome", title: ["¡Te damos la bienvenida a Mi Camino!", "Welcome to Mi Camino!"], text: ["Te voy a enseñar a usarlo en unos 2 minutos. Solo toca el botón “Siguiente” cuando termines de leer.", "I'll show you how to use it in about 2 minutes. Just tap “Next” when you're done reading."] },
+  { path: "/casita", setup: "welcome", title: ["¡Te damos la bienvenida a Mi Camino!", "Welcome to Mi Camino!"], text: ["Te voy a enseñar a usarlo en unos 3 minutos: primero Mi Casita, el dinero de tu casa, y luego Mi Negocio. Solo toca el botón “Siguiente” cuando termines de leer.", "I'll show you how to use it in about 3 minutes: first Mi Casita, your home money, then Mi Negocio. Just tap “Next” when you're done reading."] },
   { path: "/casita", targets: ['[data-tour="resumen"]'], title: ["Tu resumen", "Your summary"], text: ["Aquí ves de un vistazo cuánto dinero te queda esta semana, después de tus gastos.", "Here you see at a glance how much money you have left this week, after expenses."] },
   { path: "/casita", targets: ['[data-tour="anotar"]'], title: ["El botón más importante", "The most important button"], text: ["Con este botón + anotas todo: lo que ganas y lo que gastas. Puedes hablar, escribir o tomarle foto a tu recibo.", "With this + button you add everything: what you earn and what you spend. You can talk, type or take a photo of your receipt."] },
   { path: "/casita/anotar?tipo=gane", targets: ['[data-tour="salario"]'], title: ["Tu salario", "Your salary"], text: ["Aquí anotas cuánto te pagan en tu trabajo. Es lo primero que vas a hacer cuando terminemos.", "Here you add how much you get paid at work. It's the first thing you'll do when we finish."] },
@@ -24,7 +24,18 @@ const STEPS: Step[] = [
   { path: "/casita/enviar", targets: ['[data-tour="enviar"]'], title: ["Enviar dinero", "Send money"], text: ["Escribe cuántos dólares mandas y te decimos cuánto le llega a tu familia. También puedes comparar precios.", "Type how many dollars you send and we'll show how much your family gets. You can also compare prices."] },
   { path: "/casita/documentos", targets: ["main h1"], title: ["Explicar un papel", "Explain a paper"], text: ["¿Te llegó una carta o factura que no entiendes? Aquí te ayudamos a saber qué es y si parece estafa.", "Got a letter or bill you don't understand? Here we help you know what it is and if it looks like a scam."] },
   { path: "/aprender", targets: ['[data-tour="aprender"]'], title: ["Aprender", "Learn"], text: ["Juegos, lecciones que puedes escuchar, y teléfonos de lugares que te ayudan gratis.", "Games, lessons you can listen to, and phone numbers of places that help you for free."] },
-  { path: "/casita", targets: ['[data-tour="modulos"]', '[data-tour="menu"]'], title: ["¿Tienes un negocio?", "Do you have a business?"], text: ["Aquí cambias a “Mi Negocio” para llevar tus ventas y gastos aparte. En el celular, está dentro de “Menú”, junto con todo lo demás.", "Here you switch to “My Business” to keep sales and costs apart. On a phone, it's inside “Menu”, with everything else."] },
+  { path: "/casita", targets: ['[data-tour="modulos"]', '[data-tour="menu"]'], title: ["Ahora, Mi Negocio", "Now, My Business"], text: ["Aquí cambias entre “Mi Casita” y “Mi Negocio”. En el celular, está dentro de “Menú”. Vamos a ver Mi Negocio.", "Here you switch between “Mi Casita” and “My Business”. On a phone, it's inside “Menu”. Let's look at My Business."] },
+  // ----- Mi Negocio, when there's no business yet -----
+  { when: "nobiz", path: "/negocio", targets: ['[data-tour="setup"]'], title: ["Registra tu negocio", "Register your business"], text: ["Si vendes algo o tienes un trabajo por tu cuenta, aquí escribes el nombre de tu negocio y qué haces. Lo llevas aparte del dinero de tu casa.", "If you sell something or work for yourself, write your business name and what you do here. It's kept apart from your home money."] },
+  { when: "nobiz", path: "/negocio", title: ["Lo que podrás hacer", "What you'll be able to do"], text: ["Anotar tus ventas y gastos hablando, ver un semáforo de cómo va tu negocio, calcular cuánto ganas por cada cosa que vendes, llevar tu inventario, ponerte un sueldo y ahorrar para crecer.", "Add sales and costs by talking, see a traffic light of how your business is doing, work out what you earn on each item, track inventory, pay yourself and save to grow."] },
+  // ----- Mi Negocio, with a business -----
+  { when: "biz", path: "/negocio", targets: ['[data-tour="semaforo"]'], title: ["El semáforo de tu negocio", "Your business traffic light"], text: ["Verde, amarillo o rojo: te dice cómo va tu negocio en los últimos 30 días, y por qué, con palabras sencillas.", "Green, yellow or red: it tells you how your business did in the last 30 days, and why, in plain words."] },
+  { when: "biz", path: "/negocio", targets: ['[data-tour="vendi"]'], title: ["Anota ventas y gastos", "Add sales and costs"], text: ["Toca “Vendí” o “Gasté”. Puedes decirlo con tu voz, por ejemplo: “vendí 40 tamales a 3 dólares”.", "Tap “I sold” or “I spent”. You can say it out loud, for example: “I sold 40 tamales at 3 dollars”."] },
+  { when: "biz", path: "/negocio", targets: ['[data-tour="sueldo"]'], title: ["Tu sueldo", "Your salary"], text: ["Ponte un sueldo fijo, como si fueras tu propio empleado. Cada vez que te pagues, toca “Ya me pagué” y pasa a Mi Casita.", "Set yourself a fixed salary, as if you were your own employee. Each time you pay yourself, tap “I paid myself” and it moves to Mi Casita."] },
+  { when: "biz", path: "/negocio/dinero?tab=costos", targets: ['[data-tour="costos"]'], title: ["Tus costos e inventario", "Your costs and inventory"], text: ["Aquí ves cuánto te cuesta cada cosa que vendes y cuánto le ganas. Más abajo está tu inventario: para cuántos días te alcanza y cuánto comprar.", "Here you see what each item costs you and what you earn on it. Further down is your inventory: how many days it lasts and how much to buy."] },
+  { when: "biz", path: "/negocio/dinero?tab=futuro", targets: ['[data-tour="futuro"]'], title: ["¿Y si…?", "What if…?"], text: ["Prueba qué pasaría si vendes más, cobras un poco más o gastas menos, y mira cuánto ganarías en un mes o en un año.", "Try what would happen if you sell more, charge a bit more or spend less, and see what you'd earn in a month or a year."] },
+  { when: "biz", path: "/negocio/metas", targets: ["main h1"], title: ["Metas y sugerencias", "Goals and suggestions"], text: ["Ahorra para equipo nuevo, mercancía o tu propio local. Te sugerimos cuánto apartar, y abajo hay consejos hechos para tu negocio.", "Save for new equipment, stock or your own place. We suggest how much to set aside, and below are tips made for your business."] },
+  { when: "biz", path: "/negocio/aprender", targets: ['[data-tour="aprender"]'], title: ["Aprender para tu negocio", "Learn for your business"], text: ["Juegos y lecciones para poner buenos precios, y lugares que te ayudan gratis con permisos y préstamos.", "Games and lessons on good prices, and places that help you for free with permits and loans."] },
   { path: "/casita", targets: ['[data-tour="como"]', '[data-tour="escuchar"]'], title: ["Siempre hay ayuda", "Help is always here"], text: ["En cada pantalla, toca “¿Cómo se usa?” para ver los pasos, o la bocina para que te lo lea en voz alta.", "On every screen, tap “How does this work?” to see the steps, or the speaker to hear it aloud."] },
   { path: "/casita", title: ["¡Listo! Ya sabes usar Mi Camino", "Done! You know how to use Mi Camino"], text: ["Ahora empieza con tu primer paso: anota tu salario. Te esperan tus primeros pasos en la pantalla de inicio.", "Now start with your first step: add your salary. Your first steps are waiting on the home screen."] },
 ];
@@ -48,10 +59,11 @@ export function GuidedTour() {
   const setTouring = useStore((s) => s.setTouring);
   const updateProfile = useStore((s) => s.updateProfile);
   const current = useStore((s) => s.current);
+  const [steps] = useState(() => STEPS.filter((st) => !st.when || (st.when === "biz") === !!me?.business));
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const targetRef = useRef<Element | null>(null);
-  const step = STEPS[i];
+  const step = steps[i];
   const L = (p: [string, string]) => (en ? p[1] : p[0]);
   const name = me?.profile.name.split(" ")[0];
 
@@ -61,7 +73,7 @@ export function GuidedTour() {
   useEffect(() => {
     if (!step.path) return;
     const want = step.path.split("?")[0];
-    if (path !== want) router.push(step.path);
+    if (path !== want || step.path.includes("?")) router.push(step.path);
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find and light up the part being explained
@@ -113,7 +125,7 @@ export function GuidedTour() {
     setTouring(false);
     router.push("/casita");
   };
-  const next = () => (i < STEPS.length - 1 ? setI(i + 1) : finish());
+  const next = () => (i < steps.length - 1 ? setI(i + 1) : finish());
   const back = () => i > 0 && setI(i - 1);
 
   // Where the card goes: away from the lit-up part
@@ -138,11 +150,11 @@ export function GuidedTour() {
       <div className={cx("fixed inset-x-0 mx-auto w-full max-w-xl px-3", rect && !below ? "top-3" : "bottom-3")}>
         <div className="rounded-[2rem] bg-paper p-5 shadow-2xl md:p-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-base font-extrabold text-clay">{en ? `Step ${i + 1} of ${STEPS.length}` : `Paso ${i + 1} de ${STEPS.length}`}</p>
+            <p className="text-base font-extrabold text-clay">{en ? `Step ${i + 1} of ${steps.length}` : `Paso ${i + 1} de ${steps.length}`}</p>
             <ListenButton compact text={step.setup === "welcome" ? `${L(step.title)}. ${L(step.text)}` : `${L(step.title)}. ${L(step.text)}`} />
           </div>
           <div className="mt-2 flex gap-1" aria-hidden>
-            {STEPS.map((_, k) => <span key={k} className={cx("h-2 flex-1 rounded-full", k <= i ? "bg-clay" : "bg-sand")} />)}
+            {steps.map((_, k) => <span key={k} className={cx("h-2 flex-1 rounded-full", k <= i ? "bg-clay" : "bg-sand")} />)}
           </div>
           <h2 className="mt-3 text-[1.6rem] leading-tight font-semibold">{L(step.title)}{step.setup === "welcome" && name ? <><br />{name} 👋</> : null}</h2>
           <p className="mt-2 text-xl leading-snug">{L(step.text)}</p>
@@ -167,10 +179,10 @@ export function GuidedTour() {
               <button onClick={back} className="flex min-h-16 items-center justify-center gap-2 rounded-2xl border-2 border-sand px-5 text-lg font-bold"><ArrowLeft size={22} /> {en ? "Back" : "Atrás"}</button>
             )}
             <button onClick={next} className="flex min-h-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-clay text-xl font-extrabold text-paper shadow-[0_4px_0_#8f3a20] active:translate-y-0.5">
-              {i < STEPS.length - 1 ? <>{en ? "Next" : "Siguiente"} <ArrowRight size={24} /></> : <><Check size={24} /> {en ? "Start using Mi Camino" : "Empezar a usar Mi Camino"}</>}
+              {i < steps.length - 1 ? <>{en ? "Next" : "Siguiente"} <ArrowRight size={24} /></> : <><Check size={24} /> {en ? "Start using Mi Camino" : "Empezar a usar Mi Camino"}</>}
             </button>
           </div>
-          {isDemo && i < STEPS.length - 1 && (
+          {isDemo && i < steps.length - 1 && (
             <button onClick={finish} className="mt-3 w-full text-center text-base font-bold text-muted underline underline-offset-4">{en ? "Skip tour (example account only)" : "Saltar recorrido (solo en la cuenta de ejemplo)"}</button>
           )}
         </div>

@@ -53,7 +53,7 @@ function Negocio() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Semáforo */}
-        <section className={cx("min-w-0 rounded-[2rem] p-5 text-paper md:p-6 lg:col-span-3", lightBg)}>
+        <section data-tour="semaforo" className={cx("min-w-0 rounded-[2rem] p-5 text-paper md:p-6 lg:col-span-3", lightBg)}>
           <div className="flex items-start gap-5">
             <Semaforo light={health.light} size={40} />
             <div className="min-w-0 flex-1">
@@ -86,7 +86,7 @@ function Negocio() {
               <li className="flex justify-between gap-2 border-t border-sand pt-1.5 text-lg"><span className="font-bold">{L(lang, "Libre en el negocio", "Free in the business")}</span><b className={free < 0 ? "text-clay" : "text-leaf"}>{money(free, lang)}</b></li>
             </ul>
           )}
-          <div className="mt-auto pt-3">
+          <div className="mt-auto pt-3" data-tour="sueldo">
             {biz.pay ? <MyPayCard onEdit={() => setPay(true)} /> : (
               <Button variant="soft" className="w-full" onClick={() => setPay(true)}><HandCoins size={22} /> {L(lang, "Ponerme un sueldo", "Set my salary")}</Button>
             )}
@@ -95,7 +95,7 @@ function Negocio() {
       </div>
 
       {/* Big actions */}
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3" data-tour="vendi">
         <Link href="/negocio/anotar?tipo=venta" className="flex min-h-24 min-w-0 flex-col items-center justify-center gap-1 rounded-3xl bg-leaf px-3 text-center text-paper shadow-[0_4px_0_#2d5c3a] active:scale-[0.98] sm:flex-row sm:gap-3">
           <ArrowDownCircle size={32} /> <span className="text-lg leading-tight font-extrabold">{L(lang, "Vendí o me pagaron", "I sold / got paid")}</span>
         </Link>
@@ -181,7 +181,7 @@ function Setup() {
         sub={L(lang, "Lleva las cuentas de tu negocio, separadas de tu casa", "Keep your business money apart from your home")}
         say={L(lang, "Vamos a empezar tu negocio. Escribe cómo se llama y toca qué tipo de negocio tienes.", "Let's set up your business. Write its name and tap what kind of business it is.")}
       />
-      <Card>
+      <Card data-tour="setup">
         <label className="block">
           <span className="mb-2 block text-lg font-bold">{L(lang, "¿Cómo se llama tu negocio?", "What's your business called?")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={L(lang, `Ej. Tamales ${me?.profile.name ?? "María"}`, `e.g. ${me?.profile.name ?? "María"}'s Tamales`)} className="h-16 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-xl outline-none focus:border-clay" />
