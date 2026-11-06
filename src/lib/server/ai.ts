@@ -3,14 +3,16 @@ import Anthropic from "@anthropic-ai/sdk";
 import { CATEGORIES, INCOME_CATEGORIES } from "../catalog";
 import type { Parsed, ParsedEntry, ParsedWork } from "../understand";
 
-export const hasAI = () => Boolean(process.env.ANTHROPIC_API_KEY);
+// The Anthropic key can be saved in Vercel as ANTHROPIC_API_KEY or MI_CAMINO_AI_KEY.
+const aiKey = () => process.env.ANTHROPIC_API_KEY || process.env.MI_CAMINO_AI_KEY || "";
+export const hasAI = () => Boolean(aiKey());
 export const hasVoice = () => Boolean(process.env.ELEVENLABS_API_KEY);
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 
 let client: Anthropic | null = null;
 export function ai(): Anthropic {
-  client ??= new Anthropic();
+  client ??= new Anthropic({ apiKey: aiKey() });
   return client;
 }
 export const model = () => MODEL;

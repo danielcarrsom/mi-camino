@@ -50,7 +50,7 @@ Add these in Vercel → Project → Settings → Environment Variables. Never co
 
 | Name | What it does |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Claude: reads photos, understands what people say/type |
+| `ANTHROPIC_API_KEY (or MI_CAMINO_AI_KEY)` | Claude: reads photos, understands what people say/type |
 | `CLAUDE_MODEL` | Optional. Defaults to `claude-sonnet-5-5` |
 | `ELEVENLABS_API_KEY` | Natural voices (read aloud) and speech-to-text |
 | `ELEVENLABS_VOICE_ID` | Optional. Voice used for Spanish |
