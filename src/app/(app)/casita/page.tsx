@@ -25,7 +25,7 @@ export default function CasitaHome() {
   const weekSay = hasIncome
     ? over
       ? `${t("overThisWeek")}: ${moneySpoken(-s.weekLeft, lang)}.`
-      : `${t("leftThisWeekSay")} ${moneySpoken(s.weekLeft, lang)}. ${t("youEarn")} ${moneySpoken(s.weekIn, lang)}, ${t("youSpend").toLowerCase()} ${moneySpoken(s.weekOut, lang)}.`
+      : `${t("leftThisWeekSay")} ${moneySpoken(s.weekLeft, lang)}. ${lang === "en" ? "After taxes you take home" : "Después de impuestos te llegan"} ${moneySpoken(s.weekIn, lang)}, ${t("youSpend").toLowerCase()} ${moneySpoken(s.weekOut, lang)}.`
     : t("noIncomeYet");
 
   // Everything recorded lately: spending, income and money set apart for goals.
@@ -58,7 +58,7 @@ export default function CasitaHome() {
                   {money(Math.abs(s.weekLeft), lang)}
                 </p>
                 <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-                  <Mini label={t("youEarn")} value={money(s.weekIn, lang)} color="text-leaf-soft" />
+                  <Mini label={lang === "en" ? "You take home" : "Te llega"} value={money(s.weekIn, lang)} color="text-leaf-soft" />
                   <Mini label={t("youSpend")} value={money(s.weekOut, lang)} color="text-sun-soft" />
                   <Mini label={t("youSave")} value={money(s.weekGoals, lang)} color="text-paper" />
                 </div>

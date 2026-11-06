@@ -25,7 +25,7 @@ Never ask for or repeat immigration status, Social Security numbers, account num
 
 Return ONLY JSON with this shape:
 {"entries":[{"kind":"in"|"out","category":"<id>","amount":number,"repeat":"once"|"week"|"2weeks"|"month","note":"<short note in the user's language or empty>"}],
- "work": null | {"name":"<workplace type, e.g. Restaurante, or empty>","pay":number,"every":"hour"|"week"|"2weeks"|"month","hoursPerWeek":number,"daysPerWeek":number}}
+ "work": null | {"name":"<workplace type, e.g. Restaurante, or empty>","pay":number,"every":"hour"|"week"|"2weeks"|"month","hoursPerWeek":number,"daysPerWeek":number,"taxMode":"withheld"|"cash"|"net"}}
 
 Rules:
 - Spending categories (kind "out"): ${CATEGORIES.map((c) => `${c.id} (${c.label.es})`).join(", ")}.
@@ -35,6 +35,7 @@ Rules:
 - If they say a rate per DAY ("150 al día"), set "every":"week" and "pay" = daily rate × days per week.
 - If hours per week or days per week are not stated, estimate from the paystub if possible (hours worked in the period), else use 40 and 5.
 - If a pay period is two weeks, convert hours to per week.
+- "taxMode": for a PAYSTUB that shows tax deductions, use the GROSS pay (before taxes) as "pay" and "taxMode":"withheld". If the person says the amount is what reaches them after taxes ("me llegan", "neto", "take home"), use that amount and "taxMode":"net". If they say they're paid in cash or nothing is taken out, "taxMode":"cash". If unclear, "withheld".
 - "repeat": rent, utilities, phone are usually "month"; groceries, subway usually "week"; a single purchase is "once". Use what the person says if they say it.
 - Amounts are US dollars unless pesos are clearly said; if pesos, convert roughly at 18 pesos per dollar and say so in "note".
 - If nothing about money is understandable, return {"entries":[],"work":null}.`;
@@ -67,6 +68,7 @@ function clampWork(w: Partial<ParsedWork> | null | undefined): ParsedWork | null
     perHour,
     hoursPerWeek: Math.min(100, Math.max(1, Number(w.hoursPerWeek) || 40)),
     daysPerWeek: Math.min(7, Math.max(1, Number(w.daysPerWeek) || 5)),
+    tax: { mode: (["withheld", "cash", "net"] as const).find((m) => m === (w as { taxMode?: string }).taxMode) ?? "withheld", place: "nyc" },
   };
 }
 

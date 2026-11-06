@@ -3,7 +3,7 @@
 import { CATEGORIES, INCOME_CATEGORIES, type Repeat } from "./catalog";
 
 export type ParsedEntry = { kind: "in" | "out"; category: string; amount: number; repeat: Repeat; note: string };
-export type ParsedWork = { name: string; pay: number; every: Repeat; hoursPerWeek: number; daysPerWeek: number; perHour?: boolean };
+export type ParsedWork = { name: string; pay: number; every: Repeat; hoursPerWeek: number; daysPerWeek: number; perHour?: boolean; tax?: import("./taxes").WorkTax };
 export type Parsed = { entries: ParsedEntry[]; work: ParsedWork | null; heard: string };
 
 export const strip = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

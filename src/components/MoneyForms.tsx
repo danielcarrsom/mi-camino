@@ -10,6 +10,7 @@ import { useLang, useStore, type Entry, type Work } from "@/lib/store";
 import { money } from "@/lib/money";
 import { CATEGORIES, GROUPS, INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
 import type { ParsedWork } from "@/lib/understand";
+import { DEFAULT_TAX, cashSetAsideWeekly, weeklyTaxes, type TaxMode, type TaxPlace } from "@/lib/taxes";
 
 type Kind = "in" | "out";
 
@@ -55,10 +56,8 @@ export function WorkEditor({ work, onChange }: { work: ParsedWork; onChange: (w:
         <Stepper label={t("payHours")} value={work.hoursPerWeek} min={1} max={100} step={1} onChange={(v) => onChange({ ...work, hoursPerWeek: v })} />
         <Stepper label={t("payDays")} value={work.daysPerWeek} min={1} max={7} step={1} onChange={(v) => onChange({ ...work, daysPerWeek: v })} />
       </div>
-      <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
-        <p className="text-base font-bold">{t("weekTotal")}</p>
-        <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
-      </div>
+      <TaxPicker work={work} onChange={onChange} />
+      <TakeHome weekly={weekly} work={work} />
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-leaf-soft p-4 text-center">
           <p className="font-serif text-3xl font-semibold text-leaf">{money(perHour, lang, true)}</p>
@@ -180,6 +179,117 @@ export function EntryEditSheet({ entry, onClose }: { entry: Entry | null; onClos
 }
 
 /** Change or delete a saved job. */
+/** Are taxes taken out of this pay? Where do you live? */
+export function TaxPicker({ work, onChange }: { work: ParsedWork; onChange: (w: ParsedWork) => void }) {
+  const lang = useLang();
+  const en = lang === "en";
+  const tax = work.tax ?? DEFAULT_TAX;
+  const set = (p: Partial<typeof tax>) => onChange({ ...work, tax: { ...tax, ...p } });
+  const modes: { id: TaxMode; title: string; sub: string }[] = [
+    { id: "withheld", title: en ? "Yes, taxes are taken out" : "Sí, me descuentan impuestos", sub: en ? "Your paystub shows taxes" : "Tu talón de pago dice “taxes”" },
+    { id: "cash", title: en ? "No, I'm paid in full or in cash" : "No, me pagan completo o en efectivo", sub: en ? "Nothing is taken out" : "No te quitan nada" },
+    { id: "net", title: en ? "The amount I wrote is what I get" : "Lo que escribí ya es lo que me llega", sub: en ? "After taxes" : "Ya sin impuestos" },
+  ];
+  const places: { id: TaxPlace; label: string }[] = [
+    { id: "nyc", label: en ? "New York City" : "Ciudad de Nueva York" },
+    { id: "ny", label: en ? "Elsewhere in NY State" : "Otra parte del estado de NY" },
+    { id: "other", label: en ? "Another state" : "Otro estado" },
+  ];
+  return (
+    <div className="space-y-3">
+      <p className="text-lg font-bold">{en ? "Do they take taxes out of your pay?" : "¿Te descuentan impuestos de tu pago?"}</p>
+      <div className="grid grid-cols-1 gap-2">
+        {modes.map((m) => (
+          <button key={m.id} onClick={() => set({ mode: m.id })} aria-pressed={tax.mode === m.id}
+            className={cx("flex min-h-16 items-center gap-3 rounded-2xl border-2 px-4 py-2 text-left", tax.mode === m.id ? "border-leaf bg-leaf/10" : "border-sand bg-paper")}>
+            <span className={cx("flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2", tax.mode === m.id ? "border-leaf bg-leaf text-paper" : "border-sand-dark")}>{tax.mode === m.id && <Check size={14} strokeWidth={3} />}</span>
+            <span><span className="block text-lg font-bold leading-tight">{m.title}</span><span className="block text-base text-muted">{m.sub}</span></span>
+          </button>
+        ))}
+      </div>
+      {tax.mode !== "net" && (
+        <>
+          <p className="pt-1 text-lg font-bold">{en ? "Where do you live?" : "¿Dónde vives?"}</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {places.map((p) => (
+              <button key={p.id} onClick={() => set({ place: p.id })} aria-pressed={tax.place === p.id} className={cx("min-h-14 rounded-2xl border-2 px-3 text-base font-bold leading-tight", tax.place === p.id ? "border-ink bg-ink text-paper" : "border-sand bg-paper")}>{p.label}</button>
+            ))}
+          </div>
+          <button onClick={() => set({ married: !tax.married })} aria-pressed={!!tax.married} className={cx("flex min-h-12 w-full items-center gap-3 rounded-2xl border-2 px-4 text-left text-base font-bold", tax.married ? "border-leaf bg-leaf/10" : "border-sand")}>
+            <span className={cx("flex h-6 w-6 items-center justify-center rounded-md border-2", tax.married ? "border-leaf bg-leaf text-paper" : "border-sand-dark")}>{tax.married && <Check size={14} strokeWidth={3} />}</span>
+            {en ? "I file taxes together with my spouse" : "Hago mis impuestos junto con mi esposo(a)"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Before taxes vs. what really reaches you, with the breakdown on demand. */
+export function TakeHome({ weekly, work }: { weekly: number; work: ParsedWork }) {
+  const lang = useLang();
+  const en = lang === "en";
+  const tax = work.tax ?? DEFAULT_TAX;
+  const [open, setOpen] = useState(false);
+  if (!(weekly > 0)) return null;
+  if (tax.mode === "net") {
+    return (
+      <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
+        <p className="text-base font-bold">{en ? "What reaches you each week" : "Lo que te llega cada semana"}</p>
+        <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
+      </div>
+    );
+  }
+  if (tax.mode === "cash") {
+    const aside = cashSetAsideWeekly(weekly, tax);
+    return (
+      <div className="space-y-2">
+        <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
+          <p className="text-base font-bold">{en ? "You get each week" : "Te llega cada semana"}</p>
+          <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
+        </div>
+        <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">
+          ⚠️ {en
+            ? <>Nobody takes taxes out, but you may still owe them when you file. Setting aside about <b>{money(aside, lang)} a week</b> avoids a surprise. Free tax help: call 311.</>
+            : <>Nadie te descuenta impuestos, pero puede que los debas al declarar. Apartar unos <b>{money(aside, lang)} a la semana</b> te evita una sorpresa. Ayuda gratis con impuestos: llama al 311.</>}
+        </p>
+      </div>
+    );
+  }
+  const t = weeklyTaxes(weekly, tax);
+  const rows: [string, number][] = [
+    [en ? "Federal tax" : "Impuesto federal", t.federal],
+    [en ? "Social Security" : "Seguro Social", t.socialSecurity],
+    ["Medicare", t.medicare],
+    ...(t.state > 0 ? [[en ? "New York State" : "Estado de Nueva York", t.state] as [string, number]] : []),
+    ...(t.city > 0 ? [[en ? "New York City" : "Ciudad de Nueva York", t.city] as [string, number]] : []),
+  ];
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl bg-cream p-3 text-center">
+          <p className="text-base font-bold text-muted">{en ? "Before taxes" : "Antes de impuestos"}</p>
+          <p className="font-serif text-2xl font-semibold text-muted line-through decoration-1">{money(weekly, lang)}</p>
+        </div>
+        <div className="rounded-2xl bg-leaf p-3 text-center text-paper">
+          <p className="text-base font-bold">{en ? "Reaches you, approx." : "Te llega, aprox."}</p>
+          <p className="font-serif text-3xl font-semibold">{money(t.net, lang)}</p>
+        </div>
+      </div>
+      <p className="text-center text-base text-muted">{en ? "a week" : "a la semana"} · {en ? `about ${money(t.total, lang)} in taxes` : `unos ${money(t.total, lang)} de impuestos`}</p>
+      <button onClick={() => setOpen(!open)} className="w-full text-center text-base font-bold text-clay underline underline-offset-4">{open ? (en ? "Hide" : "Ocultar") : (en ? "Where do those taxes go?" : "¿A dónde se van esos impuestos?")}</button>
+      {open && (
+        <div className="rounded-2xl border border-sand bg-paper p-4">
+          <ul className="space-y-1.5 text-base">
+            {rows.map(([k, v]) => <li key={k} className="flex justify-between gap-2"><span>{k}</span><b>−{money(v, lang, true)}</b></li>)}
+          </ul>
+          <p className="mt-3 text-sm text-muted">{en ? "Estimate with 2026 rates, one job, standard deduction. Your paystub has the exact amount: if it's different, choose “The amount I wrote is what I get” and type what reaches you." : "Cálculo aproximado con las tasas de 2026, un solo trabajo y deducción estándar. Tu talón de pago tiene la cantidad exacta: si es distinta, elige “Lo que escribí ya es lo que me llega” y escribe lo que te llega."}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkEditSheet({ work, onClose }: { work: Work | null; onClose: () => void }) {
   const t = useT();
   const lang = useLang();
@@ -187,7 +297,7 @@ export function WorkEditSheet({ work, onClose }: { work: Work | null; onClose: (
   const removeWork = useStore((s) => s.removeWork);
   const [draft, setDraft] = useState<ParsedWork | null>(null);
   useEffect(() => {
-    if (work) setDraft({ name: work.name, pay: work.pay, every: work.every, hoursPerWeek: work.hoursPerWeek, daysPerWeek: work.daysPerWeek, perHour: false });
+    if (work) setDraft({ name: work.name, pay: work.pay, every: work.every, hoursPerWeek: work.hoursPerWeek, daysPerWeek: work.daysPerWeek, perHour: false, tax: work.tax ?? DEFAULT_TAX });
   }, [work]);
   if (!work || !draft) return null;
   return (

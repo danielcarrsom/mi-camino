@@ -6,6 +6,7 @@ import type { Repeat } from "./catalog";
 import type { Lang } from "./i18n";
 import { toMonthly, money } from "./money";
 import { numbersIn, repeatIn, strip } from "./understand";
+import { cashSetAsideWeekly } from "./taxes";
 
 // ---------- Types (stored in UserData.business) ----------
 export type BizEntry = {
@@ -314,6 +315,12 @@ export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[],
     tips.push({ id: "pay", tone: "tip", icon: "hand-coins", text: L(
       `Este mes te quedaron ${money(n.profit, lang)}. Págate un sueldo fijo y deja el resto para el negocio.`,
       `You kept ${money(n.profit, lang)} this month. Pay yourself a set amount and leave the rest in the business.`), action: { href: "/negocio?sueldo=1", label: L("Pagarme", "Pay myself") } });
+  }
+  if (n.profit > 0) {
+    const aside = cashSetAsideWeekly(n.profit / WEEKS_PER_MONTH);
+    tips.push({ id: "taxes", tone: "warn", icon: "landmark", text: L(
+      `A tu negocio nadie le descuenta impuestos: al declarar podrías deberlos. Aparta unos ${money(aside, lang)} a la semana para eso.`,
+      `Nobody takes taxes out of your business: you may owe them when you file. Set aside about ${money(aside, lang)} a week for that.`), action: { href: "/negocio/aprender", label: L("Ayuda gratis con impuestos", "Free tax help") } });
   }
   if (n.hasData && !goals.some((g) => g.preset === "colchon")) {
     const need = Math.max(500, Math.round((n.varCosts + n.fixed) / 100) * 100);

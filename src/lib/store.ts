@@ -8,6 +8,7 @@ import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
 import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek } from "./money";
 import { altPhoneKey } from "./phone";
+import { cashSetAsideWeekly, takeHomeWeekly, weeklyTaxes, DEFAULT_TAX, type WorkTax } from "./taxes";
 import type { BizEntry, Product, BizType, StockItem, MyPay } from "./business";
 import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
 
@@ -32,6 +33,7 @@ export type Work = {
   daysPerWeek: number;
   source: Source;
   createdAt: string;
+  tax?: WorkTax;          // are taxes taken out? where do you live? (missing = taken out, NYC)
 };
 
 export type Source = "voz" | "texto" | "foto" | "manual";
@@ -251,9 +253,10 @@ function demoData(lang: Lang): UserData {
   return {
     profile: { name: "María", lang, casita: true, negocio: true, createdAt: now },
     work: [
-      { id: uid(), name: "Restaurante", pay: 680, every: "week", hoursPerWeek: 48, daysPerWeek: 6, source: "foto", createdAt: now },
+      { id: uid(), name: "Restaurante", pay: 864, every: "week", hoursPerWeek: 48, daysPerWeek: 6, source: "foto", createdAt: now, tax: { mode: "withheld", place: "nyc" } },
     ],
     entries: [
+      { id: uid(), kind: "in", category: "mi_negocio", amount: 200, repeat: "once", note: "Tamales María", date: daysAgo(0), source: "manual" },
       { id: uid(), kind: "out", category: "renta", amount: 1100, repeat: "month", note: "Cuarto en Corona", date: daysAgo(20), source: "voz" },
       { id: uid(), kind: "out", category: "luz", amount: 45, repeat: "month", note: "", date: daysAgo(12), source: "foto" },
       { id: uid(), kind: "out", category: "telefono", amount: 40, repeat: "month", note: "", date: daysAgo(10), source: "texto" },
@@ -312,9 +315,11 @@ function demoBusiness(): Business {
   add("out", "permisos", 30, 25, "Permiso de comida", "month");
   add("out", "servicios", 45, 20, "Gas", "month");
   add("out", "mi_sueldo", 200, 8);
+  add("out", "mi_sueldo", 200, 0);
+  const since = daysAgo(8);
   return {
     name: "Tamales María", type: "comida", createdAt: daysAgo(60), entries,
-    pay: { amount: 200, every: "week", since: daysAgo(8), paid: [] },
+    pay: { amount: 200, every: "week", since, paid: [periodKey({ repeat: "week", date: since })] },
     stock: [
       { id: uid(), name: "Masa", unit: "kilos", have: 12, perWeek: 20, cost: 1.8, updatedAt: daysAgo(1) },
       { id: uid(), name: "Hojas de maíz", unit: "paquetes", have: 6, perWeek: 3, cost: 4.5, updatedAt: daysAgo(1) },
@@ -755,6 +760,9 @@ export type Summary = {
   perHour: number | null;
   perDay: number | null;
   byGroup: Record<string, number>; // monthly spend by group id
+  workGrossWeekly: number;         // pay before taxes
+  taxWeekly: number;               // estimated taxes taken out of paychecks
+  cashTaxWeekly: number;           // paid without withholding: what to set aside for taxes
 };
 
 /** Which pay period we're in for a fixed payment: this month, this week, or this two-week stretch. */
@@ -770,8 +778,12 @@ export function periodKey(e: Pick<Entry, "repeat" | "date">, at = new Date()): s
 export const isPaidNow = (e: Entry) => e.repeat !== "once" && (e.paid ?? []).includes(periodKey(e));
 
 export function summarize(d: UserData, groupOf: (catId: string) => string): Summary {
-  const workMonthly = d.work.reduce((a, w) => a + toMonthly(w.pay, w.every), 0);
-  const workWeekly = d.work.reduce((a, w) => a + toWeekly(w.pay, w.every), 0);
+  // Pay that actually reaches you: estimated taxes come out of paychecks first
+  const workGrossWeekly = d.work.reduce((a, w) => a + toWeekly(w.pay, w.every), 0);
+  const workWeekly = d.work.reduce((a, w) => a + takeHomeWeekly(toWeekly(w.pay, w.every), w.tax), 0);
+  const workMonthly = (workWeekly * 52) / 12;
+  const taxWeekly = d.work.reduce((a, w) => a + ((w.tax ?? DEFAULT_TAX).mode === "withheld" ? weeklyTaxes(toWeekly(w.pay, w.every), w.tax ?? DEFAULT_TAX).total : 0), 0);
+  const cashTaxWeekly = d.work.reduce((a, w) => a + (w.tax?.mode === "cash" ? cashSetAsideWeekly(toWeekly(w.pay, w.every), w.tax) : 0), 0);
   const hours = d.work.reduce((a, w) => a + (w.hoursPerWeek || 0), 0);
   const days = d.work.length ? Math.max(...d.work.map((w) => w.daysPerWeek || 0)) : 0;
 
@@ -850,8 +862,9 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
   return {
     monthIn, monthOut, monthGoals, monthKeep: monthIn - monthOut - monthGoals,
     weekIn, weekOut, weekGoals, weekLeft: weekIn - weekOut - weekGoals,
-    perHour: hours > 0 ? workWeekly / hours : null,
-    perDay: days > 0 ? workWeekly / days : null,
+    perHour: hours > 0 ? workGrossWeekly / hours : null,
+    perDay: days > 0 ? workGrossWeekly / days : null,
     byGroup,
+    workGrossWeekly, taxWeekly, cashTaxWeekly,
   };
 }

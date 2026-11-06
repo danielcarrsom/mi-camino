@@ -8,6 +8,7 @@ import { planActive, tandaEnded, tandaPot, useLang, useMe, type Entry, type Work
 import Link from "next/link";
 import { EntryEditSheet, WorkEditSheet } from "@/components/MoneyForms";
 import { BillsCard } from "@/components/Bills";
+import { DEFAULT_TAX, cashSetAsideWeekly, weeklyTaxes, type WorkTax } from "@/lib/taxes";
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate, toMonthly } from "@/lib/money";
 import { GROUPS, categoryById, incomeCategoryById, pick } from "@/lib/catalog";
@@ -99,6 +100,7 @@ export default function MoneyPage() {
                       <Stat value={String(w.hoursPerWeek)} label={t("hoursWeek")} />
                       <Stat value={String(w.daysPerWeek)} label={t("daysWeek")} />
                     </div>
+                    <WorkTakeHome weekly={weekly} tax={w.tax} />
                   </Card>
                 );
               })}
@@ -272,5 +274,28 @@ function EntryList({ items, onEdit, total, empty }: { items: Entry[]; onEdit: (e
         </div>
       )}
     </Card>
+  );
+}
+
+/** After taxes: what really reaches you from this job. */
+function WorkTakeHome({ weekly, tax }: { weekly: number; tax?: WorkTax }) {
+  const lang = useLang();
+  const en = lang === "en";
+  const t = tax ?? DEFAULT_TAX;
+  if (t.mode === "net") return <p className="mt-3 text-base text-muted">{en ? "This is what reaches you (after taxes)." : "Esto es lo que te llega (ya sin impuestos)."}</p>;
+  if (t.mode === "cash") {
+    return (
+      <p className="mt-3 rounded-2xl bg-sun-soft px-4 py-3 text-base">
+        ⚠️ {en ? <>No taxes are taken out. Set aside about <b>{money(cashSetAsideWeekly(weekly, t), lang)} a week</b> for when you file.</> : <>No te descuentan impuestos. Aparta unos <b>{money(cashSetAsideWeekly(weekly, t), lang)} a la semana</b> para cuando declares.</>}
+      </p>
+    );
+  }
+  const x = weeklyTaxes(weekly, t);
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-leaf-soft px-4 py-3">
+      <span className="text-base">{en ? "After taxes, reaches you approx." : "Después de impuestos te llegan aprox."}</span>
+      <span className="text-xl font-extrabold text-leaf">{money(x.net, lang)} <span className="text-base font-bold">{en ? "a week" : "a la semana"}</span></span>
+      <span className="w-full text-sm text-muted">{en ? `Before taxes ${money(weekly, lang)} · about ${money(x.total, lang)} in taxes` : `Antes de impuestos ${money(weekly, lang)} · unos ${money(x.total, lang)} de impuestos`}</span>
+    </div>
   );
 }
