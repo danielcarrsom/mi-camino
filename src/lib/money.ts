@@ -21,11 +21,31 @@ export function toWeekly(amount: number, repeat: Repeat): number {
   return toMonthly(amount, repeat) / WEEKS_PER_MONTH;
 }
 
+export type Currency = "USD" | "MXN";
+let currency: Currency = "USD";
+/** The money the person uses: dollars in the US, pesos in México. Set from their profile. */
+export function setCurrency(c: Currency) { currency = c; }
+export function getCurrency(): Currency { return currency; }
+
+/** Starting amounts written in dollars, turned into a sensible amount in the person's money. */
+export function localAmount(usd: number): number {
+  if (currency === "USD") return usd;
+  const x = usd * 8; // living costs and pay in México, in pesos
+  const step = x >= 50000 ? 5000 : x >= 5000 ? 500 : x >= 500 ? 50 : 10;
+  return Math.round(x / step) * step;
+}
+
+/** "dólar" / "peso" words for the person's money. */
+export function unitWord(lang: Lang, plural = true): string {
+  if (currency === "MXN") return lang === "en" ? (plural ? "pesos" : "peso") : plural ? "pesos" : "peso";
+  return lang === "en" ? (plural ? "dollars" : "dollar") : plural ? "dólares" : "dólar";
+}
+
 export function money(n: number, lang: Lang = "es", cents = false): string {
   const locale = lang === "en" ? "en-US" : "es-MX";
   return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "USD",
+    currency,
     currencyDisplay: "narrowSymbol",
     minimumFractionDigits: cents ? 2 : 0,
     maximumFractionDigits: cents ? 2 : 0,
@@ -35,7 +55,7 @@ export function money(n: number, lang: Lang = "es", cents = false): string {
 /** Words for reading a dollar amount aloud. */
 export function moneySpoken(n: number, lang: Lang = "es"): string {
   const whole = Math.round(n);
-  return lang === "en" ? `${whole} dollars` : `${whole} dólares`;
+  return `${whole} ${unitWord(lang)}`;
 }
 
 export function startOfWeek(d = new Date()): Date {

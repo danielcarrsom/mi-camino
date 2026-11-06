@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Pencil, Trash2, Repeat as RepeatIcon, HandCoins } from "lucide-react";
 import { AmountInput, Button, ListenButton, QuickAmounts, Sheet, cx } from "./ui";
 import { Icon } from "./Icon";
-import { periodKey, useLang, useMe, useStore } from "@/lib/store";
+import { periodKey, regionOf, useLang, useMe, useStore } from "@/lib/store";
 import { money, shortDate } from "@/lib/money";
 import { pick, type Repeat } from "@/lib/catalog";
 import { BIZ_CATEGORIES, bizCategoryById, bizHealth, bizNumbers, type BizEntry, type Light, type Tip } from "@/lib/business";
@@ -26,7 +26,8 @@ export function useBiz() {
     return (biz?.goals ?? []).flatMap((g) => g.deposits).filter((d) => new Date(d.date).getTime() >= since).reduce((a, d) => a + d.amount, 0);
   }, [biz?.goals]);
   const free = n.profit - n.paidMe - goals30;
-  return { me, biz, n, health, lang, goals30, free };
+  const region = regionOf(me?.profile);
+  return { me, biz, n, health, lang, goals30, free, region };
 }
 
 const LIGHT_COLOR: Record<Exclude<Light, "gris">, string> = { rojo: "#d2452c", amarillo: "#e8b23a", verde: "#3e9a57" };

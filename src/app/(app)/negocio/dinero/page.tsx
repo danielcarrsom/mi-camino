@@ -5,7 +5,7 @@ import { ArrowDownCircle, ArrowUpCircle, Boxes, Calculator, Check, ChevronDown, 
 import { AmountInput, Button, Card, ListenButton, PageHeader, Sheet, cx } from "@/components/ui";
 import { BizEntryRow, BizEntrySheet, L, LightDot, Semaforo, Stat, useBiz } from "@/components/Biz";
 import { goalSaved, useStore } from "@/lib/store";
-import { money, toMonthly } from "@/lib/money";
+import { money, toMonthly, unitWord, localAmount, getCurrency } from "@/lib/money";
 import { monthlyProfitDollars, productLight, productsMonthly, suggestedPrice, type BizEntry, type DollarScenario, type Product, type StockItem } from "@/lib/business";
 import { playSaved } from "@/lib/sound";
 
@@ -180,12 +180,12 @@ function Costos() {
               </div>
               <p className="mt-3 text-base">
                 {gain > 0
-                  ? L(lang, `De cada dólar que cobras, ganas ${Math.round(m * 100)} centavos.`, `Out of every dollar, you keep ${Math.round(m * 100)} cents.`)
+                  ? L(lang, `De cada ${unitWord(lang, false)} que cobras, ganas ${Math.round(m * 100)} centavos.`, `Out of every ${unitWord(lang, false)}, you keep ${Math.round(m * 100)} cents.`)
                   : L(lang, "Lo vendes al costo o perdiendo.", "You're selling at cost or at a loss.")}
                 {p.perWeek > 0 && <> {L(lang, `Vendes ${p.perWeek} a la semana: ${money(gain * p.perWeek, lang)} de ganancia.`, `You sell ${p.perWeek} a week: ${money(gain * p.perWeek, lang)} profit.`)}</>}
               </p>
               {light !== "verde" && sp > p.price && (
-                <p className="mt-3 rounded-2xl bg-sun-soft px-3 py-2 text-base">💡 {L(lang, `Prueba venderlo a ${money(sp, lang, true)}. Así ganas 40 centavos de cada dólar.`, `Try selling it at ${money(sp, lang, true)} to keep 40 cents of every dollar.`)}</p>
+                <p className="mt-3 rounded-2xl bg-sun-soft px-3 py-2 text-base">💡 {L(lang, `Prueba venderlo a ${money(sp, lang, true)}. Así ganas 40 centavos de cada ${unitWord(lang, false)}.`, `Try selling it at ${money(sp, lang, true)} to keep 40 cents of every ${unitWord(lang, false)}.`)}</p>
               )}
             </Card>
           );
@@ -337,10 +337,11 @@ function ProductSheet({ product, onClose }: { product: Product | "new" | null; o
 const MORE = [-100, 0, 50, 100, 200, 400];
 const PRICE = [0, 0.25, 0.5, 1];
 const CUT = [0, 25, 50, 100];
+const PRICE_MXN = [0, 2, 5, 10];
 
 function Futuro() {
   const { biz, n, lang } = useBiz();
-  const [s, setS] = useState<DollarScenario>({ moreWeekly: 100, pricePerPiece: 0, cutWeekly: 0 });
+  const [s, setS] = useState<DollarScenario>(() => ({ moreWeekly: localAmount(100), pricePerPiece: 0, cutWeekly: 0 }));
   const base = useMemo(() => {
     if (!biz) return { weeklySales: 0, weeklyVar: 0, fixed: 0, fromProducts: false };
     if (n.weeklySales > 0) return { weeklySales: n.weeklySales, weeklyVar: n.weeklyVar, fixed: n.fixed, fromProducts: false };
@@ -381,13 +382,13 @@ function Futuro() {
               : L(lang, `Calculado con tus últimas semanas: vendes unos ${money(base.weeklySales, lang)} a la semana.`, `Based on recent weeks: you sell about ${money(base.weeklySales, lang)} a week.`)}
           </p>
         </div>
-        <Choice label={L(lang, "…vendes esto más cada semana", "…you sell this much more each week")} hint={L(lang, "En dinero de ventas. Ojo: vender más también cuesta más hacer.", "In sales dollars. Selling more also costs more to make.")} options={MORE} value={s.moreWeekly} onPick={(v) => setS({ ...s, moreWeekly: v })} fmt={dollars} />
+        <Choice label={L(lang, "…vendes esto más cada semana", "…you sell this much more each week")} hint={L(lang, "En dinero de ventas. Ojo: vender más también cuesta más hacer.", "In sales money. Selling more also costs more to make.")} options={MORE.map(localAmount)} value={s.moreWeekly} onPick={(v) => setS({ ...s, moreWeekly: v })} fmt={dollars} />
         {units > 0 ? (
-          <Choice label={L(lang, "…cobras esto más por cada pieza", "…you charge this much more per piece")} hint={L(lang, `Vendes unas ${units} piezas a la semana.`, `You sell about ${units} pieces a week.`)} options={PRICE} value={s.pricePerPiece} onPick={(v) => setS({ ...s, pricePerPiece: v })} fmt={dollars} />
+          <Choice label={L(lang, "…cobras esto más por cada pieza", "…you charge this much more per piece")} hint={L(lang, `Vendes unas ${units} piezas a la semana.`, `You sell about ${units} pieces a week.`)} options={getCurrency() === "MXN" ? PRICE_MXN : PRICE} value={s.pricePerPiece} onPick={(v) => setS({ ...s, pricePerPiece: v })} fmt={dollars} />
         ) : (
           <p className="rounded-2xl bg-cream px-4 py-3 text-base text-muted">{L(lang, "Agrega lo que vendes en “Mis costos” para probar qué pasa si subes tus precios.", "Add what you sell in “My costs” to try raising prices.")}</p>
         )}
-        <Choice label={L(lang, "…gastas esto menos cada semana", "…you spend this much less each week")} hint={L(lang, "Por ejemplo, comprando al mayoreo.", "For example, buying in bulk.")} options={CUT} value={s.cutWeekly} onPick={(v) => setS({ ...s, cutWeekly: v })} fmt={(x) => (x ? `−${money(x, lang)}` : L(lang, "Igual", "Same"))} />
+        <Choice label={L(lang, "…gastas esto menos cada semana", "…you spend this much less each week")} hint={L(lang, "Por ejemplo, comprando al mayoreo.", "For example, buying in bulk.")} options={CUT.map(localAmount)} value={s.cutWeekly} onPick={(v) => setS({ ...s, cutWeekly: v })} fmt={(x) => (x ? `−${money(x, lang)}` : L(lang, "Igual", "Same"))} />
       </Card>
 
       <div className="min-w-0 space-y-5 lg:col-span-3">

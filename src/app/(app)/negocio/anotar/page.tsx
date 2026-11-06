@@ -7,7 +7,7 @@ import { AmountInput, Button, Card, MicButton, PageHeader, QuickAmounts, cx } fr
 import { Icon } from "@/components/Icon";
 import { L, RepeatPicker, useBiz } from "@/components/Biz";
 import { useStore } from "@/lib/store";
-import { money } from "@/lib/money";
+import { money, getCurrency, unitWord } from "@/lib/money";
 import { pick, type Repeat } from "@/lib/catalog";
 import { BIZ_CATEGORIES, bizCategoryById, parseBiz } from "@/lib/business";
 import { playSaved } from "@/lib/sound";
@@ -62,7 +62,7 @@ function Anotar() {
 
   const understand = (text: string) => {
     const r = parseBiz(text, kind ?? undefined);
-    if (!r) { setHeard(L(lang, "No encontré una cantidad. Intenta: “vendí 300 dólares”.", "I couldn't find an amount. Try: “I sold 300 dollars”.")); return; }
+    if (!r) { setHeard(L(lang, `No encontré una cantidad. Intenta: “vendí 300 ${unitWord(lang)}”.`, `I couldn't find an amount. Try: “I sold 300 ${unitWord(lang)}”.`)); return; }
     if (r.kind) setKind(r.kind);
     setAmount(String(r.amount)); setCat(r.category); setRepeat(r.repeat); setNote(r.note);
     const msg = L(lang, `Entendí: ${money(r.amount, lang, r.amount % 1 !== 0)}, ${pick(bizCategoryById(r.category ?? "otro_out").label, lang)}. Revisa y guarda.`, `Got it: ${money(r.amount, lang, r.amount % 1 !== 0)}, ${pick(bizCategoryById(r.category ?? "otro_out").label, lang)}. Check and save.`);
@@ -122,8 +122,8 @@ function Anotar() {
         title={isIn ? L(lang, "Vendí o me pagaron", "I sold / got paid") : L(lang, "Gasté o compré", "I spent / bought")}
         back="/negocio"
         say={isIn
-          ? L(lang, "Dime cuánto vendiste. Por ejemplo: vendí cuarenta tamales a tres dólares. O toca tus productos.", "Tell me how much you sold. For example: I sold forty tamales at three dollars. Or tap your products.")
-          : L(lang, "Dime qué compraste o pagaste. Por ejemplo: compré masa y carne, ciento veinte dólares.", "Tell me what you bought or paid. For example: I bought dough and meat, one hundred twenty dollars.")}
+          ? L(lang, `Dime cuánto vendiste. Por ejemplo: vendí cuarenta tamales a ${getCurrency() === "MXN" ? "veinte pesos" : "tres dólares"}. O toca tus productos.`, `Tell me how much you sold. For example: I sold forty tamales at ${getCurrency() === "MXN" ? "twenty pesos" : "three dollars"}. Or tap your products.`)
+          : L(lang, `Dime qué compraste o pagaste. Por ejemplo: compré masa y carne, ${getCurrency() === "MXN" ? "novecientos pesos" : "ciento veinte dólares"}.`, `Tell me what you bought or paid. For example: I bought dough and meat, ${getCurrency() === "MXN" ? "nine hundred pesos" : "one hundred twenty dollars"}.`)}
       />
 
       {/* Say it or type it */}
@@ -133,7 +133,7 @@ function Anotar() {
           <div className="w-full min-w-0 flex-1">
             <p className="mb-2 flex items-center gap-2 text-lg font-bold"><Keyboard size={20} /> {L(lang, "O escríbelo como lo dirías", "Or type it like you'd say it")}</p>
             <form onSubmit={(e) => { e.preventDefault(); if (typed.trim()) understand(typed); }} className="flex gap-2">
-              <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={isIn ? L(lang, "vendí 40 tamales a 3 dólares", "sold 40 tamales at 3 dollars") : L(lang, "compré masa 120 dólares", "bought dough 120 dollars")} className="h-14 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
+              <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={getCurrency() === "MXN" ? (isIn ? L(lang, "vendí 40 tamales a 20 pesos", "sold 40 tamales at 20 pesos") : L(lang, "compré masa 900 pesos", "bought dough 900 pesos")) : isIn ? L(lang, "vendí 40 tamales a 3 dólares", "sold 40 tamales at 3 dollars") : L(lang, "compré masa 120 dólares", "bought dough 120 dollars")} className="h-14 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
               <button aria-label={L(lang, "Entender", "Understand")} className="flex h-14 shrink-0 items-center gap-2 rounded-2xl bg-ink px-4 font-extrabold text-paper"><Sparkles size={20} /> <span className="hidden sm:inline">{L(lang, "Entender", "Understand")}</span></button>
             </form>
           </div>

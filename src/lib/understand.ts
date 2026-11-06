@@ -88,7 +88,7 @@ export function understandLocally(text: string, kind: "in" | "out"): Parsed {
   // Work pay: "me pagaron 650 por la semana, trabaje 45 horas 6 dias"
   if (kind === "in") {
     // A rate: "33 dolares la hora", "$18/hr", "150 al dia"
-    const UNIT = String.raw`\$?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:dolares|dlls?|usd|bucks|dollars|\$)?\s*`;
+    const UNIT = String.raw`\$?\s*(\d+(?:[.,]\d{1,2})?)\s*(?:dolares|dlls?|usd|bucks|dollars|pesos|mxn|varos|\$)?\s*`;
     const hourRate = t.match(new RegExp(UNIT + String.raw`(?:la hora|por hora|a la hora|cada hora|an hour|per hour|\/\s*(?:hr|hora|h)\b|hourly)`));
     const dayRate = t.match(new RegExp(UNIT + String.raw`(?:al dia|por dia|el dia|diarios|a day|per day|\/\s*dia)`));
     let rest = t;

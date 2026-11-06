@@ -19,7 +19,7 @@ export const model = () => MODEL;
 
 const REPEATS = ["once", "week", "2weeks", "month"];
 
-export const MONEY_SYSTEM = `You help Latino immigrants in New York record their money in a simple budgeting platform.
+export const MONEY_SYSTEM = `You help Latino families (in the United States or in Mexico) record their money in a simple budgeting platform.
 People may speak or type in Spanish, English, Spanglish or with many spelling mistakes ("pague 1400 de rrenta", "lus 85"). Understand what they mean.
 Never ask for or repeat immigration status, Social Security numbers, account numbers, names of employers' owners, or addresses.
 
@@ -37,7 +37,7 @@ Rules:
 - If a pay period is two weeks, convert hours to per week.
 - "taxMode": for a PAYSTUB that shows tax deductions, use the GROSS pay (before taxes) as "pay" and "taxMode":"withheld". If the person says the amount is what reaches them after taxes ("me llegan", "neto", "take home"), use that amount and "taxMode":"net". If they say they're paid in cash or nothing is taken out, "taxMode":"cash". If unclear, "withheld".
 - "repeat": rent, utilities, phone are usually "month"; groceries, subway usually "week"; a single purchase is "once". Use what the person says if they say it.
-- Amounts are US dollars unless pesos are clearly said; if pesos, convert roughly at 18 pesos per dollar and say so in "note".
+- Amounts are in the person's own money (stated in the message: US dollars unless it says they live in Mexico, then Mexican pesos). Never convert unless they clearly use the other currency; then convert roughly at 18 pesos per dollar and say so in "note".
 - If nothing about money is understandable, return {"entries":[],"work":null}.`;
 
 function clampEntry(e: Partial<ParsedEntry>): ParsedEntry | null {
@@ -87,4 +87,11 @@ export function parseModelJson(raw: string, heard: string): Parsed | null {
 
 export function textOf(msg: Anthropic.Message): string {
   return msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+}
+
+/** One line telling the model which money the person uses. */
+export function currencyLine(currency: unknown): string {
+  return currency === "MXN"
+    ? "The person lives in MEXICO: amounts are Mexican pesos (MXN). A payslip is a \"recibo de nómina\" (ISR and IMSS are the deductions)."
+    : "The person lives in the United States: amounts are US dollars.";
 }

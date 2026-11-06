@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Logo, Sheet, cx } from "./ui";
 import { RecoveryNudge } from "./RecoverySetup";
+import { Avatar } from "./Avatars";
 import { useLang, useMe, useStore } from "@/lib/store";
 import { useT } from "@/lib/hooks";
 import { LANGS, langInfo } from "@/lib/i18n";
@@ -51,8 +52,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-dvh md:flex">
       {/* ---------- Computer: sidebar ---------- */}
-      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col bg-ink p-5 text-paper md:flex">
-        <Link href="/inicio" className="mb-8 px-2"><Logo light /></Link>
+      <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col overflow-y-auto bg-ink p-5 text-paper md:flex">
+        <Link href="/inicio" className="mb-6 px-2"><Logo light /></Link>
+        {me && (
+          <Link href="/perfil" data-tour="perfil" className={cx("mb-5 flex items-center gap-3 rounded-2xl px-3 py-2 font-bold", path === "/perfil" ? "bg-paper text-ink" : "text-paper/85 hover:bg-paper/10")}>
+            <Avatar id={me.profile.avatar} name={me.profile.name} size={40} />
+            <span className="leading-tight">{me.profile.name}<span className={cx("block text-sm font-normal", path === "/perfil" ? "text-muted" : "text-paper/60")}>{me.profile.lang === "en" ? "My profile" : "Mi perfil"}</span></span>
+          </Link>
+        )}
 
         <div data-tour="modulos"><ModuleSwitch inNegocio={inNegocio} /></div>
 
@@ -82,7 +89,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mt-6 space-y-1 border-t border-paper/15 pt-4">
           <SettingsButtons onLang={() => setLangOpen(true)} dark />
-          {me && <p className="px-4 pt-2 text-sm text-paper/60">{me.profile.name}</p>}
           <CloudBadge dark />
         </div>
       </aside>
@@ -95,6 +101,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button onClick={() => setLangOpen(true)} className="flex h-12 items-center gap-1.5 rounded-full px-3 font-bold hover:bg-sand/60" aria-label="Idioma">
             <Languages size={22} />
           </button>
+          {me && (
+            <Link href="/perfil" data-tour="perfil-phone" aria-label={me.profile.lang === "en" ? "My profile" : "Mi perfil"} className="ml-1 rounded-full ring-2 ring-sand">
+              <Avatar id={me.profile.avatar} name={me.profile.name} size={40} />
+            </Link>
+          )}
         </div>
       </header>
 
@@ -129,6 +140,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       <Sheet open={more} onClose={() => setMore(false)} title={t("menu")}>
+        {me && (
+          <Link href="/perfil" onClick={() => setMore(false)} className="mb-4 flex items-center gap-3 rounded-3xl border-2 border-sand bg-paper p-3 font-extrabold">
+            <Avatar id={me.profile.avatar} name={me.profile.name} size={52} />
+            <span className="text-lg leading-tight">{me.profile.name}<span className="block text-base font-bold text-clay">{me.profile.lang === "en" ? "My profile" : "Mi perfil"}</span></span>
+          </Link>
+        )}
         <div className="mb-4"><ModuleSwitch inNegocio={inNegocio} onPick={() => setMore(false)} /></div>
         <div className="grid grid-cols-2 gap-3">
           {(inNegocio ? NEGOCIO_MORE : CASITA.slice(3)).map((item) => {

@@ -6,7 +6,7 @@ import { AmountInput, Button, Card, Disclaimer, MicButton, PageHeader, Sheet, Ti
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
 import { useLang, useMe, useStore, type Source } from "@/lib/store";
-import { money, moneySpoken } from "@/lib/money";
+import { getCurrency, money, moneySpoken } from "@/lib/money";
 import { INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
 import { CategorySheet, RepeatPicker, WorkEditor, toSavedWork } from "@/components/MoneyForms";
 import type { Parsed, ParsedEntry, ParsedWork } from "@/lib/understand";
@@ -53,7 +53,7 @@ function Add() {
     if (!kind) return;
     setBusy(true); setProblem(null); setSource(src);
     try {
-      const r = await fetch("/api/entender", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, kind, lang }) });
+      const r = await fetch("/api/entender", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, kind, lang, currency: getCurrency() }) });
       const j = (await r.json()) as Parsed;
       if (!j.entries.length && !j.work) { setProblem(t("couldNotUnderstand")); speak(t("couldNotUnderstand"), lang); }
       else { setResult(j); speak(t("checkThisSay"), lang, "checkThis"); }
@@ -67,7 +67,7 @@ function Add() {
     setBusy(true); setProblem(null); setSource("foto");
     try {
       const { data, type } = await shrinkImage(file);
-      const r = await fetch("/api/leer-foto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: data, mediaType: type, kind }) });
+      const r = await fetch("/api/leer-foto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: data, mediaType: type, kind, currency: getCurrency() }) });
       if (r.status === 501) { setProblem(t("needsAiKey")); speak(t("needsAiKey"), lang); return; }
       const j = (await r.json()) as Parsed & { error?: string };
       if (j.error || (!j.entries?.length && !j.work)) { setProblem(t("couldNotUnderstand")); speak(t("couldNotUnderstand"), lang); }

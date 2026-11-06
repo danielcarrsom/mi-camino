@@ -22,7 +22,7 @@ export default function MetasNegocioPage() {
 }
 
 function Metas() {
-  const { biz, n, lang } = useBiz();
+  const { biz, n, lang, region } = useBiz();
   const params = useSearchParams();
   const router = useRouter();
   const [create, setCreate] = useState<string | null>(null);
@@ -37,7 +37,7 @@ function Metas() {
   }, []);
   if (!biz) return null;
 
-  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay });
+  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay, region });
   const ideas = BIZ_GOALS.filter((g) => !biz.goals.some((x) => x.preset === g.id)).slice(0, 3);
 
   return (

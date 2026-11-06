@@ -6,9 +6,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Lang } from "./i18n";
 import type { Repeat } from "./catalog";
-import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek } from "./money";
+import { uid, toMonthly, toWeekly, isThisWeek, startOfWeek, setCurrency } from "./money";
 import { altPhoneKey } from "./phone";
-import { cashSetAsideWeekly, takeHomeWeekly, weeklyTaxes, DEFAULT_TAX, type WorkTax } from "./taxes";
+import { cashSetAsideWeekly, takeHomeWeekly, weeklyTaxes, DEFAULT_TAX, DEFAULT_REGION, type Region, type WorkTax } from "./taxes";
 import type { BizEntry, Product, BizType, StockItem, MyPay } from "./business";
 import { cloudChangePin, cloudLoad, cloudRegister, cloudSave, cloudSignIn, cloudSignOut, cloudSignedInAs, recoverySet } from "./cloud";
 
@@ -22,7 +22,20 @@ export type Profile = {
   tourDone?: boolean;     // finished the guided tour
   stepsHiddenCasita?: boolean;
   stepsHiddenNegocio?: boolean;
+  // Where you live: decides taxes and whether money is in dollars or pesos
+  country?: "us" | "mx";
+  usState?: string;       // two letters, e.g. "NY"
+  nyc?: boolean;          // lives in one of New York City's five boroughs
+  married?: boolean;      // files taxes as married
+  avatar?: string;        // id of the animal picked as profile picture
 };
+
+/** Where this person lives, for taxes and money. Older accounts were all New York City. */
+export function regionOf(p: Profile | undefined): Region {
+  if (!p?.country) return DEFAULT_REGION;
+  if (p.country === "mx") return { country: "mx", married: !!p.married };
+  return { country: "us", state: p.usState || "NY", nyc: p.usState === "NY" || !p.usState ? p.nyc !== false : false, married: !!p.married };
+}
 
 export type Work = {
   id: string;
@@ -251,9 +264,9 @@ function demoData(lang: Lang): UserData {
   const now = new Date().toISOString();
   const casaId = uid();
   return {
-    profile: { name: "María", lang, casita: true, negocio: true, createdAt: now },
+    profile: { name: "María", lang, casita: true, negocio: true, createdAt: now, country: "us", usState: "NY", nyc: true, avatar: "ajolote" },
     work: [
-      { id: uid(), name: "Restaurante", pay: 864, every: "week", hoursPerWeek: 48, daysPerWeek: 6, source: "foto", createdAt: now, tax: { mode: "withheld", place: "nyc" } },
+      { id: uid(), name: "Restaurante", pay: 864, every: "week", hoursPerWeek: 48, daysPerWeek: 6, source: "foto", createdAt: now, tax: { mode: "withheld" } },
     ],
     entries: [
       { id: uid(), kind: "in", category: "mi_negocio", amount: 200, repeat: "once", note: "Tamales María", date: daysAgo(0), source: "manual" },
@@ -740,6 +753,12 @@ export function useMe(): UserData | null {
 }
 
 /** Current language: the profile's if signed in, else the device choice. */
+/** Where the signed-in person lives (New York City for older accounts). */
+export function useRegion(): Region {
+  const p = useStore((s) => (s.current ? s.accounts[s.current]?.data.profile : undefined));
+  return regionOf(p);
+}
+
 export function useLang(): Lang {
   return useStore((s) => (s.current ? s.accounts[s.current]?.data.profile.lang : undefined) ?? s.deviceLang);
 }
@@ -780,10 +799,11 @@ export const isPaidNow = (e: Entry) => e.repeat !== "once" && (e.paid ?? []).inc
 export function summarize(d: UserData, groupOf: (catId: string) => string): Summary {
   // Pay that actually reaches you: estimated taxes come out of paychecks first
   const workGrossWeekly = d.work.reduce((a, w) => a + toWeekly(w.pay, w.every), 0);
-  const workWeekly = d.work.reduce((a, w) => a + takeHomeWeekly(toWeekly(w.pay, w.every), w.tax), 0);
+  const region = regionOf(d.profile);
+  const workWeekly = d.work.reduce((a, w) => a + takeHomeWeekly(toWeekly(w.pay, w.every), w.tax, region), 0);
   const workMonthly = (workWeekly * 52) / 12;
-  const taxWeekly = d.work.reduce((a, w) => a + ((w.tax ?? DEFAULT_TAX).mode === "withheld" ? weeklyTaxes(toWeekly(w.pay, w.every), w.tax ?? DEFAULT_TAX).total : 0), 0);
-  const cashTaxWeekly = d.work.reduce((a, w) => a + (w.tax?.mode === "cash" ? cashSetAsideWeekly(toWeekly(w.pay, w.every), w.tax) : 0), 0);
+  const taxWeekly = d.work.reduce((a, w) => a + ((w.tax ?? DEFAULT_TAX).mode === "withheld" ? weeklyTaxes(toWeekly(w.pay, w.every), region).total : 0), 0);
+  const cashTaxWeekly = d.work.reduce((a, w) => a + (w.tax?.mode === "cash" ? cashSetAsideWeekly(toWeekly(w.pay, w.every), region) : 0), 0);
   const hours = d.work.reduce((a, w) => a + (w.hoursPerWeek || 0), 0);
   const days = d.work.length ? Math.max(...d.work.map((w) => w.daysPerWeek || 0)) : 0;
 
@@ -867,4 +887,11 @@ export function summarize(d: UserData, groupOf: (catId: string) => string): Summ
     byGroup,
     workGrossWeekly, taxWeekly, cashTaxWeekly,
   };
+}
+
+// Money shows in pesos for people who live in México, in dollars for everyone else.
+if (typeof window !== "undefined") {
+  const sync = (st: State) => setCurrency(regionOf(st.current ? st.accounts[st.current]?.data.profile : undefined).country === "mx" ? "MXN" : "USD");
+  sync(useStore.getState());
+  useStore.subscribe(sync);
 }

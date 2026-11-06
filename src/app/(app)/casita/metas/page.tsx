@@ -8,7 +8,7 @@ import { GoalVisual, unitsFor } from "@/components/GoalVisual";
 import { Icon } from "@/components/Icon";
 import { useT } from "@/lib/hooks";
 import { goalSaved, useLang, useMe, useStore } from "@/lib/store";
-import { money, toWeekly } from "@/lib/money";
+import { money, toWeekly, localAmount } from "@/lib/money";
 import { PlanEditor, recommendedAmount, suggestAmounts, type PlanDraft } from "@/components/PlanEditor";
 import { useSummary } from "@/lib/useSummary";
 import { GOAL_PRESETS, goalPresetById, pick, type GoalPreset } from "@/lib/catalog";
@@ -103,7 +103,7 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
 
   const choose = (p: GoalPreset | "own") => {
     setPreset(p);
-    if (p !== "own") { setName(pick(p.label, lang)); setAmount(String(p.suggested)); speak(t("howMuchSay"), lang, "howMuch"); }
+    if (p !== "own") { setName(pick(p.label, lang)); setAmount(String(localAmount(p.suggested))); speak(t("howMuchSay"), lang, "howMuch"); }
   };
 
   const toPlan = () => {

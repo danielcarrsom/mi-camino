@@ -7,12 +7,13 @@ import { useHydrated, useT } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 import { PhoneInput } from "@/components/PhoneInput";
 import { RecoveryForm } from "@/components/RecoverySetup";
+import { RegionPicker, regionReady, type RegionValue } from "@/components/RegionPicker";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { speak, stopSpeaking } from "@/lib/voice";
 
-type Step = "lang" | "name" | "phone" | "pin" | "pin2" | "safety" | "modules";
-const ORDER: Step[] = ["lang", "name", "phone", "pin", "pin2", "safety", "modules"];
+type Step = "lang" | "name" | "where" | "phone" | "pin" | "pin2" | "safety" | "modules";
+const ORDER: Step[] = ["lang", "name", "where", "phone", "pin", "pin2", "safety", "modules"];
 
 export default function Onboarding() {
   const hydrated = useHydrated();
@@ -34,6 +35,7 @@ export default function Onboarding() {
   const [modules, setModules] = useState<"casita" | "negocio" | "both">("both");
   const [phoneTaken, setPhoneTaken] = useState(false);
   const [recovery, setRecovery] = useState<{ question: string; answer: string } | null>(null);
+  const [where, setWhere] = useState<RegionValue>({});
 
   const idx = ORDER.indexOf(step);
   const go = (s: Step) => setStep(s);
@@ -41,11 +43,13 @@ export default function Onboarding() {
 
   const says: Record<Step, string> = {
     lang: t("pickLangSay"), name: t("askNameSay"), phone: t("askPhoneSay"),
+    where: lang === "en" ? "Where do you live? In Mexico or in the United States? We use it to figure the taxes on your pay and to show your money in dollars or pesos." : "¿Dónde vives? ¿En México o en Estados Unidos? Lo usamos para calcular los impuestos de tu sueldo y para mostrar tu dinero en dólares o en pesos.",
     pin: t("askPinSay"), pin2: t("repeatPinSay"), modules: t("pickModulesSay"),
     safety: lang === "en" ? "If you ever forget your PIN, we'll ask you a question. Pick one and answer it. Only you should know the answer." : "Si un día olvidas tu clave, te haremos una pregunta. Elige una y contéstala. Solo tú debes saber la respuesta.",
   };
   const titles: Record<Step, string> = {
     lang: t("pickLang"), name: t("askName"), phone: t("askPhone"),
+    where: lang === "en" ? "Where do you live?" : "¿Dónde vives?",
     pin: t("askPin"), pin2: t("repeatPin"), modules: t("pickModules"),
     safety: lang === "en" ? "In case you forget your PIN" : "Por si olvidas tu clave",
   };
@@ -75,6 +79,9 @@ export default function Onboarding() {
       casita: modules !== "negocio",
       negocio: modules !== "casita",
       createdAt: new Date().toISOString(),
+      country: where.country,
+      usState: where.country === "us" ? where.usState : undefined,
+      nyc: where.country === "us" && where.usState === "NY" ? !!where.nyc : undefined,
     }, recovery);
     router.replace(modules === "negocio" ? "/negocio" : "/casita");
   }
@@ -138,7 +145,15 @@ export default function Onboarding() {
               className="mt-6 h-16 w-full rounded-2xl border-2 border-sand bg-paper px-5 text-2xl font-bold outline-none focus:border-clay"
               autoComplete="given-name"
             />
-            <Button onClick={() => go("phone")} disabled={!name.trim()} className="mt-6 w-full">{t("next")}</Button>
+            <Button onClick={() => go("where")} disabled={!name.trim()} className="mt-6 w-full">{t("next")}</Button>
+          </div>
+        )}
+
+        {step === "where" && (
+          <div className="mx-auto max-w-xl">
+            <RegionPicker lang={lang} value={where} onChange={setWhere} />
+            <p className="mt-4 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {lang === "en" ? "We use it for taxes and to show your money in dollars or pesos. You can change it later in My profile." : "Lo usamos para tus impuestos y para mostrar tu dinero en dólares o pesos. Lo puedes cambiar después en Mi perfil."}</p>
+            <Button onClick={() => { if (!country && where.country) setCountry(where.country); go("phone"); }} disabled={!regionReady(where)} className="mt-6 w-full">{t("next")}</Button>
           </div>
         )}
 

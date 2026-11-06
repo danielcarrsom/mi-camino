@@ -23,7 +23,7 @@ export default function NegocioPage() {
 }
 
 function Negocio() {
-  const { biz, n, health, lang, goals30, free } = useBiz();
+  const { biz, n, health, lang, goals30, free, region } = useBiz();
   const params = useSearchParams();
   const router = useRouter();
   const [pay, setPay] = useState(false);
@@ -36,7 +36,7 @@ function Negocio() {
 
   if (!biz) return <Setup />;
 
-  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay }).slice(0, 3);
+  const tips = bizTips(n, biz.products, biz.entries, biz.goals, lang, { type: biz.type, stock: biz.stock, hasPay: !!biz.pay, region }).slice(0, 3);
   const recent = [...biz.entries].filter((e) => e.repeat === "once").sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
   const type = bizTypeById(biz.type);
   const lightBg = health.light === "verde" ? "bg-[#21412c]" : health.light === "amarillo" ? "bg-[#4a3a17]" : health.light === "rojo" ? "bg-[#4b1f16]" : "bg-ink";
