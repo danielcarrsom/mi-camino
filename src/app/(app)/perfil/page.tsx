@@ -16,12 +16,13 @@ import { langInfo } from "@/lib/i18n";
 import { formatPhoneKey } from "@/lib/phone";
 import { regionLabel } from "@/lib/taxes";
 import { RECOVERY_QUESTIONS } from "@/lib/recovery";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/perfil";
 
 export default function Perfil() {
   const me = useMe()!;
   const lang = useLang();
   const en = lang === "en";
-  const L = (es: string, en_: string) => (en ? en_ : es);
   const current = useStore((s) => s.current);
   const updateProfile = useStore((s) => s.updateProfile);
   const p = me.profile;
@@ -43,28 +44,28 @@ export default function Perfil() {
   return (
     <>
       <PageHeader
-        title={L("Mi perfil", "My profile")}
-        say={L("Aquí cambias tu foto, tu nombre, dónde vives, tu idioma y tu clave. Dónde vives decide los impuestos de tu sueldo y si tu dinero se ve en dólares o en pesos.", "Here you change your picture, name, where you live, your language and your PIN. Where you live decides the taxes on your pay and whether your money shows in dollars or pesos.")}
+        title={tx(lang, TXT.miPerfil)}
+        say={tx(lang, TXT.aquiCambiasTuFotoTu)}
       />
 
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         {/* Picture and name */}
         <Card className="md:row-span-2">
           <div className="flex flex-col items-center text-center">
-            <button onClick={() => setPicking(true)} className="relative rounded-full ring-4 ring-sand transition hover:ring-clay/40" aria-label={L("Cambiar mi foto", "Change my picture")}>
+            <button onClick={() => setPicking(true)} className="relative rounded-full ring-4 ring-sand transition hover:ring-clay/40" aria-label={tx(lang, TXT.cambiarMiFoto)}>
               <Avatar id={p.avatar} name={p.name} size={132} />
               <span className="absolute right-1 bottom-1 flex h-10 w-10 items-center justify-center rounded-full bg-clay text-paper shadow"><Pencil size={18} /></span>
             </button>
             {pic ? (
               <p className="mt-3 max-w-sm text-base text-muted"><b className="text-ink">{avatarName(pic, lang)}.</b> {avatarFact(pic, lang)}</p>
             ) : (
-              <p className="mt-3 text-base text-muted">{L("Elige un animal que solo vive en México.", "Pick an animal that only lives in Mexico.")}</p>
+              <p className="mt-3 text-base text-muted">{tx(lang, TXT.eligeUnAnimalQueSolo)}</p>
             )}
-            <Button variant="soft" onClick={() => setPicking(true)} className="mt-3">{L("Elegir mi foto", "Pick my picture")}</Button>
+            <Button variant="soft" onClick={() => setPicking(true)} className="mt-3">{tx(lang, TXT.elegirMiFoto)}</Button>
           </div>
 
           <label className="mt-6 block">
-            <span className="mb-2 block text-lg font-bold">{L("Mi nombre", "My name")}</span>
+            <span className="mb-2 block text-lg font-bold">{tx(lang, TXT.miNombre)}</span>
             <div className="flex gap-2">
               <input value={name} onChange={(e) => { setName(e.target.value); setSavedName(false); }} className="h-14 min-w-0 flex-1 rounded-2xl border-2 border-sand bg-paper px-4 text-xl font-bold outline-none focus:border-clay" autoComplete="given-name" />
               <button
@@ -72,22 +73,22 @@ export default function Perfil() {
                 disabled={!name.trim() || name.trim() === p.name}
                 className="flex h-14 items-center gap-1 rounded-2xl bg-ink px-4 text-lg font-extrabold text-paper disabled:opacity-30"
               >
-                <Check size={20} /> {L("Guardar", "Save")}
+                <Check size={20} /> {tx(lang, TXT.guardar)}
               </button>
             </div>
-            {savedName && <span className="mt-1 block text-base font-bold text-leaf">{L("¡Listo!", "Done!")}</span>}
+            {savedName && <span className="mt-1 block text-base font-bold text-leaf">{tx(lang, TXT.listo)}</span>}
           </label>
-          {current && current !== DEMO_PHONE && <p className="mt-4 text-base text-muted">{L("Mi teléfono", "My phone")}: <b className="text-ink">{formatPhoneKey(current)}</b></p>}
+          {current && current !== DEMO_PHONE && <p className="mt-4 text-base text-muted">{tx(lang, TXT.miTelefono)}: <b className="text-ink">{formatPhoneKey(current)}</b></p>}
         </Card>
 
         {/* Where I live */}
         <Card>
-          <h2 className="flex items-center gap-2 text-2xl font-semibold"><MapPin className="text-clay" /> {L("Dónde vivo", "Where I live")}</h2>
-          <p className="mt-2 text-xl font-bold">{region.country === "mx" ? "🇲🇽 " : "🇺🇸 "}{region.country === "mx" ? L("México", "Mexico") : regionLabel(region, lang).replace(/^la /, "")}{region.country === "us" && region.state === "NY" && !region.nyc ? L(" (fuera de la ciudad)", " (outside the city)") : ""}</p>
+          <h2 className="flex items-center gap-2 text-2xl font-semibold"><MapPin className="text-clay" /> {tx(lang, TXT.dondeVivo)}</h2>
+          <p className="mt-2 text-xl font-bold">{region.country === "mx" ? "🇲🇽 " : "🇺🇸 "}{region.country === "mx" ? tx(lang, TXT.mexico) : regionLabel(region, lang).replace(/^la /, "")}{region.country === "us" && region.state === "NY" && !region.nyc ? tx(lang, TXT.fueraDeLaCiudad) : ""}</p>
           <p className="mt-1 text-base text-muted">
             {region.country === "mx"
-              ? L("Tu dinero se ve en pesos. Impuestos de México: ISR e IMSS.", "Your money shows in pesos. Mexico's taxes: ISR and IMSS.")
-              : L("Tu dinero se ve en dólares. Calculamos los impuestos federales y de tu estado.", "Your money shows in dollars. We figure federal and state taxes.")}
+              ? tx(lang, TXT.tuDineroSeVeEn)
+              : tx(lang, TXT.tuDineroSeVeEn2)}
           </p>
           <button
             onClick={() => updateProfile({ married: !p.married })}
@@ -95,26 +96,26 @@ export default function Perfil() {
             className={cx("mt-4 flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 px-4 text-left text-lg font-bold", p.married ? "border-leaf bg-leaf/10" : "border-sand")}
           >
             <span className={cx("flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2", p.married ? "border-leaf bg-leaf text-paper" : "border-sand-dark")}>{p.married && <Check size={16} strokeWidth={3} />}</span>
-            {region.country === "mx" ? L("Estoy casado(a)", "I'm married") : L("Hago mis impuestos junto con mi esposo(a)", "I file taxes together with my spouse")}
+            {region.country === "mx" ? tx(lang, TXT.estoyCasadoA) : tx(lang, TXT.hagoMisImpuestosJuntoCon)}
           </button>
-          <Button variant="soft" onClick={() => setEditWhere(true)} className="mt-3 w-full">{L("Cambiar dónde vivo", "Change where I live")}</Button>
+          <Button variant="soft" onClick={() => setEditWhere(true)} className="mt-3 w-full">{tx(lang, TXT.cambiarDondeVivo)}</Button>
         </Card>
 
         {/* Language and security */}
         <Card>
-          <h2 className="flex items-center gap-2 text-2xl font-semibold"><ShieldCheck className="text-leaf" /> {L("Idioma y seguridad", "Language and security")}</h2>
+          <h2 className="flex items-center gap-2 text-2xl font-semibold"><ShieldCheck className="text-leaf" /> {tx(lang, TXT.idiomaYSeguridad)}</h2>
           <div className="mt-3 grid gap-2">
             <button onClick={() => setLangOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark">
-              <Languages size={22} className="text-clay" /> <span className="flex-1">{L("Idioma", "Language")}: {langInfo(lang).name}</span>
+              <Languages size={22} className="text-clay" /> <span className="flex-1">{tx(lang, TXT.idioma)}: {langInfo(lang).name}</span>
             </button>
             <button onClick={() => setPinOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark">
-              <KeyRound size={22} className="text-clay" /> <span className="flex-1">{L("Cambiar mi clave", "Change my PIN")}</span>
+              <KeyRound size={22} className="text-clay" /> <span className="flex-1">{tx(lang, TXT.cambiarMiClave)}</span>
             </button>
             <button onClick={() => setSafetyOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark">
               <ShieldCheck size={22} className="text-clay" />
               <span className="flex-1">
-                {L("Pregunta por si olvido mi clave", "Question in case I forget my PIN")}
-                <span className="block text-base font-normal text-muted">{p.recoveryQ ? (RECOVERY_QUESTIONS.find((q) => q.id === p.recoveryQ)?.label[en ? "en" : "es"] ?? L("Lista", "Set")) : L("Todavía no la eliges", "Not set yet")}</span>
+                {tx(lang, TXT.preguntaPorSiOlvidoMi)}
+                <span className="block text-base font-normal text-muted">{p.recoveryQ ? (RECOVERY_QUESTIONS.find((q) => q.id === p.recoveryQ)?.label[en ? "en" : "es"] ?? tx(lang, TXT.lista)) : tx(lang, TXT.todaviaNoLaEliges)}</span>
               </span>
             </button>
           </div>
@@ -122,13 +123,13 @@ export default function Perfil() {
 
         {/* Privacy and my data */}
         <Card className="md:col-span-2">
-          <h2 className="flex items-center gap-2 text-2xl font-semibold"><Lock className="text-clay" /> {L("Mi privacidad y mis datos", "My privacy and my data")} <BetaBadge className="ml-1" /></h2>
-          <p className="mt-2 text-base text-muted">{L("Mi Camino está en beta: puede tener errores y cambiar. Tus datos son tuyos.", "Mi Camino is in beta: it may have mistakes and change. Your data is yours.")}</p>
+          <h2 className="flex items-center gap-2 text-2xl font-semibold"><Lock className="text-clay" /> {tx(lang, TXT.miPrivacidadYMisDatos)} <BetaBadge className="ml-1" /></h2>
+          <p className="mt-2 text-base text-muted">{tx(lang, TXT.miCaminoEstaEnBeta)}</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <Link href="/privacidad" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><ShieldCheck size={22} className="text-leaf" /> {L("Aviso de privacidad", "Privacy notice")}</Link>
-            <Link href="/terminos" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><FileText size={22} className="text-leaf" /> {L("Términos y condiciones", "Terms of use")}</Link>
-            <button onClick={() => downloadMyData(me, current)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark"><Download size={22} className="text-clay" /> {L("Descargar mis datos", "Download my data")}</button>
-            <button onClick={() => setDeleteOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-clay/40 px-4 text-left text-lg font-bold text-clay hover:border-clay"><Trash2 size={22} /> {L("Borrar mi cuenta", "Delete my account")}</button>
+            <Link href="/privacidad" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><ShieldCheck size={22} className="text-leaf" /> {tx(lang, TXT.avisoDePrivacidad)}</Link>
+            <Link href="/terminos" className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-lg font-bold hover:border-sand-dark"><FileText size={22} className="text-leaf" /> {tx(lang, TXT.terminosYCondiciones)}</Link>
+            <button onClick={() => downloadMyData(me, current)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-sand px-4 text-left text-lg font-bold hover:border-sand-dark"><Download size={22} className="text-clay" /> {tx(lang, TXT.descargarMisDatos)}</button>
+            <button onClick={() => setDeleteOpen(true)} className="flex min-h-14 items-center gap-3 rounded-2xl border-2 border-clay/40 px-4 text-left text-lg font-bold text-clay hover:border-clay"><Trash2 size={22} /> {tx(lang, TXT.borrarMiCuenta)}</button>
           </div>
         </Card>
       </div>
@@ -149,8 +150,8 @@ function AvatarSheet({ open, onClose, value, onPick }: { open: boolean; onClose:
   useResetOn(open, () => { if (open) setSel(value); });
   const a = avatarById(sel);
   return (
-    <Sheet open={open} onClose={onClose} title={lang === "en" ? "Pick your picture" : "Elige tu foto"} wide>
-      <p className="mb-4 text-lg">{lang === "en" ? "All of these animals live only in Mexico." : "Todos estos animales solo viven en México."}</p>
+    <Sheet open={open} onClose={onClose} title={tx(lang, TXT.eligeTuFoto)} wide>
+      <p className="mb-4 text-lg">{tx(lang, TXT.todosEstosAnimalesSoloViven)}</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {AVATARS.map((x) => (
           <button key={x.id} onClick={() => setSel(x.id)} aria-pressed={sel === x.id}
@@ -161,7 +162,7 @@ function AvatarSheet({ open, onClose, value, onPick }: { open: boolean; onClose:
         ))}
       </div>
       {a && <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-base"><b>{avatarName(a, lang)}:</b> {avatarFact(a, lang)}</p>}
-      <Button onClick={() => { if (sel) onPick(sel); onClose(); }} disabled={!sel} className="mt-4 w-full">{lang === "en" ? "Use this picture" : "Usar esta foto"}</Button>
+      <Button onClick={() => { if (sel) onPick(sel); onClose(); }} disabled={!sel} className="mt-4 w-full">{tx(lang, TXT.usarEstaFoto)}</Button>
     </Sheet>
   );
 }
@@ -179,13 +180,13 @@ function WhereSheet({ open, onClose, hasMoney }: { open: boolean; onClose: () =>
   useResetOn(open, () => { if (open) setV(start()); });
   const switching = v.country !== regionOf(me.profile).country;
   return (
-    <Sheet open={open} onClose={onClose} title={en ? "Where do you live?" : "¿Dónde vives?"} wide>
+    <Sheet open={open} onClose={onClose} title={tx(en, TXT.dondeVives)} wide>
       <RegionPicker lang={lang} value={v} onChange={setV} />
       {switching && hasMoney && (
         <p className="mt-4 rounded-2xl bg-sun-soft px-4 py-3 text-base">
           ⚠️ {v.country === "mx"
-            ? (en ? "From now on your money shows in pesos. What you already wrote down does not change: if it was in dollars, edit it." : "Desde ahora tu dinero se ve en pesos. Lo que ya anotaste no cambia: si estaba en dólares, corrígelo.")
-            : (en ? "From now on your money shows in dollars. What you already wrote down does not change: if it was in pesos, edit it." : "Desde ahora tu dinero se ve en dólares. Lo que ya anotaste no cambia: si estaba en pesos, corrígelo.")}
+            ? (tx(en, TXT.desdeAhoraTuDineroSe))
+            : (tx(en, TXT.desdeAhoraTuDineroSe2))}
         </p>
       )}
       <Button
@@ -196,7 +197,7 @@ function WhereSheet({ open, onClose, hasMoney }: { open: boolean; onClose: () =>
         disabled={!regionReady(v)}
         className="mt-5 w-full"
       >
-        {en ? "Save" : "Guardar"}
+        {tx(en, TXT.guardar)}
       </Button>
     </Sheet>
   );
@@ -222,17 +223,17 @@ function PinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
     else { setError(true); setTimeout(() => { setPin(""); setPin2(""); setStep(1); setError(false); }, 1400); }
   };
   return (
-    <Sheet open={open} onClose={onClose} title={en ? "Change my PIN" : "Cambiar mi clave"}>
+    <Sheet open={open} onClose={onClose} title={tx(en, TXT.cambiarMiClave)}>
       {step === 3 ? (
         <div className="text-center">
-          <p className="text-2xl font-bold text-leaf">{en ? "Your new PIN is saved." : "Tu nueva clave quedó guardada."}</p>
-          <Button onClick={onClose} className="mt-5 w-full">{en ? "Done" : "Listo"}</Button>
+          <p className="text-2xl font-bold text-leaf">{tx(en, TXT.tuNuevaClaveQuedoGuardada)}</p>
+          <Button onClick={onClose} className="mt-5 w-full">{tx(en, TXT.listo2)}</Button>
         </div>
       ) : (
         <>
-          <p className="mb-4 text-center text-xl font-bold">{step === 1 ? (en ? "Type your new 6-digit PIN" : "Escribe tu nueva clave de 6 números") : (en ? "Type it again" : "Escríbela otra vez")}</p>
+          <p className="mb-4 text-center text-xl font-bold">{step === 1 ? (tx(en, TXT.escribeTuNuevaClaveDe)) : (tx(en, TXT.escribelaOtraVez))}</p>
           {step === 1 ? <PinPad value={pin} onChange={typePin} /> : <PinPad value={pin2} onChange={typePin2} />}
-          {error && <p className="mt-4 text-center text-lg font-bold text-clay">{en ? "They don't match. Try again." : "No son iguales. Intenta otra vez."}</p>}
+          {error && <p className="mt-4 text-center text-lg font-bold text-clay">{tx(en, TXT.noSonIgualesIntentaOtra)}</p>}
         </>
       )}
     </Sheet>
@@ -247,21 +248,21 @@ function SafetySheet({ open, onClose }: { open: boolean; onClose: () => void }) 
   useResetOn(open, () => { if (open) setMsg(null); });
   const en = lang === "en";
   return (
-    <Sheet open={open} onClose={onClose} title={en ? "In case you forget your PIN" : "Por si olvidas tu clave"}>
+    <Sheet open={open} onClose={onClose} title={tx(en, TXT.porSiOlvidasTuClave)}>
       {msg ? (
         <div className="text-center">
           <p className="text-xl font-bold">{msg}</p>
-          <Button onClick={onClose} className="mt-5 w-full">{en ? "Done" : "Listo"}</Button>
+          <Button onClick={onClose} className="mt-5 w-full">{tx(en, TXT.listo2)}</Button>
         </div>
       ) : (
         <RecoveryForm
           busy={busy}
-          saveLabel={en ? "Save" : "Guardar"}
+          saveLabel={tx(en, TXT.guardar)}
           onDone={async (q, a) => {
             setBusy(true);
             const ok = await setRecovery(q, a);
             setBusy(false);
-            setMsg(ok ? (en ? "Saved. Only you know the answer." : "Guardada. Solo tú sabes la respuesta.") : (en ? "We couldn't save it online. Check your internet and try again." : "No pudimos guardarla en línea. Revisa tu internet e intenta otra vez."));
+            setMsg(ok ? (tx(en, TXT.guardadaSoloTuSabesLa)) : (tx(en, TXT.noPudimosGuardarlaEnLinea)));
           }}
         />
       )}
@@ -300,23 +301,23 @@ function DeleteSheet({ open, onClose }: { open: boolean; onClose: () => void }) 
     if (r === "ok") { router.replace("/"); return; }
     setPin("");
     setMsg(r === "wrong"
-      ? (en ? "That PIN isn't right. Try again." : "Esa clave no es correcta. Intenta otra vez.")
-      : (en ? "We couldn't reach the internet, so nothing was deleted. Try again when you're online." : "No pudimos conectarnos a internet, así que no se borró nada. Intenta otra vez cuando tengas conexión."));
+      ? (tx(en, TXT.esaClaveNoEsCorrecta))
+      : (tx(en, TXT.noPudimosConectarnosAInternet)));
   };
   return (
-    <Sheet open={open} onClose={onClose} title={en ? "Delete my account" : "Borrar mi cuenta"}>
+    <Sheet open={open} onClose={onClose} title={tx(en, TXT.borrarMiCuenta)}>
       {!sure ? (
         <>
-          <p className="text-lg">{en ? "This erases your account and everything you saved: your money, goals, tandas and business, on this device and online. It can't be undone." : "Esto borra tu cuenta y todo lo que guardaste: tu dinero, metas, tandas y negocio, en este aparato y en línea. No se puede deshacer."}</p>
-          <p className="mt-3 text-base text-muted">{en ? "Tip: download your data first if you want to keep a copy." : "Consejo: descarga tus datos antes si quieres guardar una copia."}</p>
-          <Button onClick={() => setSure(true)} className="mt-5 w-full bg-clay">{en ? "Yes, I want to delete it" : "Sí, quiero borrarla"}</Button>
-          <Button variant="soft" onClick={onClose} className="mt-3 w-full">{en ? "Keep my account" : "No, conservar mi cuenta"}</Button>
+          <p className="text-lg">{tx(en, TXT.estoBorraTuCuentaY)}</p>
+          <p className="mt-3 text-base text-muted">{tx(en, TXT.consejoDescargaTusDatosAntes)}</p>
+          <Button onClick={() => setSure(true)} className="mt-5 w-full bg-clay">{tx(en, TXT.siQuieroBorrarla)}</Button>
+          <Button variant="soft" onClick={onClose} className="mt-3 w-full">{tx(en, TXT.noConservarMiCuenta)}</Button>
         </>
       ) : (
         <>
-          <p className="mb-4 text-center text-xl font-bold">{en ? "Type your PIN to confirm" : "Escribe tu clave para confirmar"}</p>
+          <p className="mb-4 text-center text-xl font-bold">{tx(en, TXT.escribeTuClaveParaConfirmar)}</p>
           <PinPad value={pin} onChange={(v) => { if (!busy) void typePin(v); }} />
-          {busy && <p className="mt-4 text-center text-lg font-bold">{en ? "Deleting…" : "Borrando…"}</p>}
+          {busy && <p className="mt-4 text-center text-lg font-bold">{tx(en, TXT.borrando)}</p>}
           {msg && <p className="mt-4 text-center text-lg font-bold text-clay">{msg}</p>}
         </>
       )}

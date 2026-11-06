@@ -13,6 +13,8 @@ import { LEGAL } from "@/lib/legal";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
 import { LANGS, type Lang } from "@/lib/i18n";
 import { speak, stopSpeaking } from "@/lib/voice";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/bienvenida";
 
 type Step = "lang" | "name" | "where" | "phone" | "pin" | "pin2" | "safety" | "modules";
 const ORDER: Step[] = ["lang", "name", "where", "phone", "pin", "pin2", "safety", "modules"];
@@ -46,15 +48,15 @@ export default function Onboarding() {
 
   const says: Record<Step, string> = {
     lang: t("pickLangSay"), name: t("askNameSay"), phone: t("askPhoneSay"),
-    where: lang === "en" ? "Where do you live? In Mexico or in the United States? We use it to figure the taxes on your pay and to show your money in dollars or pesos." : "¿Dónde vives? ¿En México o en Estados Unidos? Lo usamos para calcular los impuestos de tu sueldo y para mostrar tu dinero en dólares o en pesos.",
+    where: tx(lang, TXT.dondeVivesEnMexicoO),
     pin: t("askPinSay"), pin2: t("repeatPinSay"), modules: t("pickModulesSay"),
-    safety: lang === "en" ? "If you ever forget your PIN, we'll ask you a question. Pick one and answer it. Only you should know the answer." : "Si un día olvidas tu clave, te haremos una pregunta. Elige una y contéstala. Solo tú debes saber la respuesta.",
+    safety: tx(lang, TXT.siUnDiaOlvidasTu),
   };
   const titles: Record<Step, string> = {
     lang: t("pickLang"), name: t("askName"), phone: t("askPhone"),
-    where: lang === "en" ? "Where do you live?" : "¿Dónde vives?",
+    where: tx(lang, TXT.dondeVives),
     pin: t("askPin"), pin2: t("repeatPin"), modules: t("pickModules"),
-    safety: lang === "en" ? "In case you forget your PIN" : "Por si olvidas tu clave",
+    safety: tx(lang, TXT.porSiOlvidasTuClave),
   };
 
   // speak each step automatically when voice is on (and always on the first step)
@@ -161,7 +163,7 @@ export default function Onboarding() {
         {step === "where" && (
           <div className="mx-auto max-w-xl">
             <RegionPicker lang={lang} value={where} onChange={setWhere} />
-            <p className="mt-4 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {lang === "en" ? "We use it for taxes and to show your money in dollars or pesos. You can change it later in My profile." : "Lo usamos para tus impuestos y para mostrar tu dinero en dólares o pesos. Lo puedes cambiar después en Mi perfil."}</p>
+            <p className="mt-4 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {tx(lang, TXT.loUsamosParaTusImpuestos)}</p>
             <Button onClick={() => { if (!country && where.country) setCountry(where.country); go("phone"); }} disabled={!regionReady(where)} className="mt-6 w-full">{t("next")}</Button>
           </div>
         )}
@@ -170,7 +172,7 @@ export default function Onboarding() {
           <div className="mx-auto max-w-md">
             <PhoneInput value={phone} onChange={(v) => { setPhone(v); setPhoneTaken(false); }} country={country} onCountry={(c) => { setCountry(c); setPhoneTaken(false); }} label={t("askPhone")} />
             <p className="mt-3 flex items-start gap-2 text-base text-muted"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-leaf" /> {t("phoneHelp")}</p>
-            {phoneTaken && <p className="mt-3 text-base font-bold text-clay">{lang === "en" ? "This number already has an account. Sign in instead." : "Este número ya tiene cuenta. Mejor entra con tu clave."}</p>}
+            {phoneTaken && <p className="mt-3 text-base font-bold text-clay">{tx(lang, TXT.esteNumeroYaTieneCuenta)}</p>}
             <Button
               onClick={() => (key && accounts[key] ? setPhoneTaken(true) : go("pin"))}
               disabled={!phoneOk}
@@ -193,7 +195,7 @@ export default function Onboarding() {
           <div className="mx-auto max-w-xl">
             <RecoveryForm saveLabel={t("next")} onDone={(question, answer) => { setRecovery({ question, answer }); go("modules"); }} />
             <button onClick={() => { setRecovery(null); go("modules"); }} className="mt-4 w-full text-center text-base font-bold text-muted underline underline-offset-4">
-              {lang === "en" ? "Skip for now" : "Hacerlo después"}
+              {tx(lang, TXT.hacerloDespues)}
             </button>
           </div>
         )}
@@ -201,7 +203,7 @@ export default function Onboarding() {
         {step === "modules" && (
           <div className="mx-auto grid max-w-xl gap-3">
             <Tile icon={<House size={30} />} label={t("casita")} sub={t("casitaWhat")} selected={modules === "casita"} onClick={() => setModules("casita")} />
-            <Tile icon={<Store size={30} />} label={t("negocio")} sub={t("negocioWhat")} color="#3e7d4f" selected={modules === "negocio"} onClick={() => setModules("negocio")} />
+            <Tile icon={<Store size={30} />} label={t("negocio")} sub={t("negocioWhat")} color="#316a42" selected={modules === "negocio"} onClick={() => setModules("negocio")} />
             <Tile
               icon={<span className="flex"><House size={22} /><Store size={22} /></span>}
               label={t("both")}

@@ -8,6 +8,8 @@ import { speak, stopSpeaking, useSpeaking, useListen } from "@/lib/voice";
 import { useLang, useStore } from "@/lib/store";
 import { useT } from "@/lib/hooks";
 import type { TKey } from "@/lib/i18n";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/ui";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -91,9 +93,9 @@ export function PageHeader({ title, say, sub, back, audioKey, right }: { title: 
       {how && (
         <>
           <button data-tour="como" onClick={() => setHelpOpen(true)} className="mt-3 inline-flex h-11 items-center gap-2 rounded-full border-2 border-sand bg-paper px-4 text-base font-bold text-ink hover:border-clay">
-            <HelpCircle size={20} className="text-clay" /> {lang === "en" ? "How does this work?" : "¿Cómo se usa?"}
+            <HelpCircle size={20} className="text-clay" /> {tx(lang, TXT.comoSeUsa)}
           </button>
-          <Sheet open={helpOpen} onClose={() => setHelpOpen(false)} title={lang === "en" ? "How to use this screen" : "Cómo se usa esta pantalla"}>
+          <Sheet open={helpOpen} onClose={() => setHelpOpen(false)} title={tx(lang, TXT.comoSeUsaEstaPantalla)}>
             <ol className="space-y-3">
               {steps.map((st, i) => (
                 <li key={i} className="flex items-start gap-3 text-xl leading-snug">
@@ -104,7 +106,7 @@ export function PageHeader({ title, say, sub, back, audioKey, right }: { title: 
             </ol>
             <div className="mt-5 flex items-center gap-3">
               <ListenButton text={steps.map((st, i) => `${i + 1}. ${st}`).join(" ")} />
-              <Button onClick={() => setHelpOpen(false)} className="flex-1">{lang === "en" ? "Got it" : "Entendido"}</Button>
+              <Button onClick={() => setHelpOpen(false)} className="flex-1">{tx(lang, TXT.entendido)}</Button>
             </div>
           </Sheet>
         </>

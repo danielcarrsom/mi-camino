@@ -1,0 +1,47 @@
+// Texts for src/components/Biz.tsx. Spanish and English; another language can be added to any message
+// (for example `mix: "…"` for Mixteco) and is used when present.
+import type { Msg } from "@/lib/i18n";
+
+const TXT = {
+  cadaSemana: { es: "cada semana", en: "weekly" },
+  cada2Semanas: { es: "cada 2 semanas", en: "every 2 weeks" },
+  cadaMes: { es: "cada mes", en: "monthly" },
+  cambiar: { es: "Cambiar", en: "Edit" },
+  notaOpcional: { es: "Nota (opcional)", en: "Note (optional)" },
+  guardar: { es: "Guardar", en: "Save" },
+  borrar: { es: "Borrar", en: "Delete" },
+  soloEstaVez: { es: "Solo esta vez", en: "Just this once" },
+  cadaSemana2: { es: "Cada semana", en: "Every week" },
+  cadaMes2: { es: "Cada mes", en: "Every month" },
+  seRepite: { es: "¿Se repite?", en: "Does it repeat?" },
+  esUnGastoFijo: { es: "¿Es un gasto fijo?", en: "Is it a fixed cost?" },
+  cadaSemana3: { es: "cada semana", en: "every week" },
+  cadaQuincena: { es: "cada quincena", en: "every two weeks" },
+  cadaMes3: { es: "cada mes", en: "every month" },
+  miSueldoDelNegocio: { es: "Mi sueldo del negocio", en: "My salary from the business" },
+  listoYaEstaEnMi: { es: "¡Listo! Ya está en Mi Casita.", en: "Done! It's in Mi Casita now." },
+  loVerasComoSueldoDe: { es: "Lo verás como “Sueldo de mi negocio”.", en: "You'll see it as “Pay from my business”." },
+  cerrar: { es: "Cerrar", en: "Close" },
+  pagateUnSueldoFijoComo: { es: "Págate un sueldo fijo, como si fueras tu propio empleado. Este dinero pasa a Mi Casita.", en: "Pay yourself a fixed salary, as if you were your own employee. This money moves to Mi Casita." },
+  cadaCuandoTePagas: { es: "¿Cada cuándo te pagas?", en: "How often do you pay yourself?" },
+  cadaSemana4: { es: "Cada semana", en: "Weekly" },
+  cadaQuincena2: { es: "Cada quincena", en: "Every 2 weeks" },
+  cadaMes4: { es: "Cada mes", en: "Monthly" },
+  soloHoy: { es: "Solo hoy", en: "Just today" },
+  cuanto: { es: "¿Cuánto?", en: "How much?" },
+  pagarmeHoy: { es: "Pagarme hoy", en: "Pay myself today" },
+  hoyQuedaPagadoElPrimero: { es: "Hoy queda pagado el primero.", en: "The first one is paid today." },
+  yaNoQuieroSueldoFijo: { es: "Ya no quiero sueldo fijo", en: "Stop my fixed salary" },
+  estaSemana: { es: "esta semana", en: "this week" },
+  estaQuincena: { es: "esta quincena", en: "this pay period" },
+  esteMes: { es: "este mes", en: "this month" },
+  yaTePagaste: { es: "Ya te pagaste", en: "You paid yourself" },
+  teTocaPagarte: { es: "Te toca pagarte", en: "Time to pay yourself" },
+  cambiarMiSueldo: { es: "Cambiar mi sueldo", en: "Change my salary" },
+  yaMePague: { es: "Ya me pagué", en: "I paid myself" },
+  teRecordaremosTocaYaMe: { es: "Te recordaremos {0}. Toca “Ya me pagué” cuando lo hagas.", en: "We'll remind you {0}. Tap “I paid myself” when you do." },
+  esteMesATuNegocio: { es: "Este mes a tu negocio le quedaron {0}. Págate cerca de la mitad y deja lo demás para surtir y para emergencias.", en: "Your business kept {0} this month. Pay yourself about half and leave the rest for stock and emergencies." },
+  pagarme: { es: "Pagarme {0} {1}", en: "Pay myself {0} {1}" },
+} satisfies Record<string, Msg>;
+
+export default TXT;

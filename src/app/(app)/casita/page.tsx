@@ -13,6 +13,8 @@ import { goalSaved, tandaEnded, tandaPayoutDate, tandaPot, useLang, useMe, type 
 import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate } from "@/lib/money";
 import { categoryById, goalPresetById, incomeCategoryById, pick } from "@/lib/catalog";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/casita";
 
 export default function CasitaHome() {
   const t = useT();
@@ -25,7 +27,7 @@ export default function CasitaHome() {
   const weekSay = hasIncome
     ? over
       ? `${t("overThisWeek")}: ${moneySpoken(-s.weekLeft, lang)}.`
-      : `${t("leftThisWeekSay")} ${moneySpoken(s.weekLeft, lang)}. ${lang === "en" ? "After taxes you take home" : "Después de impuestos te llegan"} ${moneySpoken(s.weekIn, lang)}, ${t("youSpend").toLowerCase()} ${moneySpoken(s.weekOut, lang)}.`
+      : `${t("leftThisWeekSay")} ${moneySpoken(s.weekLeft, lang)}. ${tx(lang, TXT.despuesDeImpuestosTeLlegan)} ${moneySpoken(s.weekIn, lang)}, ${t("youSpend").toLowerCase()} ${moneySpoken(s.weekOut, lang)}.`
     : t("noIncomeYet");
 
   // Everything recorded lately: spending, income and money set apart for goals.
@@ -58,7 +60,7 @@ export default function CasitaHome() {
                   {money(Math.abs(s.weekLeft), lang)}
                 </p>
                 <div className="mt-6 grid grid-cols-3 gap-2 text-center">
-                  <Mini label={lang === "en" ? "You take home" : "Te llega"} value={money(s.weekIn, lang)} color="text-leaf-soft" />
+                  <Mini label={tx(lang, TXT.teLlega)} value={money(s.weekIn, lang)} color="text-leaf-soft" />
                   <Mini label={t("youSpend")} value={money(s.weekOut, lang)} color="text-sun-soft" />
                   <Mini label={t("youSave")} value={money(s.weekGoals, lang)} color="text-paper" />
                 </div>
@@ -74,7 +76,7 @@ export default function CasitaHome() {
           <section>
             <h2 className="mb-3 text-2xl font-semibold">{t("quickActions")}</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Tile vertical href="/casita/anotar?tipo=gane" icon={<ArrowDownCircle size={30} />} label={t("addEarned")} color="#3e7d4f" />
+              <Tile vertical href="/casita/anotar?tipo=gane" icon={<ArrowDownCircle size={30} />} label={t("addEarned")} color="#316a42" />
               <Tile vertical href="/casita/anotar?tipo=gaste" icon={<ArrowUpCircle size={30} />} label={t("addSpent")} color="#b34a2a" />
               <Tile vertical href="/casita/metas" icon={<PiggyBank size={30} />} label={t("addToGoal")} color="#e0a33a" />
             </div>
@@ -86,7 +88,7 @@ export default function CasitaHome() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-2xl font-semibold">{t("myGoals")}</h2>
               <Link href="/casita/metas" className="flex h-11 items-center gap-1 rounded-full px-3 font-bold text-clay hover:bg-sand/60">
-                {lang === "en" ? "See all" : "Ver todas"} <ChevronRight size={20} />
+                {tx(lang, TXT.verTodas)} <ChevronRight size={20} />
               </Link>
             </div>
             {me.goals.length === 0 ? (
@@ -124,8 +126,8 @@ export default function CasitaHome() {
                 <span className="block truncate text-lg font-extrabold">{t("myTanda")}: {tandas[0].name}</span>
                 <span className="block text-base text-muted">
                   {tandas[0].received
-                    ? (lang === "en" ? "You already got it" : "Ya la recibiste")
-                    : `${lang === "en" ? "Your turn:" : "Te toca:"} ${tandaPayoutDate(tandas[0]).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { day: "numeric", month: "long" })} · ${money(tandaPot(tandas[0]), lang)}`}
+                    ? (tx(lang, TXT.yaLaRecibiste))
+                    : `${tx(lang, TXT.teToca)} ${tandaPayoutDate(tandas[0]).toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { day: "numeric", month: "long" })} · ${money(tandaPot(tandas[0]), lang)}`}
                 </span>
               </span>
               <ChevronRight size={24} className="text-muted" />
@@ -144,7 +146,7 @@ export default function CasitaHome() {
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sun-soft text-clay"><PiggyBank size={22} /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold">{row.goalName}</span>
-                          <span className="block text-sm text-muted">{row.amount < 0 ? (lang === "en" ? "Taken out" : "Sacaste") : row.fromTanda ? (lang === "en" ? "From your tanda" : "De tu tanda") : row.auto ? (lang === "en" ? "Savings plan" : "Plan de ahorro") : (lang === "en" ? "Set apart" : "Apartaste")} · {shortDate(row.date, lang)}</span>
+                          <span className="block text-sm text-muted">{row.amount < 0 ? (tx(lang, TXT.sacaste)) : row.fromTanda ? (tx(lang, TXT.deTuTanda)) : row.auto ? (tx(lang, TXT.planDeAhorro)) : (tx(lang, TXT.apartaste))} · {shortDate(row.date, lang)}</span>
                         </span>
                         <span className={`font-serif text-xl font-semibold ${row.fromTanda ? "text-leaf" : ""}`}>{row.fromTanda ? "+" : row.amount < 0 ? "+" : "−"}{money(Math.abs(row.amount), lang)}</span>
                         <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={17} /></span>
@@ -160,7 +162,7 @@ export default function CasitaHome() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-bold">{pick(c.label, lang)}</span>
-                        <span className="block text-sm text-muted">{e.repeat === "once" ? shortDate(e.date, lang) : lang === "en" ? "Repeats" : "Se repite"}</span>
+                        <span className="block text-sm text-muted">{e.repeat === "once" ? shortDate(e.date, lang) : tx(lang, TXT.seRepite)}</span>
                       </span>
                       <span className={`font-serif text-xl font-semibold ${e.kind === "in" ? "text-leaf" : ""}`}>
                         {e.kind === "in" ? "+" : "−"}{money(e.amount, lang)}

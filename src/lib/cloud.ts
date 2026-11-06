@@ -5,9 +5,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Profile, UserData } from "./store";
 
-// Publishable values: safe to ship in the browser; access is limited by RLS.
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hfdnzasqblxjdsenmpfc.supabase.co";
-const KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_7JlcboiI9Htq8E9iAgNCTA_OKhw1wPn";
+import { SUPABASE_KEY as KEY, SUPABASE_URL as URL } from "./supabaseConfig";
 
 let client: SupabaseClient | null = null;
 export function cloud(): SupabaseClient {

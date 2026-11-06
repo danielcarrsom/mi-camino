@@ -3,6 +3,8 @@
 import { cx } from "./ui";
 import { useLang } from "@/lib/store";
 import { PHONE_COUNTRIES, detectCountry, formatPhoneKey, phoneKey, type PhoneCountry } from "@/lib/phone";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/PhoneInput";
 
 export function PhoneInput({ value, onChange, country, onCountry, label }: {
   value: string; onChange: (v: string) => void; country: PhoneCountry | null; onCountry: (c: PhoneCountry) => void; label: string;
@@ -12,7 +14,7 @@ export function PhoneInput({ value, onChange, country, onCountry, label }: {
   const key = country ? phoneKey(value, country) : null;
   return (
     <div>
-      <div className="mb-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={lang === "en" ? "Country of your number" : "País de tu número"}>
+      <div className="mb-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={tx(lang, TXT.paisDeTuNumero)}>
         {PHONE_COUNTRIES.map((x) => (
           <button
             key={x.id}
@@ -27,7 +29,7 @@ export function PhoneInput({ value, onChange, country, onCountry, label }: {
           </button>
         ))}
       </div>
-      {!c && <p className="mb-3 rounded-2xl bg-sun-soft px-4 py-3 text-lg font-bold">{lang === "en" ? "First, tap which country your number is from." : "Primero toca de qué país es tu número."}</p>}
+      {!c && <p className="mb-3 rounded-2xl bg-sun-soft px-4 py-3 text-lg font-bold">{tx(lang, TXT.primeroTocaDeQuePais)}</p>}
       <div className={cx("flex items-center rounded-2xl border-2 border-sand bg-paper focus-within:border-clay", !c && "opacity-50")}>
         {c && <span className="shrink-0 pl-4 font-serif text-2xl font-semibold text-muted">{c.code}</span>}
         <input
@@ -49,7 +51,7 @@ export function PhoneInput({ value, onChange, country, onCountry, label }: {
       </div>
       {key && c && (
         <p className="mt-3 text-center text-lg">
-          {lang === "en" ? "Your number:" : "Tu número:"} <b className="whitespace-nowrap">{key.startsWith("52") && key.length === 12 ? formatPhoneKey(key) : `+1 ${formatPhoneKey(key)}`}</b> {c.flag}
+          {tx(lang, TXT.tuNumero)} <b className="whitespace-nowrap">{key.startsWith("52") && key.length === 12 ? formatPhoneKey(key) : `+1 ${formatPhoneKey(key)}`}</b> {c.flag}
         </p>
       )}
     </div>

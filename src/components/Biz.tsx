@@ -12,6 +12,8 @@ import { pick, type Repeat } from "@/lib/catalog";
 import { BIZ_CATEGORIES, bizCategoryById, bizHealth, bizNumbers, type BizEntry, type Light, type Tip } from "@/lib/business";
 import { playSaved } from "@/lib/sound";
 import type { Lang } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/Biz";
 
 export const L = (lang: Lang, es: string, en: string) => (lang === "en" ? en : es);
 
@@ -67,7 +69,7 @@ export function LightDot({ light }: { light: Light }) {
 }
 
 export function repeatLabel(r: Repeat, lang: Lang) {
-  return r === "week" ? L(lang, "cada semana", "weekly") : r === "2weeks" ? L(lang, "cada 2 semanas", "every 2 weeks") : r === "month" ? L(lang, "cada mes", "monthly") : "";
+  return r === "week" ? tx(lang, TXT.cadaSemana) : r === "2weeks" ? tx(lang, TXT.cada2Semanas) : r === "month" ? tx(lang, TXT.cadaMes) : "";
 }
 
 export function BizEntryRow({ e, onEdit }: { e: BizEntry; onEdit?: () => void }) {
@@ -91,7 +93,7 @@ export function BizEntryRow({ e, onEdit }: { e: BizEntry; onEdit?: () => void })
         {isIn ? "+" : "−"}{money(e.amount, lang)}
       </span>
       {onEdit && (
-        <button onClick={onEdit} aria-label={L(lang, "Cambiar", "Edit")} className="-mr-2 flex h-11 w-10 shrink-0 items-center justify-center rounded-full text-muted hover:bg-sand/60 hover:text-ink">
+        <button onClick={onEdit} aria-label={tx(lang, TXT.cambiar)} className="-mr-2 flex h-11 w-10 shrink-0 items-center justify-center rounded-full text-muted hover:bg-sand/60 hover:text-ink">
           <Pencil size={20} />
         </button>
       )}
@@ -115,10 +117,10 @@ export function BizEntrySheet({ entry, onClose }: { entry: BizEntry | null; onCl
   if (!entry) return null;
   const cats = BIZ_CATEGORIES.filter((c) => c.kind === entry.kind && (!c.hidden || c.id === entry.category));
   return (
-    <Sheet open={!!entry} onClose={onClose} title={L(lang, "Cambiar", "Edit")}>
+    <Sheet open={!!entry} onClose={onClose} title={tx(lang, TXT.cambiar)}>
       <div className="space-y-4">
         <AmountInput value={amount} onChange={setAmount} />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={L(lang, "Nota (opcional)", "Note (optional)")} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={tx(lang, TXT.notaOpcional)} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
         {entry.category !== "mi_sueldo" && (
           <>
             <div className="flex flex-wrap gap-2">
@@ -133,10 +135,10 @@ export function BizEntrySheet({ entry, onClose }: { entry: BizEntry | null; onCl
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Button variant="green" onClick={() => { update(entry.id, { amount: Number(amount) || entry.amount, note, category: cat, repeat }); playSaved(); onClose(); }}>
-            <Check size={22} /> {L(lang, "Guardar", "Save")}
+            <Check size={22} /> {tx(lang, TXT.guardar)}
           </Button>
           <Button variant="soft" onClick={() => { remove(entry.id); onClose(); }}>
-            <Trash2 size={20} /> {L(lang, "Borrar", "Delete")}
+            <Trash2 size={20} /> {tx(lang, TXT.borrar)}
           </Button>
         </div>
       </div>
@@ -147,13 +149,13 @@ export function BizEntrySheet({ entry, onClose }: { entry: BizEntry | null; onCl
 export function RepeatPicker({ value, onChange, kind }: { value: Repeat; onChange: (r: Repeat) => void; kind: "in" | "out" }) {
   const lang = useLang();
   const opts: { id: Repeat; label: string }[] = [
-    { id: "once", label: kind === "in" ? L(lang, "Solo esta vez", "Just this once") : L(lang, "Solo esta vez", "Just this once") },
-    { id: "week", label: L(lang, "Cada semana", "Every week") },
-    { id: "month", label: L(lang, "Cada mes", "Every month") },
+    { id: "once", label: kind === "in" ? tx(lang, TXT.soloEstaVez) : tx(lang, TXT.soloEstaVez) },
+    { id: "week", label: tx(lang, TXT.cadaSemana2) },
+    { id: "month", label: tx(lang, TXT.cadaMes2) },
   ];
   return (
     <div>
-      <p className="mb-2 flex items-center gap-2 text-lg font-bold"><RepeatIcon size={20} /> {kind === "in" ? L(lang, "¿Se repite?", "Does it repeat?") : L(lang, "¿Es un gasto fijo?", "Is it a fixed cost?")}</p>
+      <p className="mb-2 flex items-center gap-2 text-lg font-bold"><RepeatIcon size={20} /> {kind === "in" ? tx(lang, TXT.seRepite) : tx(lang, TXT.esUnGastoFijo)}</p>
       <div className="grid grid-cols-3 gap-2">
         {opts.map((o) => (
           <button key={o.id} onClick={() => onChange(o.id)} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base leading-tight font-bold", value === o.id ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
@@ -182,48 +184,48 @@ export function PayMyselfSheet({ open, onClose, suggested }: { open: boolean; on
     setEvery(p ? p.every : "week");
     setDone(false);
   });
-  const per = { once: "", week: L(lang, "cada semana", "every week"), "2weeks": L(lang, "cada quincena", "every two weeks"), month: L(lang, "cada mes", "every month") }[every];
+  const per = { once: "", week: tx(lang, TXT.cadaSemana3), "2weeks": tx(lang, TXT.cadaQuincena), month: tx(lang, TXT.cadaMes3) }[every];
   return (
-    <Sheet open={open} onClose={onClose} title={L(lang, "Mi sueldo del negocio", "My salary from the business")}>
+    <Sheet open={open} onClose={onClose} title={tx(lang, TXT.miSueldoDelNegocio)}>
       {done ? (
         <div className="py-4 text-center">
           <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-leaf text-paper"><Check size={44} /></span>
-          <p className="mt-4 text-2xl font-semibold">{L(lang, "¡Listo! Ya está en Mi Casita.", "Done! It's in Mi Casita now.")}</p>
+          <p className="mt-4 text-2xl font-semibold">{tx(lang, TXT.listoYaEstaEnMi)}</p>
           <p className="mt-1 text-lg text-muted">
-            {every === "once" ? L(lang, "Lo verás como “Sueldo de mi negocio”.", "You'll see it as “Pay from my business”.") : L(lang, `Te recordaremos ${per}. Toca “Ya me pagué” cuando lo hagas.`, `We'll remind you ${per}. Tap “I paid myself” when you do.`)}
+            {every === "once" ? tx(lang, TXT.loVerasComoSueldoDe) : txf(lang, TXT.teRecordaremosTocaYaMe, [per])}
           </p>
-          <Button onClick={onClose} variant="dark" className="mt-6 w-full">{L(lang, "Cerrar", "Close")}</Button>
+          <Button onClick={onClose} variant="dark" className="mt-6 w-full">{tx(lang, TXT.cerrar)}</Button>
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-lg">{L(lang, "Págate un sueldo fijo, como si fueras tu propio empleado. Este dinero pasa a Mi Casita.", "Pay yourself a fixed salary, as if you were your own employee. This money moves to Mi Casita.")}</p>
+          <p className="text-lg">{tx(lang, TXT.pagateUnSueldoFijoComo)}</p>
           {suggested > 0 && (
             <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">
-              <HandCoins size={18} className="mr-1 inline" /> {L(lang, `Este mes a tu negocio le quedaron ${money(suggested * 2, lang)}. Págate cerca de la mitad y deja lo demás para surtir y para emergencias.`, `Your business kept ${money(suggested * 2, lang)} this month. Pay yourself about half and leave the rest for stock and emergencies.`)}
+              <HandCoins size={18} className="mr-1 inline" /> {txf(lang, TXT.esteMesATuNegocio, [money(suggested * 2, lang)])}
             </p>
           )}
           <div>
-            <p className="mb-2 text-lg font-bold">{L(lang, "¿Cada cuándo te pagas?", "How often do you pay yourself?")}</p>
+            <p className="mb-2 text-lg font-bold">{tx(lang, TXT.cadaCuandoTePagas)}</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(["week", "2weeks", "month", "once"] as const).map((e) => (
                 <button key={e} onClick={() => setEvery(e)} aria-pressed={every === e} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base leading-tight font-bold", every === e ? "border-leaf bg-leaf text-paper" : "border-sand bg-paper")}>
-                  {{ week: L(lang, "Cada semana", "Weekly"), "2weeks": L(lang, "Cada quincena", "Every 2 weeks"), month: L(lang, "Cada mes", "Monthly"), once: L(lang, "Solo hoy", "Just today") }[e]}
+                  {{ week: tx(lang, TXT.cadaSemana4), "2weeks": tx(lang, TXT.cadaQuincena2), month: tx(lang, TXT.cadaMes4), once: tx(lang, TXT.soloHoy) }[e]}
                 </button>
               ))}
             </div>
           </div>
-          <AmountInput label={L(lang, "¿Cuánto?", "How much?")} value={amount} onChange={setAmount} />
+          <AmountInput label={tx(lang, TXT.cuanto)} value={amount} onChange={setAmount} />
           <QuickAmounts amounts={[100, 200, 300, 500]} onPick={(n) => setAmount(String(n))} />
           <Button variant="green" className="w-full" disabled={!(Number(amount) > 0)} onClick={() => {
             const n = Number(amount);
             if (every === "once") payMyself(n); else setMyPay({ amount: n, every }, true);
             playSaved(); setDone(true);
           }}>
-            <Check size={22} /> {every === "once" ? L(lang, "Pagarme hoy", "Pay myself today") : L(lang, `Pagarme ${money(Number(amount) || 0, lang)} ${per}`, `Pay myself ${money(Number(amount) || 0, lang)} ${per}`)}
+            <Check size={22} /> {every === "once" ? tx(lang, TXT.pagarmeHoy) : txf(lang, TXT.pagarme, [money(Number(amount) || 0, lang), per])}
           </Button>
-          {every !== "once" && <p className="text-center text-base text-muted">{L(lang, "Hoy queda pagado el primero.", "The first one is paid today.")}</p>}
+          {every !== "once" && <p className="text-center text-base text-muted">{tx(lang, TXT.hoyQuedaPagadoElPrimero)}</p>}
           {biz?.pay && (
-            <button onClick={() => { setMyPay(null); onClose(); }} className="w-full text-center text-base font-bold text-muted underline underline-offset-4">{L(lang, "Ya no quiero sueldo fijo", "Stop my fixed salary")}</button>
+            <button onClick={() => { setMyPay(null); onClose(); }} className="w-full text-center text-base font-bold text-muted underline underline-offset-4">{tx(lang, TXT.yaNoQuieroSueldoFijo)}</button>
           )}
         </div>
       )}
@@ -238,20 +240,20 @@ export function MyPayCard({ onEdit }: { onEdit: () => void }) {
   if (!biz?.pay) return null;
   const p = biz.pay;
   const paidNow = p.paid.includes(periodKey({ repeat: p.every, date: p.since }));
-  const per = { week: L(lang, "esta semana", "this week"), "2weeks": L(lang, "esta quincena", "this pay period"), month: L(lang, "este mes", "this month") }[p.every];
+  const per = { week: tx(lang, TXT.estaSemana), "2weeks": tx(lang, TXT.estaQuincena), month: tx(lang, TXT.esteMes) }[p.every];
   return (
     <div className={cx("rounded-2xl p-4", paidNow ? "bg-leaf-soft" : "bg-sun-soft")}>
       <div className="flex flex-wrap items-center gap-3">
         <HandCoins size={26} className={paidNow ? "text-leaf" : "text-clay"} />
         <p className="min-w-0 flex-1 text-lg">
           {paidNow
-            ? <>{L(lang, "Ya te pagaste", "You paid yourself")} <b>{money(p.amount, lang)}</b> {per} ✓</>
-            : <>{L(lang, "Te toca pagarte", "Time to pay yourself")} <b>{money(p.amount, lang)}</b> {per}</>}
+            ? <>{tx(lang, TXT.yaTePagaste)} <b>{money(p.amount, lang)}</b> {per} ✓</>
+            : <>{tx(lang, TXT.teTocaPagarte)} <b>{money(p.amount, lang)}</b> {per}</>}
         </p>
-        <button onClick={onEdit} aria-label={L(lang, "Cambiar mi sueldo", "Change my salary")} className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-paper/60"><Pencil size={18} /></button>
+        <button onClick={onEdit} aria-label={tx(lang, TXT.cambiarMiSueldo)} className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-paper/60"><Pencil size={18} /></button>
       </div>
       {!paidNow && (
-        <Button variant="green" className="mt-3 w-full" onClick={() => { confirm(); playSaved(); }}><Check size={22} /> {L(lang, "Ya me pagué", "I paid myself")}</Button>
+        <Button variant="green" className="mt-3 w-full" onClick={() => { confirm(); playSaved(); }}><Check size={22} /> {tx(lang, TXT.yaMePague)}</Button>
       )}
     </div>
   );

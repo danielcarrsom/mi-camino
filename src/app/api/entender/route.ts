@@ -4,7 +4,7 @@ import { understandLocally } from "@/lib/understand";
 
 // What someone said or typed → money entries. Tolerates spelling mistakes.
 export async function POST(req: Request) {
-  const refused = guard(req, "entender");
+  const refused = await guard(req, "entender");
   if (refused) return refused;
   const { text, kind, currency } = ((await req.json().catch(() => ({}))) ?? {}) as { text?: string; kind?: "in" | "out"; currency?: string };
   if (typeof text !== "undefined" && typeof text !== "string") return Response.json({ error: "bad text" }, { status: 400 });

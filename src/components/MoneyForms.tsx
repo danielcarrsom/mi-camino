@@ -12,6 +12,8 @@ import { money } from "@/lib/money";
 import { CATEGORIES, GROUPS, INCOME_CATEGORIES, categoryById, incomeCategoryById, pick, type Repeat } from "@/lib/catalog";
 import type { ParsedWork } from "@/lib/understand";
 import { DEFAULT_TAX, cashSetAsideWeekly, regionLabel, taxHelp, weeklyTaxes, type TaxMode } from "@/lib/taxes";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/MoneyForms";
 
 type Kind = "in" | "out";
 
@@ -95,7 +97,7 @@ export function CategorySheet({ open, kind, onClose, onPick }: { open: boolean; 
       {kind === "in" ? (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {INCOME_CATEGORIES.map((c) => (
-            <Tile key={c.id} icon={<Icon name={c.icon} />} label={pick(c.label, lang)} color="#3e7d4f" onClick={() => onPick(c.id)} className="min-h-18" />
+            <Tile key={c.id} icon={<Icon name={c.icon} />} label={pick(c.label, lang)} color="#316a42" onClick={() => onPick(c.id)} className="min-h-18" />
           ))}
         </div>
       ) : (
@@ -166,7 +168,7 @@ export function EntryEditSheet({ entry, onClose }: { entry: Entry | null; onClos
         {repeat !== "once" && <p className="mt-3 flex items-center gap-2 text-base text-leaf"><RepeatIcon size={18} /> {t("repeatsAlone")}</p>}
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("note")} className="mt-4 h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg outline-none focus:border-clay" />
         <div className="mt-6 flex gap-3">
-          <Button variant="soft" onClick={() => { if (window.confirm(lang === "en" ? "Delete this?" : "¿Borrar esto?")) { removeEntry(entry.id); onClose(); } }} className="flex-1 text-clay">
+          <Button variant="soft" onClick={() => { if (window.confirm(tx(lang, TXT.borrarEsto))) { removeEntry(entry.id); onClose(); } }} className="flex-1 text-clay">
             <Trash2 size={20} /> {t("delete")}
           </Button>
           <Button onClick={() => { updateEntry(entry.id, { amount: Number(amount), repeat, category, note: note.trim() }); onClose(); }} disabled={!Number(amount)} className="flex-[2]">
@@ -188,13 +190,13 @@ export function TaxPicker({ work, onChange }: { work: ParsedWork; onChange: (w: 
   const tax = work.tax ?? DEFAULT_TAX;
   const set = (p: Partial<typeof tax>) => onChange({ ...work, tax: { ...tax, ...p } });
   const modes: { id: TaxMode; title: string; sub: string }[] = [
-    { id: "withheld", title: en ? "Yes, taxes are taken out" : "Sí, me descuentan impuestos", sub: mx ? (en ? "You get a payslip (recibo de nómina)" : "Te dan recibo de nómina") : en ? "Your paystub shows taxes" : "Tu talón de pago dice “taxes”" },
-    { id: "cash", title: en ? "No, I'm paid in full or in cash" : "No, me pagan completo o en efectivo", sub: mx ? (en ? "Or you work on your own" : "O trabajas por tu cuenta") : en ? "Nothing is taken out" : "No te quitan nada" },
-    { id: "net", title: en ? "The amount I wrote is what I get" : "Lo que escribí ya es lo que me llega", sub: en ? "After taxes" : "Ya sin impuestos" },
+    { id: "withheld", title: tx(en, TXT.siMeDescuentanImpuestos), sub: mx ? (tx(en, TXT.teDanReciboDeNomina)) : tx(en, TXT.tuTalonDePagoDice) },
+    { id: "cash", title: tx(en, TXT.noMePaganCompletoO), sub: mx ? (tx(en, TXT.oTrabajasPorTuCuenta)) : tx(en, TXT.noTeQuitanNada) },
+    { id: "net", title: tx(en, TXT.loQueEscribiYaEs), sub: tx(en, TXT.yaSinImpuestos) },
   ];
   return (
     <div className="space-y-3">
-      <p className="text-lg font-bold">{en ? "Do they take taxes out of your pay?" : "¿Te descuentan impuestos de tu pago?"}</p>
+      <p className="text-lg font-bold">{tx(en, TXT.teDescuentanImpuestosDeTu)}</p>
       <div className="grid grid-cols-1 gap-2">
         {modes.map((m) => (
           <button key={m.id} onClick={() => set({ mode: m.id })} aria-pressed={tax.mode === m.id}
@@ -208,8 +210,8 @@ export function TaxPicker({ work, onChange }: { work: ParsedWork; onChange: (w: 
         <p className="flex items-center gap-2 rounded-2xl bg-cream px-4 py-3 text-base">
           <MapPin size={20} className="shrink-0 text-clay" />
           <span>
-            {en ? "Taxes for " : "Impuestos de "}<b>{regionLabel(region, lang)}</b>{region.married ? (en ? ", married" : ", casado(a)") : ""}.{" "}
-            <Link href="/perfil" className="font-bold text-clay underline underline-offset-4">{en ? "Change in My profile" : "Cambiar en Mi perfil"}</Link>
+            {tx(en, TXT.impuestosDe)}<b>{regionLabel(region, lang)}</b>{region.married ? (tx(en, TXT.casadoA)) : ""}.{" "}
+            <Link href="/perfil" className="font-bold text-clay underline underline-offset-4">{tx(en, TXT.cambiarEnMiPerfil)}</Link>
           </span>
         </p>
       )}
@@ -228,7 +230,7 @@ export function TakeHome({ weekly, work }: { weekly: number; work: ParsedWork })
   if (tax.mode === "net") {
     return (
       <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
-        <p className="text-base font-bold">{en ? "What reaches you each week" : "Lo que te llega cada semana"}</p>
+        <p className="text-base font-bold">{tx(en, TXT.loQueTeLlegaCada)}</p>
         <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
       </div>
     );
@@ -239,7 +241,7 @@ export function TakeHome({ weekly, work }: { weekly: number; work: ParsedWork })
     return (
       <div className="space-y-2">
         <div className="rounded-2xl bg-leaf p-4 text-center text-paper">
-          <p className="text-base font-bold">{en ? "You get each week" : "Te llega cada semana"}</p>
+          <p className="text-base font-bold">{tx(en, TXT.teLlegaCadaSemana)}</p>
           <p className="font-serif text-4xl font-semibold">{money(weekly, lang)}</p>
         </div>
         <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">
@@ -259,20 +261,20 @@ export function TakeHome({ weekly, work }: { weekly: number; work: ParsedWork })
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-2xl bg-cream p-3 text-center">
-          <p className="text-base font-bold text-muted">{en ? "Before taxes" : "Antes de impuestos"}</p>
+          <p className="text-base font-bold text-muted">{tx(en, TXT.antesDeImpuestos)}</p>
           <p className="font-serif text-2xl font-semibold text-muted line-through decoration-1">{money(weekly, lang)}</p>
         </div>
         <div className="rounded-2xl bg-leaf p-3 text-center text-paper">
-          <p className="text-base font-bold">{en ? "Reaches you, approx." : "Te llega, aprox."}</p>
+          <p className="text-base font-bold">{tx(en, TXT.teLlegaAprox)}</p>
           <p className="font-serif text-3xl font-semibold">{money(t.net, lang)}</p>
         </div>
       </div>
-      <p className="text-center text-base text-muted">{en ? "a week" : "a la semana"} · {t.total > 0.5 ? (en ? `about ${money(t.total, lang)} in taxes` : `unos ${money(t.total, lang)} de impuestos`) : (en ? "no taxes taken out" : "sin descuentos")}</p>
+      <p className="text-center text-base text-muted">{tx(en, TXT.aLaSemana)} · {t.total > 0.5 ? (txf(en, TXT.unosDeImpuestos, [money(t.total, lang)])) : (tx(en, TXT.sinDescuentos))}</p>
       {t.total <= 0.5 && region.country === "mx" && (
-        <p className="rounded-2xl bg-leaf-soft px-4 py-3 text-base">{en ? "If you earn the minimum wage, no ISR is taken out and your employer pays your IMSS." : "Si ganas el salario mínimo, no te quitan ISR y tu patrón paga tu parte del IMSS."}</p>
+        <p className="rounded-2xl bg-leaf-soft px-4 py-3 text-base">{tx(en, TXT.siGanasElSalarioMinimo)}</p>
       )}
       {t.total > 0.5 && (
-        <button onClick={() => setOpen(!open)} className="w-full text-center text-base font-bold text-clay underline underline-offset-4">{open ? (en ? "Hide" : "Ocultar") : (en ? "Where do those taxes go?" : "¿A dónde se van esos impuestos?")}</button>
+        <button onClick={() => setOpen(!open)} className="w-full text-center text-base font-bold text-clay underline underline-offset-4">{open ? (tx(en, TXT.ocultar)) : (tx(en, TXT.aDondeSeVanEsos))}</button>
       )}
       {open && t.total > 0.5 && (
         <div className="rounded-2xl border border-sand bg-paper p-4">
@@ -280,8 +282,8 @@ export function TakeHome({ weekly, work }: { weekly: number; work: ParsedWork })
             {t.parts.map((p) => <li key={p.id} className="flex justify-between gap-3"><span>{en ? p.en : p.es}</span><b className="shrink-0 whitespace-nowrap">−{money(p.amount, lang, true)}</b></li>)}
           </ul>
           <p className="mt-3 text-sm text-muted">{region.country === "mx"
-            ? (en ? "Estimate with the 2026 SAT tables (including the employment subsidy) and IMSS rates. Your payslip has the exact amount: if it's different, choose “The amount I wrote is what I get”." : "Cálculo aproximado con las tablas del SAT 2026 (con el subsidio para el empleo) y las cuotas del IMSS. Tu recibo de nómina tiene la cantidad exacta: si es distinta, elige “Lo que escribí ya es lo que me llega”.")
-            : (en ? "Estimate with 2026 rates, one job, standard deduction. Your paystub has the exact amount: if it's different, choose “The amount I wrote is what I get” and type what reaches you." : "Cálculo aproximado con las tasas de 2026, un solo trabajo y deducción estándar. Tu talón de pago tiene la cantidad exacta: si es distinta, elige “Lo que escribí ya es lo que me llega” y escribe lo que te llega.")}</p>
+            ? (tx(en, TXT.calculoAproximadoConLasTablas))
+            : (tx(en, TXT.calculoAproximadoConLasTasas))}</p>
         </div>
       )}
     </div>
@@ -306,7 +308,7 @@ export function WorkEditSheet({ work, onClose }: { work: Work | null; onClose: (
       </div>
       <WorkEditor work={draft} onChange={setDraft} />
       <div className="mt-6 flex gap-3">
-        <Button variant="soft" onClick={() => { if (window.confirm(lang === "en" ? "Delete this job?" : "¿Borrar este trabajo?")) { removeWork(work.id); onClose(); } }} className="flex-1 text-clay">
+        <Button variant="soft" onClick={() => { if (window.confirm(tx(lang, TXT.borrarEsteTrabajo))) { removeWork(work.id); onClose(); } }} className="flex-1 text-clay">
           <Trash2 size={20} /> {t("delete")}
         </Button>
         <Button onClick={() => { const { perHour: _p, ...rest } = toSavedWork(draft); void _p; updateWork(work.id, rest); onClose(); }} disabled={!draft.pay} className="flex-[2]">

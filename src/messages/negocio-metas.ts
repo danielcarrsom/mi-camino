@@ -1,0 +1,48 @@
+// Texts for src/app/(app)/negocio/metas/page.tsx. Spanish and English; another language can be added to any message
+// (for example `mix: "…"` for Mixteco) and is used when present.
+import type { Msg } from "@/lib/i18n";
+
+const TXT = {
+  metasDeMiNegocio: { es: "Metas de mi negocio", en: "My business goals" },
+  aquiJuntasDineroParaHacer: { es: "Aquí juntas dinero para hacer crecer tu negocio: equipo, mercancía, tu propio local. Y aquí tienes ideas para que te vaya mejor.", en: "Here you save to grow your business: equipment, stock, your own place. And here are ideas to do better." },
+  nuevaMeta: { es: "Nueva meta", en: "New goal" },
+  todaviaNoTienesMetasPara: { es: "Todavía no tienes metas para tu negocio. Elige una idea o crea la tuya.", en: "No business goals yet. Pick an idea or create your own." },
+  ideasDeMetasParaTu: { es: "Ideas de metas para tu negocio", en: "Goal ideas for your business" },
+  otraMeta: { es: "Otra meta", en: "Another goal" },
+  sugerenciasParaQueTeVaya: { es: "Sugerencias para que te vaya mejor", en: "Suggestions to do better" },
+  salenDeLoQueAnotaste: { es: "Salen de lo que anotaste. Cambian cuando tu negocio cambia.", en: "They come from what you entered and change as your business does." },
+  de: { es: "de", en: "of" },
+  apartarAlgoCadaSemanaSolito: { es: "Apartar algo cada semana, solito", en: "Set aside something every week, automatically" },
+  aparteDinero: { es: "Aparté dinero", en: "I saved money" },
+  saque: { es: "Saqué", en: "Took out" },
+  miPlan: { es: "Mi plan", en: "My plan" },
+  borrar: { es: "Borrar", en: "Delete" },
+  saqueDineroDeLaMeta: { es: "Saqué dinero de la meta", en: "Took money out" },
+  listo: { es: "Listo", en: "Done" },
+  apartarSolito: { es: "Apartar solito", en: "Save automatically" },
+  pausar: { es: "Pausar", en: "Pause" },
+  borrarMeta: { es: "Borrar meta", en: "Delete goal" },
+  cadaSemanaSeApartaSolito: { es: "Cada semana se aparta solito de tu negocio y se suma a esta meta.", en: "Every week it's set aside from your business and added to this goal." },
+  empezar: { es: "Empezar", en: "Start" },
+  borrarEstaMeta: { es: "¿Borrar esta meta?", en: "Delete this goal?" },
+  seBorraLaMetaY: { es: "Se borra la meta y lo que llevas anotado en ella.", en: "The goal and what you've saved in it will be deleted." },
+  no: { es: "No", en: "No" },
+  siBorrar: { es: "Sí, borrar", en: "Yes, delete" },
+  nuevaMetaDelNegocio: { es: "Nueva meta del negocio", en: "New business goal" },
+  otraMetaLaEscriboYo: { es: "Otra meta (la escribo yo)", en: "Another goal (I'll write it)" },
+  nombreDeLaMeta: { es: "Nombre de la meta", en: "Goal name" },
+  cuantoNecesitas: { es: "¿Cuánto necesitas?", en: "How much do you need?" },
+  puedesCambiarlo: { es: "Puedes cambiarlo.", en: "You can change it." },
+  cuantoApartasOpcional: { es: "¿Cuánto apartas? (opcional)", en: "How much will you set aside? (optional)" },
+  usarEstaCantidad: { es: "Usar esta cantidad", en: "Use this amount" },
+  ahoraMismoATuNegocio: { es: "Ahora mismo a tu negocio no le sobra dinero después de gastos y tu sueldo. Empieza con poquito o revisa tus precios en Mis costos.", en: "Right now your business has nothing left after costs and your salary. Start small or check your prices in My costs." },
+  elegirOtra: { es: "Elegir otra", en: "Pick another" },
+  crearMeta: { es: "Crear meta", en: "Create goal" },
+  llevasDeTeFaltan: { es: "{0}. Llevas {1} de {2}. Te faltan {3}.", en: "{0}. You have {1} of {2}. {3} to go." },
+  apartas: { es: "Apartas {0} {1}", en: "You set aside {0} {2}" },
+  ahoraApartas: { es: "Ahora apartas {0}. {1}", en: "You set aside {0}. {1}" },
+  teRecomendamosALaSemana: { es: "Te recomendamos {0} a la semana", en: "We suggest {0} a week" },
+  despuesDeGastosTuSueldo: { es: "Después de gastos, tu sueldo y tus otras metas, a tu negocio le quedan como {0} a la semana. Apartar una parte deja dinero para surtir.", en: "After costs, your salary and other goals, your business has about {0} a week left. Setting part aside leaves money for stock." },
+} satisfies Record<string, Msg>;
+
+export default TXT;

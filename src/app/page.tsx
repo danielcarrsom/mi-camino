@@ -10,6 +10,8 @@ import { GoalVisual } from "@/components/GoalVisual";
 import { useHydrated, useT } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 import { langInfo } from "@/lib/i18n";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/page";
 
 export default function Welcome() {
   const hydrated = useHydrated();
@@ -63,10 +65,10 @@ export default function Welcome() {
             <ShieldCheck size={22} className="mt-0.5 shrink-0 text-leaf" /> {t("privacyNote")}
           </p>
           <p className="mt-3 max-w-md text-base text-paper/60">
-            {lang === "en" ? "Beta version: it may have mistakes and change. " : "Versión beta: puede tener errores y cambiar. "}
-            <Link href="/privacidad" className="font-bold text-paper/85 underline underline-offset-4">{lang === "en" ? "Privacy" : "Privacidad"}</Link>
+            {tx(lang, TXT.versionBetaPuedeTenerErrores)}
+            <Link href="/privacidad" className="font-bold text-paper/85 underline underline-offset-4">{tx(lang, TXT.privacidad)}</Link>
             {" · "}
-            <Link href="/terminos" className="font-bold text-paper/85 underline underline-offset-4">{lang === "en" ? "Terms" : "Términos"}</Link>
+            <Link href="/terminos" className="font-bold text-paper/85 underline underline-offset-4">{tx(lang, TXT.terminos)}</Link>
           </p>
         </section>
 

@@ -8,6 +8,8 @@ import { useHydrated, useT } from "@/lib/hooks";
 import { useLang, useStore } from "@/lib/store";
 import { PhoneInput } from "@/components/PhoneInput";
 import { phoneKey, type PhoneCountry } from "@/lib/phone";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/entrar";
 
 export default function Login() {
   const hydrated = useHydrated();
@@ -55,13 +57,13 @@ export default function Login() {
             {error && (
               <p className="mt-5 text-center text-lg font-bold text-clay">
                 {loginProblem === "locked"
-                  ? (lang === "en" ? "Too many wrong PINs. For your safety, wait 15 minutes and try again, or recover your PIN." : "Demasiados intentos con la clave equivocada. Por tu seguridad, espera 15 minutos e intenta otra vez, o recupera tu clave.")
+                  ? (tx(lang, TXT.demasiadosIntentosConLaClave))
                   : t("wrongLogin")}
               </p>
             )}
             <div className="mt-6 text-center">
               <Link href={`/recuperar?tel=${phoneKey(phone, country) ?? ""}`} className={error ? "inline-flex min-h-14 items-center justify-center rounded-2xl bg-ink px-6 text-lg font-extrabold text-paper" : "text-lg font-bold text-clay underline underline-offset-4"}>
-                {lang === "en" ? "Forgot your PIN?" : "¿Olvidaste tu clave?"}
+                {tx(lang, TXT.olvidasteTuClave)}
               </Link>
             </div>
             {pin.length === 4 && (

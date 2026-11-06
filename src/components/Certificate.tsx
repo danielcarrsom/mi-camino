@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { Download, Share2, MessageCircle } from "lucide-react";
 import { Button, Sheet } from "./ui";
 import { useLang } from "@/lib/store";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/Certificate";
 
 type Props = { open: boolean; onClose: () => void; person: string; goal: string; saved: number; target: number; since: string; emoji?: string };
 
@@ -41,13 +43,13 @@ async function draw({ person, goal, saved, target, since, emoji }: Omit<Props, "
   x.fillStyle = "#f6efe2"; x.font = `600 64px ${serif}`; x.textAlign = "center";
   x.fillText("Mi Camino", W / 2, 128);
   x.fillStyle = "#e0a33a"; x.font = `700 30px ${sans}`;
-  x.fillText(en ? "SAVINGS CERTIFICATE" : "CERTIFICADO DE AHORRO", W / 2, 178);
+  x.fillText(tx(en, TXT.certificadoDeAhorro), W / 2, 178);
 
   // body
   x.fillStyle = "#1f2b27"; x.font = `600 76px ${serif}`;
-  x.fillText(person || (en ? "Someone special" : "Alguien especial"), W / 2, 400);
+  x.fillText(person || (tx(en, TXT.alguienEspecial)), W / 2, 400);
   x.fillStyle = "#6b6257"; x.font = `600 40px ${sans}`;
-  x.fillText(en ? "is saving for" : "está ahorrando para", W / 2, 470);
+  x.fillText(tx(en, TXT.estaAhorrandoPara), W / 2, 470);
 
   x.font = `120px ${sans}`; x.fillText(emoji ?? "🏠", W / 2, 625);
   x.fillStyle = "#b34a2a"; x.font = `700 72px ${serif}`;
@@ -59,18 +61,18 @@ async function draw({ person, goal, saved, target, since, emoji }: Omit<Props, "
   const p = Math.max(0, Math.min(1, saved / target));
   const bx = 160, bw = W - 320, by = y0 + 80;
   x.fillStyle = "#e6dccb"; roundRect(x, bx, by, bw, 44, 22); x.fill();
-  x.fillStyle = "#3e7d4f"; roundRect(x, bx, by, Math.max(44, bw * p), 44, 22); x.fill();
+  x.fillStyle = "#316a42"; roundRect(x, bx, by, Math.max(44, bw * p), 44, 22); x.fill();
   x.fillStyle = "#1f2b27"; x.font = `800 44px ${sans}`;
   x.fillText(`${Math.round(p * 100)}% · ${fmt(saved, en)} ${en ? "of" : "de"} ${fmt(target, en)}`, W / 2, by + 115);
 
   x.fillStyle = "#6b6257"; x.font = `600 34px ${sans}`;
-  x.fillText(`${en ? "Saving since" : "Ahorrando desde"} ${since}`, W / 2, by + 185);
+  x.fillText(`${tx(en, TXT.ahorrandoDesde)} ${since}`, W / 2, by + 185);
 
   // footer
-  x.fillStyle = "#3e7d4f"; x.font = `700 36px ${sans}`;
-  x.fillText(en ? "Little by little, we're getting there 💪" : "Poco a poco, vamos llegando 💪", W / 2, H - 150);
+  x.fillStyle = "#316a42"; x.font = `700 36px ${sans}`;
+  x.fillText(tx(en, TXT.pocoAPocoVamosLlegando), W / 2, H - 150);
   x.fillStyle = "#8a8174"; x.font = `600 26px ${sans}`;
-  x.fillText(en ? "Made with Mi Camino" : "Hecho con Mi Camino", W / 2, H - 40);
+  x.fillText(tx(en, TXT.hechoConMiCamino), W / 2, H - 40);
 
   return new Promise((res) => c.toBlob((b) => res(b), "image/png"));
 }
@@ -97,32 +99,30 @@ export function CertificateSheet(props: Props) {
     return () => { alive = false; if (made) URL.revokeObjectURL(made); };
   }, [open, person, goal, saved, target, since, emoji, en]);
 
-  const text = en
-    ? `I'm saving for "${goal}" with Mi Camino: ${Math.round((saved / target) * 100)}% done! 💪`
-    : `¡Estoy ahorrando para "${goal}" con Mi Camino! Ya llevo ${Math.round((saved / target) * 100)}% 💪`;
+  const text = txf(en, TXT.estoyAhorrandoParaConMi, [goal, Math.round((saved / target) * 100)]);
   const file = blob ? new File([blob], "mi-camino-certificado.png", { type: "image/png" }) : null;
   const canShareFile = typeof navigator !== "undefined" && !!file && !!navigator.canShare?.({ files: [file] });
 
   return (
-    <Sheet open={open} onClose={props.onClose} title={en ? "Share with your family" : "Compártelo con tu familia"}>
+    <Sheet open={open} onClose={props.onClose} title={tx(en, TXT.comparteloConTuFamilia)}>
       <div className="space-y-4">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={en ? "Savings certificate" : "Certificado de ahorro"} className="mx-auto w-full max-w-xs rounded-2xl border border-sand shadow-md" />
+          <img src={url} alt={tx(en, TXT.certificadoDeAhorro2)} className="mx-auto w-full max-w-xs rounded-2xl border border-sand shadow-md" />
         ) : (
           <div className="mx-auto aspect-[4/5] w-full max-w-xs animate-pulse rounded-2xl bg-sand" />
         )}
         {canShareFile ? (
-          <Button className="w-full" onClick={() => void navigator.share({ files: [file!], text }).catch(() => {})}><Share2 size={22} /> {en ? "Share" : "Compartir"}</Button>
+          <Button className="w-full" onClick={() => void navigator.share({ files: [file!], text }).catch(() => {})}><Share2 size={22} /> {tx(en, TXT.compartir)}</Button>
         ) : (
-          <Button className="w-full" href={`https://wa.me/?text=${encodeURIComponent(text)}`}><MessageCircle size={22} /> {en ? "Send by WhatsApp" : "Enviar por WhatsApp"}</Button>
+          <Button className="w-full" href={`https://wa.me/?text=${encodeURIComponent(text)}`}><MessageCircle size={22} /> {tx(en, TXT.enviarPorWhatsapp)}</Button>
         )}
         {url && (
           <a href={url} download="mi-camino-certificado.png" className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-sand text-lg font-bold">
-            <Download size={20} /> {en ? "Save the picture" : "Guardar la imagen"}
+            <Download size={20} /> {tx(en, TXT.guardarLaImagen)}
           </a>
         )}
-        <p className="text-center text-base text-muted">{en ? "It only shows your first name, your goal and your progress." : "Solo muestra tu nombre, tu meta y cuánto llevas."}</p>
+        <p className="text-center text-base text-muted">{tx(en, TXT.soloMuestraTuNombreTu)}</p>
       </div>
     </Sheet>
   );

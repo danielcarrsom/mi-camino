@@ -4,14 +4,22 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronRight, Clock, ExternalLink, Gamepad2, HeartHandshake, Phone, RotateCcw, Star, Trophy, X } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useLang, useMe, useStore } from "@/lib/store";
+import { useLang, useMe, useRegion, useStore } from "@/lib/store";
 import { pick } from "@/lib/catalog";
-import type { Game, Lesson, NeedItem, Resource } from "@/lib/learn";
+import { forRegion, type Game, type Lesson, type NeedItem, type Resource } from "@/lib/learn";
 import { speak, stopSpeaking } from "@/lib/voice";
 import { playBrick, playGoal, playSaved } from "@/lib/sound";
 import type { Lang } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/LearnHub";
 
 const L = (lang: Lang, es: string, en: string) => (lang === "en" ? en : es);
+
+/** Dark or light text, whichever reads well on this background color. */
+function textOn(hex: string): string {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? "#1f2b27" : "#fffbf3";
+}
 type Tab = "juegos" | "lecciones" | "ayuda";
 
 export type LearnContent = {
@@ -21,8 +29,12 @@ export type LearnContent = {
 };
 
 export function LearnHub({ c }: { c: LearnContent }) {
-  const { games: GAMES, lessons: LESSONS } = c;
   const lang = useLang();
+  const region = useRegion();
+  // Only what applies where the person lives (New York City, another state, or México)
+  const GAMES = useMemo(() => forRegion(c.games, region), [c.games, region]);
+  const LESSONS = useMemo(() => forRegion(c.lessons, region), [c.lessons, region]);
+  const RESOURCES = useMemo(() => forRegion(c.resources, region), [c.resources, region]);
   const me = useMe();
   // Links like /aprender#ayuda open the help tab (this screen only renders in the browser)
   const [tab, setTab] = useState<Tab>(() => (typeof window !== "undefined" && window.location.hash === "#ayuda" ? "ayuda" : "juegos"));
@@ -40,9 +52,9 @@ export function LearnHub({ c }: { c: LearnContent }) {
   if (lesson) return <LessonView lesson={lesson} lessons={LESSONS} onExit={() => setLesson(null)} onOpen={setLesson} onHelp={goHelp} />;
 
   const tabs: { id: Tab; label: string; short?: string; icon: React.ReactNode }[] = [
-    { id: "juegos", label: L(lang, "Juegos", "Games"), icon: <Gamepad2 size={22} /> },
-    { id: "lecciones", label: L(lang, "Lecciones", "Lessons"), icon: <BookOpen size={22} /> },
-    { id: "ayuda", label: L(lang, "¿Quién me ayuda?", "Who can help?"), short: L(lang, "Ayuda", "Help"), icon: <HeartHandshake size={22} /> },
+    { id: "juegos", label: tx(lang, TXT.juegos), icon: <Gamepad2 size={22} /> },
+    { id: "lecciones", label: tx(lang, TXT.lecciones), icon: <BookOpen size={22} /> },
+    { id: "ayuda", label: tx(lang, TXT.quienMeAyuda), short: tx(lang, TXT.ayuda), icon: <HeartHandshake size={22} /> },
   ];
 
   return (
@@ -53,8 +65,8 @@ export function LearnHub({ c }: { c: LearnContent }) {
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl bg-ink px-5 py-4 text-paper">
         <Trophy size={28} className="text-sun" />
         <p className="min-w-0 flex-1 text-lg font-bold">
-          {L(lang, `${stars} de ${GAMES.length * 3} estrellas`, `${stars} of ${GAMES.length * 3} stars`)}
-          <span className="font-normal text-paper/70"> · {L(lang, `${readHere} de ${LESSONS.length} lecciones`, `${readHere} of ${LESSONS.length} lessons`)}</span>
+          {txf(lang, TXT.deEstrellas, [stars, GAMES.length * 3])}
+          <span className="font-normal text-paper/70"> · {txf(lang, TXT.deLecciones, [readHere, LESSONS.length])}</span>
         </p>
       </div>
 
@@ -91,8 +103,8 @@ export function LearnHub({ c }: { c: LearnContent }) {
                 <span className="block text-xl leading-tight font-extrabold">{pick(g.title, lang)}</span>
                 <span className="mt-1 block text-base text-muted">{pick(g.sub, lang)}</span>
               </span>
-              <span className="mt-auto inline-flex h-12 items-center justify-center gap-2 rounded-2xl text-lg font-extrabold text-paper" style={{ background: g.color }}>
-                {(learn.stars[g.id] ?? 0) > 0 ? L(lang, "Jugar otra vez", "Play again") : L(lang, "Jugar", "Play")} <ArrowRight size={20} />
+              <span className="mt-auto inline-flex h-12 items-center justify-center gap-2 rounded-2xl text-lg font-extrabold" style={{ background: g.color, color: textOn(g.color) }}>
+                {(learn.stars[g.id] ?? 0) > 0 ? tx(lang, TXT.jugarOtraVez) : tx(lang, TXT.jugar)} <ArrowRight size={20} />
               </span>
             </button>
           ))}
@@ -111,8 +123,8 @@ export function LearnHub({ c }: { c: LearnContent }) {
                 <span className="min-w-0 flex-1">
                   <span className="block text-lg leading-tight font-extrabold">{pick(l.title, lang)}</span>
                   <span className="mt-1 flex items-center gap-1.5 text-base text-muted">
-                    <Clock size={16} /> {L(lang, `${l.minutes} min · leer o escuchar`, `${l.minutes} min · read or listen`)}
-                    {done && <span className="font-bold text-leaf"> · {L(lang, "Ya la leíste", "Done")}</span>}
+                    <Clock size={16} /> {txf(lang, TXT.minLeerOEscuchar, [l.minutes])}
+                    {done && <span className="font-bold text-leaf"> · {tx(lang, TXT.yaLaLeiste)}</span>}
                   </span>
                 </span>
                 <ChevronRight size={24} className="shrink-0 text-muted" />
@@ -122,14 +134,14 @@ export function LearnHub({ c }: { c: LearnContent }) {
         </div>
       )}
 
-      {tab === "ayuda" && <Help needs={c.needs} resources={c.resources} soon={c.soon} />}
+      {tab === "ayuda" && <Help needs={c.needs} resources={RESOURCES} soon={c.soon} />}
 
       {tab !== "ayuda" && (
         <button onClick={goHelp} className="mt-6 flex w-full items-center gap-3 rounded-3xl bg-sun-soft px-5 py-4 text-left">
           <HeartHandshake size={28} className="shrink-0 text-clay" />
           <span className="min-w-0 flex-1 text-base">
-            <b>{L(lang, "Mi Camino te enseña, pero no reemplaza a un profesional.", "Mi Camino teaches, but it doesn't replace a professional.")}</b>{" "}
-            {L(lang, "Para decisiones grandes, pide ayuda gratis.", "For big decisions, get free help.")}
+            <b>{tx(lang, TXT.miCaminoTeEnsenaPero)}</b>{" "}
+            {tx(lang, TXT.paraDecisionesGrandesPideAyuda)}
           </span>
           <ChevronRight size={22} className="shrink-0" />
         </button>
@@ -181,7 +193,7 @@ function GamePlayer({ game, onExit, onHelp }: { game: Game; onExit: () => void; 
     if (!done) return;
     setGameStars(game.id, earned);
     if (earned === 3) playGoal(); else if (earned > 0) playBrick();
-    if (voiceOn) speak(L(lang, `Acertaste ${right} de ${total}.`, `You got ${right} of ${total}.`), lang);
+    if (voiceOn) speak(txf(lang, TXT.acertasteDe, [right, total]), lang);
   }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = (k: number) => {
@@ -189,7 +201,7 @@ function GamePlayer({ game, onExit, onHelp }: { game: Game; onExit: () => void; 
     setPicked(k);
     const ok = q.choices[k].correct;
     if (ok) { setRight((r) => r + 1); playSaved(); }
-    if (voiceOn) speak(`${ok ? L(lang, "¡Muy bien!", "Well done!") : L(lang, "Casi.", "Almost.")} ${pick(q.why, lang)}`, lang);
+    if (voiceOn) speak(`${ok ? tx(lang, TXT.muyBien) : tx(lang, TXT.casi)} ${pick(q.why, lang)}`, lang);
   };
   const next = () => { setPicked(null); setI((n) => n + 1); };
   const again = () => { setRound((r) => r + 1); setI(0); setPicked(null); setRight(0); };
@@ -197,7 +209,7 @@ function GamePlayer({ game, onExit, onHelp }: { game: Game; onExit: () => void; 
   return (
     <div className="mx-auto max-w-2xl">
       <button onClick={onExit} className="mb-3 inline-flex h-11 items-center gap-2 rounded-full pr-3 text-base font-bold text-muted hover:text-ink">
-        <ArrowLeft size={22} /> {L(lang, "Todos los juegos", "All games")}
+        <ArrowLeft size={22} /> {tx(lang, TXT.todosLosJuegos)}
       </button>
       <div className="mb-5 flex items-center gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: game.color + "1f", color: game.color }}>
@@ -256,10 +268,10 @@ function GamePlayer({ game, onExit, onHelp }: { game: Game; onExit: () => void; 
 
           {picked !== null && (
             <div ref={(el) => { el?.scrollIntoView({ behavior: "smooth", block: "center" }); }} className={cx("mt-4 scroll-mb-28 rounded-3xl p-5", q.choices[picked].correct ? "bg-leaf/12" : "bg-sun-soft")}>
-              <p className="text-xl font-extrabold">{q.choices[picked].correct ? L(lang, "¡Muy bien!", "Well done!") : L(lang, "Casi. Así es:", "Almost. Here's why:")}</p>
+              <p className="text-xl font-extrabold">{q.choices[picked].correct ? tx(lang, TXT.muyBien) : tx(lang, TXT.casiAsiEs)}</p>
               <p className="mt-1 text-lg">{pick(q.why, lang)}</p>
               <Button onClick={next} variant="dark" className="mt-4 w-full">
-                {i + 1 < total ? L(lang, "Siguiente", "Next") : L(lang, "Ver mi resultado", "See my result")} <ArrowRight size={22} />
+                {i + 1 < total ? tx(lang, TXT.siguiente) : tx(lang, TXT.verMiResultado)} <ArrowRight size={22} />
               </Button>
             </div>
           )}
@@ -267,19 +279,19 @@ function GamePlayer({ game, onExit, onHelp }: { game: Game; onExit: () => void; 
       ) : (
         <Card className="text-center">
           <div className="flex justify-center"><Stars n={earned} size={48} /></div>
-          <p className="mt-4 text-3xl font-semibold">{L(lang, `Acertaste ${right} de ${total}`, `You got ${right} of ${total}`)}</p>
+          <p className="mt-4 text-3xl font-semibold">{txf(lang, TXT.acertasteDe2, [right, total])}</p>
           <p className="mt-2 text-lg text-muted">
-            {earned === 3 ? L(lang, "¡Eres un experto! Comparte lo que aprendiste con tu familia.", "You're an expert! Share what you learned with your family.")
-              : earned === 2 ? L(lang, "¡Muy bien! Juega otra vez para ganar las 3 estrellas.", "Great! Play again to earn all 3 stars.")
-              : L(lang, "Vas aprendiendo. Cada vez que juegas, aprendes más.", "You're learning. Every time you play, you learn more.")}
+            {earned === 3 ? tx(lang, TXT.eresUnExpertoComparteLo)
+              : earned === 2 ? tx(lang, TXT.muyBienJuegaOtraVez)
+              : tx(lang, TXT.vasAprendiendoCadaVezQue)}
           </p>
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Button onClick={again}><RotateCcw size={22} /> {L(lang, "Jugar otra vez", "Play again")}</Button>
-            <Button onClick={onExit} variant="soft">{L(lang, "Otros juegos", "Other games")}</Button>
+            <Button onClick={again}><RotateCcw size={22} /> {tx(lang, TXT.jugarOtraVez)}</Button>
+            <Button onClick={onExit} variant="soft">{tx(lang, TXT.otrosJuegos)}</Button>
           </div>
           {game.id === "estafa" && (
             <button onClick={onHelp} className="mt-4 text-base font-bold text-clay underline underline-offset-4">
-              {L(lang, "¿Te pasó algo así? Mira dónde denunciar", "Did this happen to you? See where to report it")}
+              {tx(lang, TXT.tePasoAlgoAsiMira)}
             </button>
           )}
         </Card>
@@ -296,7 +308,7 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
   const done = me?.learn?.read.includes(lesson.id) ?? false;
   const body = lang === "en" ? lesson.body.en : lesson.body.es;
   const keys = lang === "en" ? lesson.keys.en : lesson.keys.es;
-  const full = `${pick(lesson.title, lang)}. ${body.join(" ")} ${L(lang, "Lo más importante:", "Key points:")} ${keys.join(". ")}.`;
+  const full = `${pick(lesson.title, lang)}. ${body.join(" ")} ${tx(lang, TXT.loMasImportante)} ${keys.join(". ")}.`;
   const idx = LESSONS.findIndex((l) => l.id === lesson.id);
   const nextLesson = LESSONS[idx + 1];
 
@@ -305,7 +317,7 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
   return (
     <div className="mx-auto max-w-2xl">
       <button onClick={onExit} className="mb-3 inline-flex h-11 items-center gap-2 rounded-full pr-3 text-base font-bold text-muted hover:text-ink">
-        <ArrowLeft size={22} /> {L(lang, "Todas las lecciones", "All lessons")}
+        <ArrowLeft size={22} /> {tx(lang, TXT.todasLasLecciones)}
       </button>
       <div className="mb-4 flex items-center gap-3">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-sand bg-paper text-clay"><Icon name={lesson.icon} size={30} /></span>
@@ -317,7 +329,7 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
 
       <div className="mb-5 flex items-center gap-3 rounded-3xl bg-ink p-4 text-paper">
         <ListenButton text={full} light />
-        <span className="text-base text-paper/80">{L(lang, "¿Prefieres escuchar? Te la leo completa.", "Rather listen? I'll read it all to you.")}</span>
+        <span className="text-base text-paper/80">{tx(lang, TXT.prefieresEscucharTeLaLeo)}</span>
       </div>
 
       <div className="space-y-4 text-[1.2rem] leading-relaxed">
@@ -325,7 +337,7 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
       </div>
 
       <div className="mt-6 rounded-3xl border-2 border-sun bg-sun-soft p-5">
-        <p className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Star size={22} fill="currentColor" className="text-clay" /> {L(lang, "Lo más importante", "Key points")}</p>
+        <p className="mb-3 flex items-center gap-2 text-lg font-extrabold"><Star size={22} fill="currentColor" className="text-clay" /> {tx(lang, TXT.loMasImportante2)}</p>
         <ul className="space-y-2">
           {keys.map((k) => (
             <li key={k} className="flex items-start gap-3 text-lg"><Check size={24} className="mt-0.5 shrink-0 text-leaf" /> {k}</li>
@@ -335,9 +347,9 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {done ? (
-          <div className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-leaf/15 text-lg font-extrabold text-leaf"><CheckCircle2 size={24} /> {L(lang, "Ya la leíste", "Done")}</div>
+          <div className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-leaf/15 text-lg font-extrabold text-leaf"><CheckCircle2 size={24} /> {tx(lang, TXT.yaLaLeiste)}</div>
         ) : (
-          <Button variant="green" onClick={() => { markLessonRead(lesson.id); playBrick(); }}><Check size={22} /> {L(lang, "Ya la leí", "I read it")}</Button>
+          <Button variant="green" onClick={() => { markLessonRead(lesson.id); playBrick(); }}><Check size={22} /> {tx(lang, TXT.yaLaLei)}</Button>
         )}
         {lesson.link && (
           <Button href={lesson.link.href} variant="soft">{pick(lesson.link.label, lang)} <ArrowRight size={20} /></Button>
@@ -345,13 +357,13 @@ function LessonView({ lesson, lessons: LESSONS, onExit, onOpen, onHelp }: { less
       </div>
       {nextLesson && (
         <Button variant="ghost" className="mt-2 w-full" onClick={() => { stopSpeaking(); onOpen(nextLesson); }}>
-          {L(lang, "Siguiente lección:", "Next lesson:")} {pick(nextLesson.title, lang)} <ChevronRight size={20} />
+          {tx(lang, TXT.siguienteLeccion)} {pick(nextLesson.title, lang)} <ChevronRight size={20} />
         </Button>
       )}
 
       <button onClick={onHelp} className="mt-6 flex w-full items-center gap-3 rounded-3xl border border-sand bg-paper px-5 py-4 text-left">
         <HeartHandshake size={26} className="shrink-0 text-clay" />
-        <span className="min-w-0 flex-1 text-base">{L(lang, "¿Tienes dudas sobre tu caso? Habla con un profesional, muchos son gratis.", "Questions about your situation? Talk to a professional — many are free.")}</span>
+        <span className="min-w-0 flex-1 text-base">{tx(lang, TXT.tienesDudasSobreTuCaso)}</span>
         <ChevronRight size={22} className="shrink-0" />
       </button>
     </div>
@@ -367,11 +379,11 @@ function Help({ needs: NEEDS, resources: RESOURCES, soon }: { needs: NeedItem[];
   return (
     <div>
       <div className="mb-4 rounded-3xl bg-clay px-5 py-4 text-paper">
-        <p className="text-lg font-extrabold">{L(lang, "¿Estás en peligro? Llama al 911.", "In danger? Call 911.")}</p>
-        <p className="text-base text-paper/85">{L(lang, "Para todo lo demás, aquí hay ayuda de confianza. Pide intérprete en tu idioma: es tu derecho.", "For everything else, here is trusted help. Ask for an interpreter in your language: it's your right.")}</p>
+        <p className="text-lg font-extrabold">{tx(lang, TXT.estasEnPeligroLlamaAl)}</p>
+        <p className="text-base text-paper/85">{tx(lang, TXT.paraTodoLoDemasAqui)}</p>
       </div>
 
-      <p className="mb-2 text-lg font-bold">{L(lang, "¿Con qué necesitas ayuda?", "What do you need help with?")}</p>
+      <p className="mb-2 text-lg font-bold">{tx(lang, TXT.conQueNecesitasAyuda)}</p>
       <div className="mb-5 flex flex-wrap gap-2">
         {NEEDS.map((n) => (
           <button
@@ -393,16 +405,16 @@ function Help({ needs: NEEDS, resources: RESOURCES, soon }: { needs: NeedItem[];
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cream text-clay"><Icon name={r.icon} size={26} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-lg leading-tight font-extrabold">{pick(r.name, lang)}</p>
-                {r.free && <span className="mt-1 inline-block rounded-full bg-leaf/15 px-2.5 py-0.5 text-sm font-extrabold text-leaf">{L(lang, "Gratis", "Free")}</span>}
+                {r.free && <span className="mt-1 inline-block rounded-full bg-leaf/15 px-2.5 py-0.5 text-sm font-extrabold text-leaf">{tx(lang, TXT.gratis)}</span>}
               </div>
-              <ListenButton text={`${pick(r.name, lang)}. ${pick(r.what, lang)}${r.phone ? ` ${L(lang, "Teléfono", "Phone")}: ${r.phone.show}.` : ""}`} compact />
+              <ListenButton text={`${pick(r.name, lang)}. ${pick(r.what, lang)}${r.phone ? ` ${tx(lang, TXT.telefono)}: ${r.phone.show}.` : ""}`} compact />
             </div>
             <p className="mt-3 text-base">{pick(r.what, lang)}</p>
             {r.note && <p className="mt-1 text-sm text-muted">{pick(r.note, lang)}</p>}
             <div className="mt-auto flex flex-wrap gap-2 pt-4">
               {r.phone && (
                 <a href={`tel:${r.phone.tel}`} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-leaf px-4 sm:w-auto text-base font-extrabold text-paper">
-                  <Phone size={18} /> {L(lang, "Llamar", "Call")} {r.phone.show}
+                  <Phone size={18} /> {tx(lang, TXT.llamar)} {r.phone.show}
                 </a>
               )}
               {r.phone2 && (
@@ -422,15 +434,15 @@ function Help({ needs: NEEDS, resources: RESOURCES, soon }: { needs: NeedItem[];
         <div className="flex min-w-0 items-start gap-3 rounded-3xl border-2 border-dashed border-sand-dark p-5 md:col-span-2">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sand/60 text-muted"><Icon name="building-2" size={26} /></span>
           <div className="min-w-0">
-            <p className="text-lg font-extrabold">{soon ? L(lang, ...soon.title) : L(lang, "Pronto: organizaciones aliadas del Consulado", "Coming soon: Consulate partner organizations")}</p>
-            <p className="text-base text-muted">{soon ? L(lang, ...soon.text) : L(lang, "Bancos, cooperativas y asesores que trabajan con el Consulado de México en Nueva York.", "Banks, credit unions and advisors that work with the Mexican Consulate in New York.")}</p>
+            <p className="text-lg font-extrabold">{soon ? L(lang, ...soon.title) : tx(lang, TXT.prontoOrganizacionesAliadasDelConsulado)}</p>
+            <p className="text-base text-muted">{soon ? L(lang, ...soon.text) : tx(lang, TXT.bancosCooperativasYAsesoresQue)}</p>
           </div>
         </div>
       </div>
 
       <p className="mt-5 text-sm text-muted">
-        {L(lang, "Revisamos estos datos en noviembre de 2026. Si un número cambió, llama al 311.", "We checked this information in November 2026. If a number changed, call 311.")}{" "}
-        <Link href="/casita/documentos" className="font-bold underline underline-offset-4">{L(lang, "¿Tienes un papel que no entiendes?", "Have a paper you don't understand?")}</Link>
+        {tx(lang, TXT.revisamosEstosDatosEnNoviembre)}{" "}
+        <Link href="/casita/documentos" className="font-bold underline underline-offset-4">{tx(lang, TXT.tienesUnPapelQueNo)}</Link>
       </p>
     </div>
   );

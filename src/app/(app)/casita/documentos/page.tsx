@@ -2,14 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, FileText, X, Plus, Loader2, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, Phone, Building2, Landmark, Scale, Mail, Wallet, RotateCcw } from "lucide-react";
 import { Button, Card, ListenButton, PageHeader, cx } from "@/components/ui";
-import { useLang, useStore } from "@/lib/store";
+import { useLang, useRegion, useStore } from "@/lib/store";
+import type { Region } from "@/lib/taxes";
 import { shrinkImage, fileToBase64 } from "@/lib/image";
 import { speak } from "@/lib/voice";
 import { playSaved } from "@/lib/sound";
 import { money } from "@/lib/money";
 import type { Lang } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/casita-documentos";
 
-const L = (lang: Lang, es: string, en: string) => (lang === "en" ? en : es);
 
 type Page = { id: string; kind: "image" | "pdf"; data: string; mediaType: string; preview?: string; name: string };
 type Result = {
@@ -27,6 +29,7 @@ const MAX_PDF = 3 * 1024 * 1024;
 
 export default function ExplainPaper() {
   const lang = useLang();
+  const region = useRegion();
   const addEntries = useStore((s) => s.addEntries);
   const [pages, setPages] = useState<Page[]>([]);
   const [busy, setBusy] = useState(false);
@@ -41,31 +44,27 @@ export default function ExplainPaper() {
     fetch("/api/estado").then((r) => r.json()).then((j) => setAiOn(!!j.ai)).catch(() => setAiOn(null));
   }, []);
 
-  const intro = L(
-    lang,
-    "Explicar un papel. Toma una foto, sube una foto o sube un documento de una carta, factura o contrato, y te lo explicamos con palabras sencillas. Si parece estafa, te avisamos. No guardamos tu papel.",
-    "Explain a paper. Take a photo, upload a photo or upload a document of a letter, bill or contract, and we'll explain it in simple words. If it looks like a scam, we'll warn you. We don't keep your paper.",
-  );
+  const intro = tx(lang, TXT.explicarUnPapelTomaUna);
 
   async function addFiles(list: FileList | null) {
     if (!list?.length) return;
     setProblem(null);
     const next: Page[] = [];
     for (const f of Array.from(list)) {
-      if (pages.length + next.length >= MAX_PAGES) { setProblem(L(lang, `Puedes subir hasta ${MAX_PAGES} páginas.`, `You can upload up to ${MAX_PAGES} pages.`)); break; }
+      if (pages.length + next.length >= MAX_PAGES) { setProblem(txf(lang, TXT.puedesSubirHastaPaginas, [MAX_PAGES])); break; }
       const id = Math.random().toString(36).slice(2);
       if (f.type === "application/pdf") {
-        if (f.size > MAX_PDF) { setProblem(L(lang, "Ese documento es muy grande. Toma fotos de las páginas importantes.", "That document is too big. Take photos of the important pages.")); continue; }
+        if (f.size > MAX_PDF) { setProblem(tx(lang, TXT.eseDocumentoEsMuyGrande)); continue; }
         next.push({ id, kind: "pdf", data: await fileToBase64(f), mediaType: "application/pdf", name: f.name });
       } else if (f.type.startsWith("image/")) {
         try {
           const img = await shrinkImage(f);
           next.push({ id, kind: "image", data: img.data, mediaType: img.type, preview: img.preview, name: f.name });
         } catch {
-          setProblem(L(lang, "No pudimos abrir esa foto. Intenta con otra.", "We couldn't open that photo. Try another one."));
+          setProblem(tx(lang, TXT.noPudimosAbrirEsaFoto));
         }
       } else {
-        setProblem(L(lang, "Sube una foto o un documento PDF.", "Upload a photo or a PDF document."));
+        setProblem(tx(lang, TXT.subeUnaFotoOUn));
       }
     }
     setPages((p) => [...p, ...next]);
@@ -73,22 +72,22 @@ export default function ExplainPaper() {
 
   async function explain() {
     setBusy(true); setProblem(null); setResult(null); setSavedMoney(false);
-    speak(L(lang, "Estoy leyendo tu papel. Espera un momento.", "I'm reading your paper. One moment."), lang);
+    speak(tx(lang, TXT.estoyLeyendoTuPapelEspera), lang);
     try {
       const r = await fetch("/api/explicar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lang, parts: pages.map((p) => ({ type: p.kind, data: p.data, mediaType: p.mediaType })) }),
+        body: JSON.stringify({ lang, country: region.country, parts: pages.map((p) => ({ type: p.kind, data: p.data, mediaType: p.mediaType })) }),
       });
       if (r.status === 501) { setAiOn(false); return; }
-      if (r.status === 413) { setProblem(L(lang, "Las fotos son muy pesadas. Sube menos páginas.", "The photos are too large. Upload fewer pages.")); return; }
+      if (r.status === 413) { setProblem(tx(lang, TXT.lasFotosSonMuyPesadas)); return; }
       const j = (await r.json()) as Result & { error?: string };
-      if (j.error) { setProblem(L(lang, "No pude leer tu papel. Intenta con una foto más clara y con buena luz.", "I couldn't read your paper. Try a clearer photo with good light.")); return; }
+      if (j.error) { setProblem(tx(lang, TXT.noPudeLeerTuPapel)); return; }
       setResult(j);
-      const riskWord = j.risk === "scam" ? L(lang, "Cuidado: esto podría ser una estafa.", "Careful: this could be a scam.") : j.risk === "caution" ? L(lang, "Ten cuidado con este papel.", "Be careful with this paper.") : "";
+      const riskWord = j.risk === "scam" ? tx(lang, TXT.cuidadoEstoPodriaSerUna) : j.risk === "caution" ? tx(lang, TXT.tenCuidadoConEstePapel) : "";
       speak(`${j.title}. ${riskWord} ${j.summary}`, lang);
     } catch {
-      setProblem(L(lang, "No hay conexión. Intenta otra vez.", "No connection. Try again."));
+      setProblem(tx(lang, TXT.noHayConexionIntentaOtra));
     } finally {
       setBusy(false);
     }
@@ -98,7 +97,7 @@ export default function ExplainPaper() {
 
   return (
     <>
-      <PageHeader title={L(lang, "Explicar un papel", "Explain a paper")} sub={L(lang, "Cartas, facturas, contratos y avisos", "Letters, bills, contracts and notices")} say={intro} back="/casita" />
+      <PageHeader title={tx(lang, TXT.explicarUnPapel)} sub={tx(lang, TXT.cartasFacturasContratosYAvisos)} say={intro} back="/casita" />
 
       {!result && aiOn === false && <ScamChecklist lang={lang} />}
 
@@ -113,49 +112,49 @@ export default function ExplainPaper() {
             {busy ? (
               <div className="flex min-h-72 flex-col items-center justify-center gap-4 text-center">
                 <Loader2 size={60} className="animate-spin text-clay" />
-                <p className="text-2xl font-bold">{L(lang, "Leyendo tu papel…", "Reading your paper…")}</p>
-                <p className="text-lg text-muted">{L(lang, "Esto tarda unos segundos.", "This takes a few seconds.")}</p>
+                <p className="text-2xl font-bold">{tx(lang, TXT.leyendoTuPapel)}</p>
+                <p className="text-lg text-muted">{tx(lang, TXT.estoTardaUnosSegundos)}</p>
               </div>
             ) : pages.length === 0 ? (
               <>
-                <h2 className="text-2xl font-semibold">{L(lang, "¿Cómo nos muestras tu papel?", "How will you show us your paper?")}</h2>
+                <h2 className="text-2xl font-semibold">{tx(lang, TXT.comoNosMuestrasTuPapel)}</h2>
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <BigChoice icon={<Camera size={40} />} label={L(lang, "Tomar foto", "Take a photo")} sub={L(lang, "Con la cámara", "With the camera")} onClick={() => camRef.current?.click()} primary />
-                  <BigChoice icon={<ImagePlus size={40} />} label={L(lang, "Subir foto", "Upload a photo")} sub={L(lang, "De tus fotos", "From your photos")} onClick={() => galRef.current?.click()} />
-                  <BigChoice icon={<FileText size={40} />} label={L(lang, "Subir documento", "Upload a document")} sub="PDF" onClick={() => docRef.current?.click()} />
+                  <BigChoice icon={<Camera size={40} />} label={tx(lang, TXT.tomarFoto)} sub={tx(lang, TXT.conLaCamara)} onClick={() => camRef.current?.click()} primary />
+                  <BigChoice icon={<ImagePlus size={40} />} label={tx(lang, TXT.subirFoto)} sub={tx(lang, TXT.deTusFotos)} onClick={() => galRef.current?.click()} />
+                  <BigChoice icon={<FileText size={40} />} label={tx(lang, TXT.subirDocumento)} sub="PDF" onClick={() => docRef.current?.click()} />
                 </div>
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-semibold">{L(lang, "Tu papel", "Your paper")} · {pages.length} {pages.length === 1 ? L(lang, "página", "page") : L(lang, "páginas", "pages")}</h2>
+                <h2 className="text-2xl font-semibold">{tx(lang, TXT.tuPapel)} · {pages.length} {pages.length === 1 ? tx(lang, TXT.pagina) : tx(lang, TXT.paginas)}</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {pages.map((p, i) => (
                     <div key={p.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl border-2 border-sand bg-cream">
                       {p.preview ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.preview} alt={`${L(lang, "Página", "Page")} ${i + 1}`} className="h-full w-full object-cover" />
+                        <img src={p.preview} alt={`${tx(lang, TXT.pagina2)} ${i + 1}`} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 p-2 text-center"><FileText size={36} className="text-clay" /><span className="line-clamp-2 text-sm font-bold break-all">{p.name}</span></div>
                       )}
                       <span className="absolute bottom-1.5 left-1.5 rounded-full bg-ink/80 px-2 text-sm font-bold text-paper">{i + 1}</span>
-                      <button onClick={() => setPages((ps) => ps.filter((x) => x.id !== p.id))} aria-label={L(lang, "Quitar", "Remove")} className="absolute top-1.5 right-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-paper/95 shadow"><X size={20} /></button>
+                      <button onClick={() => setPages((ps) => ps.filter((x) => x.id !== p.id))} aria-label={tx(lang, TXT.quitar)} className="absolute top-1.5 right-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-paper/95 shadow"><X size={20} /></button>
                     </div>
                   ))}
                   {pages.length < MAX_PAGES && (
                     <button onClick={() => (pages.some((p) => p.kind === "image") ? camRef : docRef).current?.click()} className="flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-sand-dark text-center font-bold text-muted hover:border-clay hover:text-clay">
-                      <Plus size={32} /> {L(lang, "Otra página", "Another page")}
+                      <Plus size={32} /> {tx(lang, TXT.otraPagina)}
                     </button>
                   )}
                 </div>
                 {pages.length < MAX_PAGES && (
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button onClick={() => camRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-full bg-sand/60 px-4 font-bold"><Camera size={18} /> {L(lang, "Foto", "Photo")}</button>
-                    <button onClick={() => galRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-full bg-sand/60 px-4 font-bold"><ImagePlus size={18} /> {L(lang, "De mis fotos", "From my photos")}</button>
+                    <button onClick={() => camRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-full bg-sand/60 px-4 font-bold"><Camera size={18} /> {tx(lang, TXT.foto)}</button>
+                    <button onClick={() => galRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-full bg-sand/60 px-4 font-bold"><ImagePlus size={18} /> {tx(lang, TXT.deMisFotos)}</button>
                     <button onClick={() => docRef.current?.click()} className="inline-flex h-11 items-center gap-2 rounded-full bg-sand/60 px-4 font-bold"><FileText size={18} /> PDF</button>
                   </div>
                 )}
-                <Button onClick={explain} className="mt-6 min-h-16 w-full text-xl">{L(lang, "Explícame este papel", "Explain this paper")}</Button>
-                <button onClick={reset} className="mt-2 h-11 w-full font-bold text-muted">{L(lang, "Empezar de nuevo", "Start over")}</button>
+                <Button onClick={explain} className="mt-6 min-h-16 w-full text-xl">{tx(lang, TXT.explicameEstePapel)}</Button>
+                <button onClick={reset} className="mt-2 h-11 w-full font-bold text-muted">{tx(lang, TXT.empezarDeNuevo)}</button>
               </>
             )}
             {problem && <p className="mt-5 rounded-2xl bg-sun-soft px-4 py-3 text-center text-lg font-bold">{problem}</p>}
@@ -163,18 +162,18 @@ export default function ExplainPaper() {
 
           <div className="min-w-0 space-y-4">
             <div className="rounded-3xl border-2 border-leaf bg-leaf-soft/60 p-5">
-              <h3 className="flex items-center gap-2 text-xl font-semibold"><ShieldCheck size={22} className="text-leaf" /> {L(lang, "Tu papel está seguro", "Your paper is safe")}</h3>
+              <h3 className="flex items-center gap-2 text-xl font-semibold"><ShieldCheck size={22} className="text-leaf" /> {tx(lang, TXT.tuPapelEstaSeguro)}</h3>
               <ul className="mt-2 space-y-2 text-lg">
-                <li>{L(lang, "No guardamos tu papel: solo lo leemos para explicártelo.", "We don't keep your paper: we only read it to explain it.")}</li>
-                <li>{L(lang, "Si quieres, tapa con tu dedo tu número de Seguro Social o de cuenta antes de tomar la foto.", "If you want, cover your Social Security or account number with your finger before taking the photo.")}</li>
+                <li>{tx(lang, TXT.noGuardamosTuPapelSolo)}</li>
+                <li>{tx(lang, TXT.siQuieresTapaConTu)}</li>
               </ul>
             </div>
             <Card>
-              <h3 className="text-xl font-semibold">{L(lang, "Para una buena foto", "For a good photo")}</h3>
+              <h3 className="text-xl font-semibold">{tx(lang, TXT.paraUnaBuenaFoto)}</h3>
               <ul className="mt-2 space-y-2 text-lg">
-                <li>☀️ {L(lang, "Con buena luz, sin sombras", "Good light, no shadows")}</li>
-                <li>📄 {L(lang, "Que se vea toda la hoja", "Show the whole page")}</li>
-                <li>✋ {L(lang, "Sin moverte", "Hold still")}</li>
+                <li>☀️ {tx(lang, TXT.conBuenaLuzSinSombras)}</li>
+                <li>📄 {tx(lang, TXT.queSeVeaTodaLa)}</li>
+                <li>✋ {tx(lang, TXT.sinMoverte)}</li>
               </ul>
             </Card>
           </div>
@@ -200,47 +199,53 @@ function BigChoice({ icon, label, sub, onClick, primary }: { icon: React.ReactNo
   );
 }
 
-const HELPERS = (lang: Lang): Record<string, { icon: React.ReactNode; title: string; sub: string; href?: string; cta?: string }> => ({
-  consulado: {
-    icon: <Building2 size={26} />,
-    title: L(lang, "Consulado de México en Nueva York", "Mexican Consulate in New York"),
-    sub: L(lang, "Documentos, protección o cualquier duda. 27 E 39th St, Manhattan.", "Documents, protection or any question. 27 E 39th St, Manhattan."),
-    href: "tel:+12122176400",
-    cta: "(212) 217-6400",
-  },
-  "311": {
-    icon: <Landmark size={26} />,
-    title: L(lang, "Ciudad de Nueva York · 311", "New York City · 311"),
-    sub: L(lang, "Problemas con tu casero, fraudes o ayuda legal gratis. Puedes pedir intérprete.", "Landlord problems, fraud or free legal help. You can ask for an interpreter."),
-    href: "tel:311",
-    cta: L(lang, "Llamar al 311", "Call 311"),
-  },
-  banco: {
-    icon: <Wallet size={26} />,
-    title: L(lang, "Tu banco", "Your bank"),
-    sub: L(lang, "Llama al número que viene atrás de tu tarjeta. No uses el número del papel si se ve raro.", "Call the number on the back of your card. Don't use the number on the paper if it looks odd."),
-  },
-  abogado: {
-    icon: <Scale size={26} />,
-    title: L(lang, "Un abogado de verdad", "A real lawyer"),
-    sub: L(lang, "Para cortes, inmigración o contratos. Ojo: en EE. UU. un “notario” no es abogado. Pide ayuda gratis al Consulado o al 311.", "For court, immigration or contracts. Note: in the US a “notario” is not a lawyer. Ask the Consulate or 311 for free help."),
-  },
-  remitente: {
-    icon: <Mail size={26} />,
-    title: L(lang, "La empresa que te lo mandó", "The company that sent it"),
-    sub: L(lang, "Llama al número de su página oficial, no al del papel si algo se ve raro.", "Call the number on their official website, not the one on the paper if something looks odd."),
-  },
-});
+type Helper = { icon: React.ReactNode; title: string; sub: string; href?: string; cta?: string };
+
+/** Who can help, depending on where the person lives. The first id is always shown. */
+function helpersFor(lang: Lang, region: Region): { main: string; list: Record<string, Helper> } {
+  const mx = region.country === "mx";
+  const nyc = region.country === "us" && region.state === "NY";
+  const list: Record<string, Helper> = {
+    banco: {
+      icon: <Wallet size={26} />,
+      title: tx(lang, TXT.tuBanco),
+      sub: tx(lang, TXT.llamaAlNumeroQueViene),
+    },
+    remitente: {
+      icon: <Mail size={26} />,
+      title: tx(lang, TXT.laEmpresaQueTeLo),
+      sub: tx(lang, TXT.llamaAlNumeroDeSu),
+    },
+  };
+  if (mx) {
+    list.condusef = { icon: <Building2 size={26} />, title: "Condusef", sub: tx(lang, TXT.problemasConBancosPrestamosTarjetas), href: "tel:+525553400999", cta: "55 5340 0999" };
+    list.profeco = { icon: <Landmark size={26} />, title: "Profeco", sub: tx(lang, TXT.quejasContraTiendasServiciosO), href: "tel:+528004688722", cta: "800 468 8722" };
+    list.sat = { icon: <Landmark size={26} />, title: "SAT · MarcaSAT", sub: tx(lang, TXT.siElPapelDiceQue), href: "tel:+525562722728", cta: "55 627 22 728" };
+    list.abogado = { icon: <Scale size={26} />, title: tx(lang, TXT.unAbogadoDeVerdad), sub: tx(lang, TXT.paraJuiciosContratosODeudas) };
+    return { main: "condusef", list };
+  }
+  list.consulado = nyc
+    ? { icon: <Building2 size={26} />, title: tx(lang, TXT.consuladoDeMexicoEnNueva), sub: tx(lang, TXT.documentosProteccionOCualquierDuda), href: "tel:+12122176400", cta: "(212) 217-6400" }
+    : { icon: <Building2 size={26} />, title: tx(lang, TXT.tuConsuladoDeMexico), sub: tx(lang, TXT.documentosProteccionOCualquierDuda2), href: "https://directorio.sre.gob.mx", cta: tx(lang, TXT.buscarMiConsulado) };
+  list.ciudad = region.nyc
+    ? { icon: <Landmark size={26} />, title: tx(lang, TXT.ciudadDeNuevaYork311), sub: tx(lang, TXT.problemasConTuCaseroFraudes), href: "tel:311", cta: tx(lang, TXT.llamarAl311) }
+    : { icon: <Landmark size={26} />, title: tx(lang, TXT.linea211), sub: tx(lang, TXT.teConectaConAyudaLocal), href: "tel:211", cta: tx(lang, TXT.llamarAl211) };
+  list.abogado = { icon: <Scale size={26} />, title: tx(lang, TXT.unAbogadoDeVerdad), sub: tx(lang, TXT.paraCortesInmigracionOContratos) };
+  return { main: "consulado", list };
+}
 
 function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang: Lang; onReset: () => void; onSaveMoney: () => void; saved: boolean }) {
-  const helpers = HELPERS(lang);
-  const helpIds = Array.from(new Set([...(r.risk !== "ok" ? ["consulado"] : []), ...r.help, "consulado"])).filter((h) => helpers[h]);
+  const region = useRegion();
+  const { main, list: helpers } = helpersFor(lang, region);
+  // The AI says "311" for local city help; elsewhere that's 211
+  const asked = r.help.map((h) => (h === "311" ? "ciudad" : h));
+  const helpIds = Array.from(new Set([...(r.risk !== "ok" ? [main] : []), ...asked, main])).filter((h) => helpers[h]);
   const risk = {
-    ok: { cls: "border-leaf bg-leaf-soft", icon: <CheckCircle2 size={30} className="text-leaf" />, title: L(lang, "Parece un papel normal", "Looks like a normal paper") },
-    caution: { cls: "border-sun bg-sun-soft", icon: <AlertTriangle size={30} className="text-warn" />, title: L(lang, "Ten cuidado con este papel", "Be careful with this paper") },
-    scam: { cls: "border-clay bg-clay/10", icon: <ShieldAlert size={30} className="text-clay" />, title: L(lang, "Esto podría ser una estafa", "This could be a scam") },
+    ok: { cls: "border-leaf bg-leaf-soft", icon: <CheckCircle2 size={30} className="text-leaf" />, title: tx(lang, TXT.pareceUnPapelNormal) },
+    caution: { cls: "border-sun bg-sun-soft", icon: <AlertTriangle size={30} className="text-warn" />, title: tx(lang, TXT.tenCuidadoConEstePapel2) },
+    scam: { cls: "border-clay bg-clay/10", icon: <ShieldAlert size={30} className="text-clay" />, title: tx(lang, TXT.estoPodriaSerUnaEstafa) },
   }[r.risk];
-  const say = `${r.title}. ${risk.title}. ${r.riskReasons.join(". ")} ${r.summary} ${r.whatToDo.length ? L(lang, "Qué hacer:", "What to do:") + " " + r.whatToDo.join(". ") : ""}`;
+  const say = `${r.title}. ${risk.title}. ${r.riskReasons.join(". ")} ${r.summary} ${r.whatToDo.length ? tx(lang, TXT.queHacer) + " " + r.whatToDo.join(". ") : ""}`;
 
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_1fr] lg:gap-6">
@@ -251,7 +256,7 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
             <div className="min-w-0 flex-1">
               <h2 className="text-2xl font-semibold">{risk.title}</h2>
               {r.riskReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-lg">{r.riskReasons.map((x) => <li key={x}>{x}</li>)}</ul>}
-              {r.risk !== "ok" && <p className="mt-3 text-lg font-bold">{L(lang, "Antes de pagar o firmar, consúltalo con alguien de confianza o con un profesional.", "Before paying or signing, check with someone you trust or a professional.")}</p>}
+              {r.risk !== "ok" && <p className="mt-3 text-lg font-bold">{tx(lang, TXT.antesDePagarOFirmar)}</p>}
             </div>
           </div>
         </div>
@@ -260,7 +265,7 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-3xl leading-tight font-semibold">{r.title}</h2>
-              {r.from && <p className="mt-1 text-lg text-muted">{L(lang, "De:", "From:")} {r.from}</p>}
+              {r.from && <p className="mt-1 text-lg text-muted">{tx(lang, TXT.de)} {r.from}</p>}
             </div>
             <ListenButton text={say} />
           </div>
@@ -277,17 +282,17 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
           )}
           {r.money && (
             <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl bg-ink p-4 text-paper">
-              <span className="text-lg">{L(lang, "Te piden pagar", "They ask you to pay")} <b className="font-serif text-2xl">{money(r.money.amount, lang, true)}</b>{r.money.due ? ` · ${r.money.due}` : ""}</span>
+              <span className="text-lg">{tx(lang, TXT.tePidenPagar)} <b className="font-serif text-2xl">{money(r.money.amount, lang, true)}</b>{r.money.due ? ` · ${r.money.due}` : ""}</span>
               {r.risk !== "scam" && (saved
-                ? <span className="rounded-xl bg-leaf px-3 py-2 font-bold">{L(lang, "Anotado como gasto", "Added as an expense")}</span>
-                : <button onClick={onSaveMoney} className="h-11 rounded-xl bg-paper px-4 font-bold text-ink">{L(lang, "Anotar como gasto", "Add as an expense")}</button>)}
+                ? <span className="rounded-xl bg-leaf px-3 py-2 font-bold">{tx(lang, TXT.anotadoComoGasto)}</span>
+                : <button onClick={onSaveMoney} className="h-11 rounded-xl bg-paper px-4 font-bold text-ink">{tx(lang, TXT.anotarComoGasto)}</button>)}
             </div>
           )}
         </Card>
 
         {r.whatToDo.length > 0 && (
           <Card>
-            <h3 className="text-2xl font-semibold">{L(lang, "¿Qué hago?", "What do I do?")}</h3>
+            <h3 className="text-2xl font-semibold">{tx(lang, TXT.queHago)}</h3>
             <ol className="mt-3 space-y-3">
               {r.whatToDo.map((s, i) => (
                 <li key={s} className="flex items-start gap-3 text-lg">
@@ -298,13 +303,13 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
             </ol>
           </Card>
         )}
-        <p className="rounded-2xl bg-sun-soft/70 px-4 py-3 text-base">⚠️ {L(lang, "La inteligencia artificial puede equivocarse y esto no es consejo legal. Si el papel es importante, confírmalo con un profesional.", "AI can make mistakes and this isn't legal advice. If the paper is important, confirm with a professional.")}</p>
-        <Button variant="soft" onClick={onReset} className="w-full"><RotateCcw size={20} /> {L(lang, "Explicar otro papel", "Explain another paper")}</Button>
+        <p className="rounded-2xl bg-sun-soft/70 px-4 py-3 text-base">⚠️ {tx(lang, TXT.laInteligenciaArtificialPuedeEquivocarse)}</p>
+        <Button variant="soft" onClick={onReset} className="w-full"><RotateCcw size={20} /> {tx(lang, TXT.explicarOtroPapel)}</Button>
       </div>
 
       <div className="min-w-0 space-y-3">
-        <h3 className="text-2xl font-semibold">{L(lang, "¿Quién te puede ayudar?", "Who can help you?")}</h3>
-        <p className="text-lg text-muted">{L(lang, "Elige la opción que prefieras.", "Choose the option you prefer.")}</p>
+        <h3 className="text-2xl font-semibold">{tx(lang, TXT.quienTePuedeAyudar)}</h3>
+        <p className="text-lg text-muted">{tx(lang, TXT.eligeLaOpcionQuePrefieras)}</p>
         {helpIds.map((id) => {
           const h = helpers[id];
           return (
@@ -329,21 +334,31 @@ function ResultView({ r, lang, onReset, onSaveMoney, saved }: { r: Result; lang:
 
 /** While the AI reader isn't switched on, the page still helps: five questions anyone can check. */
 function ScamChecklist({ lang }: { lang: Lang }) {
+  const region = useRegion();
+  const mx = region.country === "mx";
+  const { main, list } = helpersFor(lang, region);
+  const first = list[main], second = mx ? list.profeco : list.ciudad;
   const qs = [
-    L(lang, "¿Te piden pagar con tarjetas de regalo, criptomonedas o a la cuenta de una persona?", "Do they ask you to pay with gift cards, crypto or into a person's account?"),
-    L(lang, "¿Te amenazan con arrestarte, deportarte o quitarte tus papeles?", "Do they threaten to arrest or deport you, or take your papers?"),
-    L(lang, "¿Te dan muy poco tiempo, como 24 horas, para pagar?", "Do they give you very little time, like 24 hours, to pay?"),
-    L(lang, "¿Te piden que no le cuentes a nadie, ni a tu consulado?", "Do they ask you not to tell anyone, not even your consulate?"),
-    L(lang, "¿Te piden tu clave, tu número de Seguro Social o los datos de tu tarjeta?", "Do they ask for your PIN, Social Security number or card details?"),
+    mx
+      ? tx(lang, TXT.tePidenDepositarEnOxxo)
+      : tx(lang, TXT.tePidenPagarConTarjetas),
+    mx
+      ? tx(lang, TXT.teAmenazanConArrestarteDemandarte)
+      : tx(lang, TXT.teAmenazanConArrestarteDeportarte),
+    tx(lang, TXT.teDanMuyPocoTiempo),
+    tx(lang, TXT.tePidenQueNoLe),
+    mx
+      ? tx(lang, TXT.tePidenTuNipUn)
+      : tx(lang, TXT.tePidenTuClaveTu),
   ];
   const [yes, setYes] = useState<boolean[]>(qs.map(() => false));
   const [done, setDone] = useState(false);
   const any = yes.some(Boolean);
-  const intro = L(lang, "Muy pronto te explicaremos tus papeles con inteligencia artificial. Mientras, revisa tú mismo: toca las preguntas a las que tu papel diga que sí.", "Soon we'll explain your papers with AI. Meanwhile, check it yourself: tap the questions your paper says yes to.");
+  const intro = tx(lang, TXT.muyProntoTeExplicaremosTus);
   return (
     <Card className="mb-5">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-2xl font-semibold"><ShieldAlert size={26} className="text-clay" /> {L(lang, "¿Es estafa? Revísalo en 1 minuto", "Is it a scam? Check in 1 minute")}</h2>
+        <h2 className="flex items-center gap-2 text-2xl font-semibold"><ShieldAlert size={26} className="text-clay" /> {tx(lang, TXT.esEstafaRevisaloEn1)}</h2>
         <ListenButton compact text={`${intro} ${qs.join(" ")}`} />
       </div>
       <p className="mt-2 text-lg text-muted">{intro}</p>
@@ -356,16 +371,16 @@ function ScamChecklist({ lang }: { lang: Lang }) {
           </button>
         ))}
       </div>
-      <Button className="mt-4 w-full" variant="dark" onClick={() => { setDone(true); speak(any ? L(lang, "Cuidado. Puede ser una estafa. No pagues nada y pide ayuda.", "Careful. It may be a scam. Don't pay anything and ask for help.") : L(lang, "No vemos señales claras de estafa. Si tienes dudas, pide ayuda gratis.", "No clear scam signs. If in doubt, get free help."), lang); }}>
-        {L(lang, "Ver resultado", "See result")}
+      <Button className="mt-4 w-full" variant="dark" onClick={() => { setDone(true); speak(any ? tx(lang, TXT.cuidadoPuedeSerUnaEstafa) : tx(lang, TXT.noVemosSenalesClarasDe), lang); }}>
+        {tx(lang, TXT.verResultado)}
       </Button>
       {done && (
         <div className={cx("mt-4 rounded-2xl p-4", any ? "bg-clay text-paper" : "bg-leaf-soft")}>
-          <p className="text-xl font-extrabold">{any ? L(lang, "⚠️ Cuidado: puede ser una estafa", "⚠️ Careful: it may be a scam") : L(lang, "No vemos señales claras de estafa", "No clear scam signs")}</p>
-          <p className="mt-1 text-lg">{any ? L(lang, "No pagues nada ni des tus datos. Llama al Consulado o al 311 para revisarlo con una persona.", "Don't pay or share your details. Call the Consulate or 311 to check it with a person.") : L(lang, "Aun así, si no entiendes algo, pide ayuda gratis antes de firmar o pagar.", "Still, if something isn't clear, get free help before signing or paying.")}</p>
+          <p className="text-xl font-extrabold">{any ? tx(lang, TXT.cuidadoPuedeSerUnaEstafa2) : tx(lang, TXT.noVemosSenalesClarasDe2)}</p>
+          <p className="mt-1 text-lg">{any ? tx(lang, TXT.noPaguesNadaNiDes) : tx(lang, TXT.aunAsiSiNoEntiendes)}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <a href="tel:+12122176400" className={cx("inline-flex h-12 items-center gap-2 rounded-2xl px-4 font-extrabold", any ? "bg-paper text-clay" : "bg-leaf text-paper")}><Phone size={18} /> {L(lang, "Consulado", "Consulate")} (212) 217-6400</a>
-            <a href="tel:311" className={cx("inline-flex h-12 items-center gap-2 rounded-2xl border-2 px-4 font-extrabold", any ? "border-paper" : "border-leaf text-leaf")}><Phone size={18} /> 311</a>
+            {first.href && <a href={first.href} className={cx("inline-flex h-12 items-center gap-2 rounded-2xl px-4 font-extrabold", any ? "bg-paper text-clay" : "bg-leaf text-paper")}><Phone size={18} /> {first.title} · {first.cta}</a>}
+            {second?.href && <a href={second.href} className={cx("inline-flex h-12 items-center gap-2 rounded-2xl border-2 px-4 font-extrabold", any ? "border-paper" : "border-leaf text-leaf")}><Phone size={18} /> {second.cta}</a>}
           </div>
         </div>
       )}

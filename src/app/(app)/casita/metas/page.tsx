@@ -150,7 +150,7 @@ function NewGoalSheet({ open, onClose }: { open: boolean; onClose: () => void })
           {GOAL_PRESETS.map((p) => (
             <Tile key={p.id} icon={<Icon name={p.icon} size={28} />} label={pick(p.label, lang)} sub={pick(p.hint, lang)} onClick={() => choose(p)} />
           ))}
-          <Tile icon={<Pencil size={28} />} label={t("ownGoal")} color="#3e7d4f" onClick={() => choose("own")} />
+          <Tile icon={<Pencil size={28} />} label={t("ownGoal")} color="#316a42" onClick={() => choose("own")} />
         </div>
       ) : (
         <div className="space-y-5">

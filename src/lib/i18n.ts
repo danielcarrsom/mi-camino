@@ -431,6 +431,25 @@ const en: Record<TKey, string> = {
 
 const DICTS: Record<"es" | "en", Record<TKey, string>> = { es, en };
 
+/**
+ * One piece of text in every language we have it in. Spanish and English are
+ * required; an indigenous language can be added per message (e.g. `mix`) and is
+ * used when present, otherwise Spanish is shown.
+ */
+export type Msg = { es: string; en: string } & Partial<Record<Exclude<Lang, "es" | "en">, string>>;
+
+/** The text of `m` in this language. Also accepts the `en` true/false flag many screens use. */
+export function tx(l: Lang | boolean, m: Msg): string {
+  if (typeof l === "boolean") return l ? m.en : m.es;
+  if (l === "en") return m.en;
+  return (l !== "es" && m[l]) || m.es;
+}
+
+/** Like tx, filling {0}, {1}… with values (numbers, money, names). */
+export function txf(l: Lang | boolean, m: Msg, values: (string | number)[]): string {
+  return tx(l, m).replace(/\{(\d+)\}/g, (_, i: string) => String(values[Number(i)] ?? ""));
+}
+
 export function translate(lang: Lang, key: TKey): string {
   const base = lang === "en" ? "en" : "es"; // indigenous → Spanish text
   return DICTS[base][key];

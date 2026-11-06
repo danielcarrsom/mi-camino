@@ -14,6 +14,8 @@ import { useT } from "@/lib/hooks";
 import { LANGS, langInfo } from "@/lib/i18n";
 import { stopSpeaking } from "@/lib/voice";
 import type { TKey } from "@/lib/i18n";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/AppShell";
 
 type NavItem = { href: string; key: TKey; icon: typeof House; exact?: boolean };
 
@@ -58,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {me && (
           <Link href="/perfil" data-tour="perfil" className={cx("mb-5 flex items-center gap-3 rounded-2xl px-3 py-2 font-bold", path === "/perfil" ? "bg-paper text-ink" : "text-paper/85 hover:bg-paper/10")}>
             <Avatar id={me.profile.avatar} name={me.profile.name} size={40} />
-            <span className="leading-tight">{me.profile.name}<span className={cx("block text-sm font-normal", path === "/perfil" ? "text-muted" : "text-paper/60")}>{me.profile.lang === "en" ? "My profile" : "Mi perfil"}</span></span>
+            <span className="leading-tight">{me.profile.name}<span className={cx("block text-sm font-normal", path === "/perfil" ? "text-muted" : "text-paper/60")}>{tx(me.profile.lang, TXT.miPerfil)}</span></span>
           </Link>
         )}
 
@@ -103,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Languages size={22} />
           </button>
           {me && (
-            <Link href="/perfil" data-tour="perfil-phone" aria-label={me.profile.lang === "en" ? "My profile" : "Mi perfil"} className="ml-1 rounded-full ring-2 ring-sand">
+            <Link href="/perfil" data-tour="perfil-phone" aria-label={tx(me.profile.lang, TXT.miPerfil)} className="ml-1 rounded-full ring-2 ring-sand">
               <Avatar id={me.profile.avatar} name={me.profile.name} size={40} />
             </Link>
           )}
@@ -144,7 +146,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {me && (
           <Link href="/perfil" onClick={() => setMore(false)} className="mb-4 flex items-center gap-3 rounded-3xl border-2 border-sand bg-paper p-3 font-extrabold">
             <Avatar id={me.profile.avatar} name={me.profile.name} size={52} />
-            <span className="text-lg leading-tight">{me.profile.name}<span className="block text-base font-bold text-clay">{me.profile.lang === "en" ? "My profile" : "Mi perfil"}</span></span>
+            <span className="text-lg leading-tight">{me.profile.name}<span className="block text-base font-bold text-clay">{tx(me.profile.lang, TXT.miPerfil)}</span></span>
           </Link>
         )}
         <div className="mb-4"><ModuleSwitch inNegocio={inNegocio} onPick={() => setMore(false)} /></div>
@@ -174,7 +176,7 @@ function CloudBadge({ dark }: { dark?: boolean }) {
   const lang = useLang();
   if (status === "off") return null;
   const en = lang === "en";
-  const text = status === "saved" ? (en ? "Saved online" : "Guardado en línea") : status === "syncing" ? (en ? "Saving…" : "Guardando…") : en ? "Only on this device" : "Solo en este dispositivo";
+  const text = status === "saved" ? (tx(en, TXT.guardadoEnLinea)) : status === "syncing" ? (tx(en, TXT.guardando)) : tx(en, TXT.soloEnEsteDispositivo);
   const I = status === "saved" ? Cloud : status === "syncing" ? RefreshCw : CloudOff;
   return (
     <p className={cx("flex items-center gap-2 px-4 text-sm font-bold", dark ? (status === "local" ? "text-sun" : "text-paper/60") : status === "local" ? "text-warn" : "text-muted")}>
@@ -246,9 +248,9 @@ function SettingsButtons({ onLang, dark }: { onLang: () => void; dark?: boolean 
       </button>
       <button className={row} onClick={() => setTour(true)}>
         <span className="flex h-[22px] w-[22px] items-center justify-center text-lg">🧭</span>
-        {lang === "en" ? "See the tour again" : "Ver el recorrido otra vez"}
+        {tx(lang, TXT.verElRecorridoOtraVez)}
       </button>
-      <Link className={row} href="/privacidad"><ShieldCheck size={22} /> {lang === "en" ? "Privacy and terms" : "Privacidad y términos"}</Link>
+      <Link className={row} href="/privacidad"><ShieldCheck size={22} /> {tx(lang, TXT.privacidadYTerminos)}</Link>
       <button className={row} onClick={() => { logout(); router.push("/"); }}><LogOut size={22} /> {t("logout")}</button>
     </>
   );

@@ -9,13 +9,15 @@ import { money, moneySpoken, isThisWeek } from "@/lib/money";
 import { speak } from "@/lib/voice";
 import { playGoal, playSaved } from "@/lib/sound";
 import type { Lang } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/casita-tanda";
 
 const L = (lang: Lang, es: string, en: string) => (lang === "en" ? en : es);
 const everyWord = (lang: Lang, e: Tanda["every"]) =>
-  e === "week" ? L(lang, "cada semana", "every week") : e === "2weeks" ? L(lang, "cada 2 semanas", "every 2 weeks") : L(lang, "cada mes", "every month");
+  e === "week" ? tx(lang, TXT.cadaSemana) : e === "2weeks" ? tx(lang, TXT.cada2Semanas) : tx(lang, TXT.cadaMes);
 const dateWord = (lang: Lang, d: Date) => d.toLocaleDateString(lang === "en" ? "en-US" : "es-MX", { day: "numeric", month: "long" });
 const personName = (lang: Lang, t: Tanda, i: number) =>
-  i === t.myTurn - 1 ? L(lang, "Tú", "You") : t.names[i]?.trim() || `${L(lang, "Persona", "Person")} ${i + 1}`;
+  i === t.myTurn - 1 ? tx(lang, TXT.tu) : t.names[i]?.trim() || `${tx(lang, TXT.persona)} ${i + 1}`;
 
 export default function TandaPage() {
   const lang = useLang();
@@ -23,37 +25,33 @@ export default function TandaPage() {
   const tandas = me.tandas ?? [];
   const [editing, setEditing] = useState<Tanda | "new" | null>(null);
 
-  const intro = L(
-    lang,
-    "Mi tanda. Aquí llevas la cuenta de tu tanda: cuánto pones, cuándo te toca recibir y si ya pagaste cada vuelta.",
-    "My tanda. Here you keep track of your tanda: how much you put in, when it's your turn and whether you've paid each round.",
-  );
+  const intro = tx(lang, TXT.miTandaAquiLlevasLa);
 
   return (
     <>
       <PageHeader
-        title={L(lang, "Mi tanda", "My tanda")}
-        sub={L(lang, "Ahorrar juntos, por turnos", "Saving together, taking turns")}
+        title={tx(lang, TXT.miTanda)}
+        sub={tx(lang, TXT.ahorrarJuntosPorTurnos)}
         say={intro}
-        right={tandas.length > 0 ? <span className="hidden md:block"><Button onClick={() => setEditing("new")} className="min-h-12 px-4 text-base"><Plus size={20} /> {L(lang, "Nueva tanda", "New tanda")}</Button></span> : undefined}
+        right={tandas.length > 0 ? <span className="hidden md:block"><Button onClick={() => setEditing("new")} className="min-h-12 px-4 text-base"><Plus size={20} /> {tx(lang, TXT.nuevaTanda)}</Button></span> : undefined}
       />
 
       {tandas.length === 0 ? (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">
           <Card className="flex flex-col items-center py-10 text-center">
             <TandaCircle people={8} current={2} myTurn={5} paidRounds={[0, 1]} size={220} lang={lang} />
-            <h2 className="mt-4 text-2xl font-semibold">{L(lang, "¿Estás en una tanda?", "Are you in a tanda?")}</h2>
+            <h2 className="mt-4 text-2xl font-semibold">{tx(lang, TXT.estasEnUnaTanda)}</h2>
             <p className="mt-2 max-w-md text-lg text-muted">
-              {L(lang, "Anótala aquí y te avisamos cuándo pagar y cuándo te toca recibir.", "Add it here and we'll show you when to pay and when it's your turn.")}
+              {tx(lang, TXT.anotalaAquiYTeAvisamos)}
             </p>
-            <Button onClick={() => setEditing("new")} className="mt-6"><Plus size={22} /> {L(lang, "Anotar mi tanda", "Add my tanda")}</Button>
+            <Button onClick={() => setEditing("new")} className="mt-6"><Plus size={22} /> {tx(lang, TXT.anotarMiTanda)}</Button>
           </Card>
           <WhatIsTanda lang={lang} />
         </div>
       ) : (
         <div className="space-y-8">
           {tandas.map((t) => <TandaView key={t.id} t={t} onEdit={() => setEditing(t)} />)}
-          <Button onClick={() => setEditing("new")} variant="soft" className="w-full md:hidden"><Plus size={22} /> {L(lang, "Nueva tanda", "New tanda")}</Button>
+          <Button onClick={() => setEditing("new")} variant="soft" className="w-full md:hidden"><Plus size={22} /> {tx(lang, TXT.nuevaTanda)}</Button>
           <WhatIsTanda lang={lang} />
         </div>
       )}
@@ -84,12 +82,12 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
   const nextRound = current < t.people - 1 ? current + 1 : null;
 
   const status =
-    t.received ? L(lang, "Ya recibiste tu tanda", "You already got your tanda")
-    : myTurnNow ? L(lang, "¡Esta vuelta te toca recibir!", "It's your turn to receive!")
-    : payout.getTime() > now ? `${L(lang, "Te toca recibir el", "Your turn is on")} ${dateWord(lang, payout)}`
-    : L(lang, "Tu turno ya pasó: marca si ya recibiste", "Your turn passed: mark if you received it");
+    t.received ? tx(lang, TXT.yaRecibisteTuTanda)
+    : myTurnNow ? tx(lang, TXT.estaVueltaTeTocaRecibir)
+    : payout.getTime() > now ? `${tx(lang, TXT.teTocaRecibirEl)} ${dateWord(lang, payout)}`
+    : tx(lang, TXT.tuTurnoYaPasoMarca);
 
-  const say = `${t.name}. ${L(lang, "Pones", "You put in")} ${moneySpoken(t.amount, lang)} ${everyWord(lang, t.every)}. ${L(lang, "Son", "There are")} ${t.people} ${L(lang, "personas, el que recibe se lleva", "people; whoever receives takes")} ${moneySpoken(pot, lang)}. ${status}.`;
+  const say = `${t.name}. ${tx(lang, TXT.pones)} ${moneySpoken(t.amount, lang)} ${everyWord(lang, t.every)}. ${tx(lang, TXT.son)} ${t.people} ${tx(lang, TXT.personasElQueRecibeSe)} ${moneySpoken(pot, lang)}. ${status}.`;
 
   return (
     <section>
@@ -97,7 +95,7 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
         <h2 className="flex items-center gap-2 text-2xl font-semibold"><Users size={26} className="text-clay" /> {t.name}</h2>
         <div className="flex gap-2">
           <ListenButton compact text={say} />
-          <button onClick={onEdit} aria-label={L(lang, "Cambiar", "Change")} className="flex h-12 w-12 items-center justify-center rounded-full bg-sand/60 hover:bg-sun-soft"><Pencil size={20} /></button>
+          <button onClick={onEdit} aria-label={tx(lang, TXT.cambiar)} className="flex h-12 w-12 items-center justify-center rounded-full bg-sand/60 hover:bg-sun-soft"><Pencil size={20} /></button>
         </div>
       </div>
 
@@ -105,15 +103,15 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
         <Card className="relative flex flex-col items-center p-6 text-center">
           {party && (
             <div className="pop-in absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-sun px-5 py-2.5 text-lg font-extrabold whitespace-nowrap shadow-lg">
-              <PartyPopper size={22} /> {L(lang, "¡Recibiste tu tanda!", "You got your tanda!")}
+              <PartyPopper size={22} /> {tx(lang, TXT.recibisteTuTanda)}
             </div>
           )}
           <TandaCircle people={t.people} current={ended ? t.people : current} myTurn={t.myTurn} paidRounds={t.paid} size={260} lang={lang} />
           <p className={cx("mt-3 rounded-full px-4 py-2 text-lg font-extrabold", myTurnNow && !t.received ? "bg-sun text-ink" : t.received ? "bg-leaf-soft text-leaf" : "bg-sand/60")}>{status}</p>
           <div className="mt-5 grid w-full grid-cols-3 gap-2">
-            <Fact label={L(lang, "Pones", "You put in")} value={money(t.amount, lang)} sub={everyWord(lang, t.every)} />
-            <Fact label={L(lang, "Recibes", "You receive")} value={money(pot, lang)} sub={L(lang, "una vez", "once")} />
-            <Fact label={L(lang, "Tu turno", "Your turn")} value={`#${t.myTurn}`} sub={dateWord(lang, payout)} />
+            <Fact label={tx(lang, TXT.pones)} value={money(t.amount, lang)} sub={everyWord(lang, t.every)} />
+            <Fact label={tx(lang, TXT.recibes)} value={money(pot, lang)} sub={tx(lang, TXT.unaVez)} />
+            <Fact label={tx(lang, TXT.tuTurno)} value={`#${t.myTurn}`} sub={dateWord(lang, payout)} />
           </div>
           {myTurnNow && !t.received && (
             <Button
@@ -124,20 +122,20 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
                 setParty(true);
                 setTimeout(() => setParty(false), 3500);
                 speak(goal
-                  ? L(lang, `¡Recibiste tu tanda! Pusimos ${moneySpoken(pot, lang)} en tu meta ${goal.name}.`, `You got your tanda! We put ${moneySpoken(pot, lang)} into your goal ${goal.name}.`)
-                  : L(lang, "¡Recibiste tu tanda!", "You got your tanda!"), lang);
+                  ? txf(lang, TXT.recibisteTuTandaPusimosEn, [moneySpoken(pot, lang), goal.name])
+                  : tx(lang, TXT.recibisteTuTanda), lang);
               }}
               className="mt-5 w-full"
             >
-              <HandCoins size={24} /> {L(lang, "Ya recibí mi tanda", "I received my tanda")}
+              <HandCoins size={24} /> {tx(lang, TXT.yaRecibiMiTanda)}
             </Button>
           )}
           {!myTurnNow && !t.received && payout.getTime() < now && (
-            <Button variant="soft" onClick={() => receive(t.id)} className="mt-5 w-full"><Check size={22} /> {L(lang, "Ya la recibí", "I received it")}</Button>
+            <Button variant="soft" onClick={() => receive(t.id)} className="mt-5 w-full"><Check size={22} /> {tx(lang, TXT.yaLaRecibi)}</Button>
           )}
           {goal && (
             <p className="mt-4 text-base text-muted">
-              {t.received ? L(lang, "Se fue a tu meta:", "It went to your goal:") : L(lang, "Cuando la recibas, va a tu meta:", "When you get it, it goes to your goal:")} <b className="text-ink">{goal.name}</b>
+              {t.received ? tx(lang, TXT.seFueATuMeta) : tx(lang, TXT.cuandoLaRecibasVaA)} <b className="text-ink">{goal.name}</b>
             </p>
           )}
         </Card>
@@ -146,33 +144,33 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
           {/* This round */}
           {!ended && current >= 0 && (
             <Card dark>
-              <p className="text-lg text-paper/75">{L(lang, "Esta vuelta", "This round")} · {roundShown + 1} {L(lang, "de", "of")} {t.people}</p>
+              <p className="text-lg text-paper/75">{tx(lang, TXT.estaVuelta)} · {roundShown + 1} {tx(lang, TXT.de)} {t.people}</p>
               <p className="mt-1 text-2xl font-semibold">
-                {L(lang, "Recibe:", "Receives:")} {personName(lang, t, roundShown)}
+                {tx(lang, TXT.recibe)} {personName(lang, t, roundShown)}
               </p>
               <p className="mt-1 text-paper/75">{dateWord(lang, tandaRoundDate(t, roundShown))}</p>
               {roundShown === myRoundIdx ? (
                 <p className="mt-5 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl bg-sun px-4 text-center text-lg font-extrabold text-ink">
-                  <HandCoins size={26} /> {L(lang, `Esta vuelta no pagas: te toca recibir ${money(pot, lang)}`, `You don't pay this round: you receive ${money(pot, lang)}`)}
+                  <HandCoins size={26} /> {txf(lang, TXT.estaVueltaNoPagasTe, [money(pot, lang)])}
                 </p>
               ) : (
               <button
-                onClick={() => { toggle(t.id, roundShown); if (!t.paid.includes(roundShown)) { playSaved(); speak(L(lang, "Listo, anotamos tu pago de esta vuelta.", "Done, we noted your payment for this round."), lang); } }}
+                onClick={() => { toggle(t.id, roundShown); if (!t.paid.includes(roundShown)) { playSaved(); speak(tx(lang, TXT.listoAnotamosTuPagoDe), lang); } }}
                 className={cx("mt-5 flex min-h-16 w-full items-center justify-center gap-3 rounded-2xl text-lg font-extrabold transition", t.paid.includes(roundShown) ? "bg-leaf text-paper" : "bg-clay text-paper shadow-[0_4px_0_#8f3a20]")}
               >
-                {t.paid.includes(roundShown) ? <><Check size={26} /> {L(lang, "Ya pagué esta vuelta", "I paid this round")}</> : <>{L(lang, "Ya pagué", "I paid")} {money(t.amount, lang)}</>}
+                {t.paid.includes(roundShown) ? <><Check size={26} /> {tx(lang, TXT.yaPagueEstaVuelta)}</> : <>{tx(lang, TXT.yaPague)} {money(t.amount, lang)}</>}
               </button>
               )}
               {nextRound !== null && (
                 <p className="mt-4 flex items-center gap-2 text-base text-paper/75">
-                  <CalendarDays size={18} /> {L(lang, "Siguiente pago:", "Next payment:")} {dateWord(lang, tandaRoundDate(t, nextRound))}
+                  <CalendarDays size={18} /> {tx(lang, TXT.siguientePago)} {dateWord(lang, tandaRoundDate(t, nextRound))}
                 </p>
               )}
             </Card>
           )}
           {current < 0 && (
             <Card dark>
-              <p className="text-lg text-paper/75">{L(lang, "La tanda empieza el", "The tanda starts on")}</p>
+              <p className="text-lg text-paper/75">{tx(lang, TXT.laTandaEmpiezaEl)}</p>
               <p className="text-3xl font-semibold">{dateWord(lang, tandaRoundDate(t, 0))}</p>
             </Card>
           )}
@@ -180,8 +178,8 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
           {/* Every round */}
           <Card className="p-2 md:p-2">
             <div className="flex items-center justify-between px-3 pt-2 pb-1">
-              <h3 className="text-xl font-semibold">{L(lang, "Todas las vueltas", "All rounds")}</h3>
-              <span className="text-base font-bold text-muted">{L(lang, "Pagaste", "Paid")} {paidCount}/{t.people - 1}</span>
+              <h3 className="text-xl font-semibold">{tx(lang, TXT.todasLasVueltas)}</h3>
+              <span className="text-base font-bold text-muted">{tx(lang, TXT.pagaste)} {paidCount}/{t.people - 1}</span>
             </div>
             <ul className="max-h-[26rem] divide-y divide-sand overflow-y-auto">
               {Array.from({ length: t.people }).map((_, i) => {
@@ -192,21 +190,21 @@ function TandaView({ t, onEdit }: { t: Tanda; onEdit: () => void }) {
                   <li key={i} className={cx("flex items-center gap-3 px-3 py-3", i === current && "bg-sun-soft/50", mine && "font-extrabold")}>
                     <span className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-serif text-lg font-semibold", mine ? "bg-clay text-paper" : "bg-sand/70")}>{i + 1}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{personName(lang, t, i)}{mine ? ` · ${L(lang, "recibes", "you get")} ${money(pot, lang)}` : ""}</span>
+                      <span className="block truncate">{personName(lang, t, i)}{mine ? ` · ${tx(lang, TXT.recibes2)} ${money(pot, lang)}` : ""}</span>
                       <span className="block text-sm font-normal text-muted">{dateWord(lang, tandaRoundDate(t, i))}</span>
                     </span>
                     {mine ? (
-                      <span className="rounded-xl bg-sun-soft px-3 py-2 text-sm font-bold">{L(lang, "No pagas", "You don't pay")}</span>
+                      <span className="rounded-xl bg-sun-soft px-3 py-2 text-sm font-bold">{tx(lang, TXT.noPagas)}</span>
                     ) : started ? (
                       <button
                         onClick={() => toggle(t.id, i)}
                         aria-pressed={paid}
                         className={cx("flex h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold", paid ? "bg-leaf-soft text-leaf" : "border-2 border-clay text-clay")}
                       >
-                        {paid ? <><Check size={18} /> {L(lang, "Pagado", "Paid")}</> : L(lang, "Sin pagar", "Not paid")}
+                        {paid ? <><Check size={18} /> {tx(lang, TXT.pagado)}</> : tx(lang, TXT.sinPagar)}
                       </button>
                     ) : (
-                      <span className="text-sm text-muted">{L(lang, "Pronto", "Soon")}</span>
+                      <span className="text-sm text-muted">{tx(lang, TXT.pronto)}</span>
                     )}
                   </li>
                 );
@@ -234,7 +232,7 @@ function TandaCircle({ people, current, myTurn, paidRounds, size, lang }: { peop
   const R = 78;
   const seat = Math.max(9, Math.min(17, 120 / people));
   return (
-    <svg viewBox="0 0 200 200" width={size} height={size} role="img" aria-label={`${L(lang, "Vuelta", "Round")} ${Math.min(current + 1, people)} / ${people}`}>
+    <svg viewBox="0 0 200 200" width={size} height={size} role="img" aria-label={`${tx(lang, TXT.vuelta)} ${Math.min(current + 1, people)} / ${people}`}>
       <circle cx="100" cy="100" r={R} fill="none" stroke="#eadfcb" strokeWidth="3" strokeDasharray="2 6" strokeLinecap="round" />
       {Array.from({ length: people }).map((_, i) => {
         const a = (i / people) * Math.PI * 2 - Math.PI / 2;
@@ -242,21 +240,21 @@ function TandaCircle({ people, current, myTurn, paidRounds, size, lang }: { peop
         const mine = i === myTurn - 1;
         const done = i < current;
         const now = i === current;
-        const fill = now ? "#e0a33a" : mine ? "#b34a2a" : done ? "#3e7d4f" : "#fffbf3";
+        const fill = now ? "#e0a33a" : mine ? "#b34a2a" : done ? "#316a42" : "#fffbf3";
         const stroke = now ? "#b07a1a" : mine ? "#8f3a20" : done ? "#2d5c3a" : "#d9cbb2";
         return (
           <g key={i}>
             {now && <circle cx={x} cy={y} r={seat + 6} fill="#e0a33a" opacity="0.3" />}
             <circle cx={x} cy={y} r={seat} fill={fill} stroke={stroke} strokeWidth="2" />
             <text x={x} y={y + 4} textAnchor="middle" fontSize={seat > 12 ? 11 : 9} fontWeight="800" fill={now || mine || done ? "#fffbf3" : "#5b5a52"}>
-              {mine ? L(lang, "Tú", "You") : i + 1}
+              {mine ? tx(lang, TXT.tu) : i + 1}
             </text>
-            {done && paidRounds.includes(i) && !mine && <circle cx={x + seat * 0.75} cy={y - seat * 0.75} r="4" fill="#fffbf3" stroke="#3e7d4f" strokeWidth="1.5" />}
+            {done && paidRounds.includes(i) && !mine && <circle cx={x + seat * 0.75} cy={y - seat * 0.75} r="4" fill="#fffbf3" stroke="#316a42" strokeWidth="1.5" />}
           </g>
         );
       })}
       <text x="100" y="94" textAnchor="middle" fontSize="12" fill="#5b5a52" fontWeight="700">
-        {current >= people ? L(lang, "Terminó", "Finished") : current < 0 ? L(lang, "Por empezar", "Not started") : L(lang, "Vuelta", "Round")}
+        {current >= people ? tx(lang, TXT.termino) : current < 0 ? tx(lang, TXT.porEmpezar) : tx(lang, TXT.vuelta)}
       </text>
       {current >= 0 && current < people && (
         <text x="100" y="122" textAnchor="middle" fontSize="28" fontWeight="700" fill="#1f2b27" fontFamily="var(--font-serif)">
@@ -288,7 +286,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
 
   useResetOn(open, () => {
     if (!open) return;
-    setName(tanda?.name ?? L(lang, "Tanda de la familia", "Family tanda"));
+    setName(tanda?.name ?? tx(lang, TXT.tandaDeLaFamilia));
     setAmount(tanda ? String(tanda.amount) : "");
     setEvery(tanda?.every ?? "week");
     setPeople(tanda?.people ?? 10);
@@ -299,7 +297,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
     setShowNames(false);
   });
   useEffect(() => {
-    if (open && !tanda) speak(L(lang, "Anota tu tanda: cuánto pone cada quien, cada cuánto, cuántas personas son y qué número te toca.", "Add your tanda: how much each person puts in, how often, how many people and which turn is yours."), lang);
+    if (open && !tanda) speak(tx(lang, TXT.anotaTuTandaCuantoPone), lang);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -311,7 +309,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
   const pot = tandaPot(draft);
 
   const save = () => {
-    const data = { name: name.trim() || L(lang, "Mi tanda", "My tanda"), amount: Number(amount), every, people, names: names.slice(0, people), myTurn, start: draft.start, goalId };
+    const data = { name: name.trim() || tx(lang, TXT.miTanda), amount: Number(amount), every, people, names: names.slice(0, people), myTurn, start: draft.start, goalId };
     if (tanda) updateTanda(tanda.id, data);
     else addTanda(data);
     playSaved();
@@ -325,17 +323,17 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
   ];
 
   return (
-    <Sheet open={open} onClose={onClose} title={tanda ? L(lang, "Cambiar mi tanda", "Change my tanda") : L(lang, "Anotar mi tanda", "Add my tanda")} wide>
+    <Sheet open={open} onClose={onClose} title={tanda ? tx(lang, TXT.cambiarMiTanda) : tx(lang, TXT.anotarMiTanda)} wide>
       <div className="space-y-5">
         <label className="block">
-          <span className="mb-2 block text-lg font-bold">{L(lang, "¿Cómo se llama tu tanda?", "What's your tanda called?")}</span>
+          <span className="mb-2 block text-lg font-bold">{tx(lang, TXT.comoSeLlamaTuTanda)}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg font-bold outline-none focus:border-clay" />
         </label>
 
-        <AmountInput label={L(lang, "¿Cuánto pone cada persona?", "How much does each person put in?")} value={amount} onChange={setAmount} />
+        <AmountInput label={tx(lang, TXT.cuantoPoneCadaPersona)} value={amount} onChange={setAmount} />
 
         <div>
-          <p className="mb-2 text-lg font-bold">{L(lang, "¿Cada cuánto se paga?", "How often do you pay?")}</p>
+          <p className="mb-2 text-lg font-bold">{tx(lang, TXT.cadaCuantoSePaga)}</p>
           <div className="grid grid-cols-3 gap-2">
             {EVERY.map((e) => (
               <button key={e.id} onClick={() => setEvery(e.id)} className={cx("min-h-14 rounded-2xl border-2 px-2 text-base font-bold", every === e.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>
@@ -346,20 +344,20 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Stepper label={L(lang, "¿Cuántas personas son?", "How many people?")} value={people} min={2} max={40} step={1} onChange={(n) => { setPeople(n); if (myTurn > n) setMyTurn(n); }} />
-          <Stepper label={L(lang, "¿Qué número te toca?", "Which turn is yours?")} value={myTurn} min={1} max={people} step={1} onChange={setMyTurn} />
+          <Stepper label={tx(lang, TXT.cuantasPersonasSon)} value={people} min={2} max={40} step={1} onChange={(n) => { setPeople(n); if (myTurn > n) setMyTurn(n); }} />
+          <Stepper label={tx(lang, TXT.queNumeroTeToca)} value={myTurn} min={1} max={people} step={1} onChange={setMyTurn} />
         </div>
 
         <label className="block">
-          <span className="mb-2 block text-lg font-bold">{L(lang, "¿Cuándo es el primer pago?", "When is the first payment?")}</span>
+          <span className="mb-2 block text-lg font-bold">{tx(lang, TXT.cuandoEsElPrimerPago)}</span>
           <input type="date" value={start} onChange={(e) => setStart(e.target.value || today)} className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg font-bold outline-none focus:border-clay" />
         </label>
 
         {me.goals.length > 0 && (
           <div>
-            <p className="mb-2 text-lg font-bold">{L(lang, "¿A qué meta va el dinero cuando te toque?", "Which goal does the money go to when it's your turn?")}</p>
+            <p className="mb-2 text-lg font-bold">{tx(lang, TXT.aQueMetaVaEl)}</p>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setGoalId(null)} className={cx("min-h-12 rounded-full border-2 px-4 font-bold", goalId === null ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>{L(lang, "Ninguna", "None")}</button>
+              <button onClick={() => setGoalId(null)} className={cx("min-h-12 rounded-full border-2 px-4 font-bold", goalId === null ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>{tx(lang, TXT.ninguna)}</button>
               {me.goals.map((g) => (
                 <button key={g.id} onClick={() => setGoalId(g.id)} className={cx("min-h-12 rounded-full border-2 px-4 font-bold", goalId === g.id ? "border-clay bg-clay text-paper" : "border-sand bg-paper")}>{g.name}</button>
               ))}
@@ -369,7 +367,7 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
 
         <div>
           <button onClick={() => setShowNames((v) => !v)} className="inline-flex h-11 items-center gap-2 rounded-full px-1 font-bold text-clay">
-            <Users size={20} /> {showNames ? L(lang, "Ocultar nombres", "Hide names") : L(lang, "Poner los nombres (opcional)", "Add names (optional)")}
+            <Users size={20} /> {showNames ? tx(lang, TXT.ocultarNombres) : tx(lang, TXT.ponerLosNombresOpcional)}
           </button>
           {showNames && (
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -377,12 +375,12 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
                 <label key={i} className="flex items-center gap-2">
                   <span className={cx("flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold", i === myTurn - 1 ? "bg-clay text-paper" : "bg-sand/70")}>{i + 1}</span>
                   {i === myTurn - 1 ? (
-                    <span className="flex h-12 flex-1 items-center rounded-xl bg-paper px-3 font-bold">{L(lang, "Tú", "You")}</span>
+                    <span className="flex h-12 flex-1 items-center rounded-xl bg-paper px-3 font-bold">{tx(lang, TXT.tu)}</span>
                   ) : (
                     <input
                       value={names[i] ?? ""}
                       onChange={(e) => setNames((n) => { const c = [...n]; c[i] = e.target.value; return c; })}
-                      placeholder={`${L(lang, "Persona", "Person")} ${i + 1}`}
+                      placeholder={`${tx(lang, TXT.persona)} ${i + 1}`}
                       className="h-12 min-w-0 flex-1 rounded-xl border-2 border-sand bg-paper px-3 text-base outline-none focus:border-clay"
                     />
                   )}
@@ -395,24 +393,24 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
         {Number(amount) > 0 && (
           <div className="rounded-2xl bg-ink p-5 text-paper">
             <p className="text-lg">
-              {L(lang, "Cada quien pone", "Each person puts in")} <b>{money(Number(amount), lang)}</b> {everyWord(lang, every)}. {L(lang, "Son", "There are")} {people} {L(lang, "personas: el que recibe no paga esa vuelta y se lleva", "people: whoever receives doesn't pay that round and takes")} <b className="text-sun">{money(pot, lang)}</b>.
+              {tx(lang, TXT.cadaQuienPone)} <b>{money(Number(amount), lang)}</b> {everyWord(lang, every)}. {tx(lang, TXT.son)} {people} {tx(lang, TXT.personasElQueRecibeNo)} <b className="text-sun">{money(pot, lang)}</b>.
             </p>
             <p className="mt-2 text-lg">
-              {L(lang, "Te toca recibir en la vuelta", "Your turn is round")} <b>{myTurn}</b>: <b className="text-sun">{dateWord(lang, tandaPayoutDate(draft))}</b>.
+              {tx(lang, TXT.teTocaRecibirEnLa)} <b>{myTurn}</b>: <b className="text-sun">{dateWord(lang, tandaPayoutDate(draft))}</b>.
             </p>
             <p className="mt-2 text-base text-paper/70">
-              {L(lang, `En total pones ${money(pot, lang)} (todas las vueltas menos la tuya) y recibes ${money(pot, lang)}. No ganas intereses: es una forma de ahorrar juntos.`, `In total you put in ${money(pot, lang)} (every round except yours) and get ${money(pot, lang)}. No interest: it's a way to save together.`)}
+              {txf(lang, TXT.enTotalPonesTodasLas, [money(pot, lang)])}
             </p>
           </div>
         )}
 
         <div className="flex gap-3">
           {tanda && (
-            <Button variant="soft" onClick={() => { if (window.confirm(L(lang, "¿Borrar esta tanda?", "Delete this tanda?"))) { removeTanda(tanda.id); onClose(); } }} className="flex-1 text-clay">
-              {L(lang, "Borrar", "Delete")}
+            <Button variant="soft" onClick={() => { if (window.confirm(tx(lang, TXT.borrarEstaTanda))) { removeTanda(tanda.id); onClose(); } }} className="flex-1 text-clay">
+              {tx(lang, TXT.borrar)}
             </Button>
           )}
-          <Button onClick={save} disabled={!Number(amount)} className="flex-[2]"><Check size={22} /> {L(lang, "Guardar", "Save")}</Button>
+          <Button onClick={save} disabled={!Number(amount)} className="flex-[2]"><Check size={22} /> {tx(lang, TXT.guardar)}</Button>
         </div>
       </div>
     </Sheet>
@@ -421,29 +419,21 @@ function TandaForm({ open, tanda, onClose }: { open: boolean; tanda: Tanda | nul
 
 // ---------- Plain explanation + safety ----------
 function WhatIsTanda({ lang }: { lang: Lang }) {
-  const what = L(
-    lang,
-    "Una tanda es un grupo de personas que se juntan para ahorrar. Cada semana (o cada quincena) todos ponen la misma cantidad y a una persona le toca recibir el dinero de los demás. Cuando te toca a ti, no pones dinero esa vez: solo recibes. Se sigue así hasta que a cada quien le toca una vez.",
-    "A tanda is a group of people who save together. Every week (or every two weeks) everyone puts in the same amount and one person receives what the others put in. When it's your turn, you don't pay that time: you only receive. It continues until everyone has had one turn.",
-  );
-  const safe = L(
-    lang,
-    "Haz tandas solo con personas de mucha confianza. Una tanda no está protegida por ningún banco: si alguien deja de pagar, puedes perder tu dinero. Para guardar tu dinero seguro, pregunta en el Consulado por la Tarjeta Finabien o abre una cuenta de ahorro.",
-    "Only join tandas with people you trust a lot. A tanda isn't protected by any bank: if someone stops paying, you can lose your money. To keep your money safe, ask at the Consulate about the Finabien card or open a savings account.",
-  );
+  const what = tx(lang, TXT.unaTandaEsUnGrupo);
+  const safe = tx(lang, TXT.hazTandasSoloConPersonas);
   return (
     <div className="space-y-4">
       <Card>
         <div className="flex items-start justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-xl font-semibold"><Lightbulb size={22} className="text-sun" /> {L(lang, "¿Qué es una tanda?", "What is a tanda?")}</h3>
+          <h3 className="flex items-center gap-2 text-xl font-semibold"><Lightbulb size={22} className="text-sun" /> {tx(lang, TXT.queEsUnaTanda)}</h3>
           <ListenButton compact text={what} />
         </div>
         <p className="mt-2 text-lg">{what}</p>
-        <p className="mt-3 text-base text-muted">{L(lang, "Ejemplo: son 10 personas y cada quien pone $100 a la semana. La semana que te toca a ti, recibes $900 (los $100 de cada una de las otras 9 personas) y tú no pones nada esa semana. Al final, todos pusieron $900 y todos recibieron $900.", "Example: 10 people put in $100 a week. The week it's your turn, you receive $900 ($100 from each of the other 9) and you don't put in anything that week. In the end, everyone put in $900 and everyone received $900.")}</p>
+        <p className="mt-3 text-base text-muted">{tx(lang, TXT.ejemploSon10PersonasY)}</p>
       </Card>
       <div className="rounded-3xl border-2 border-sun bg-sun-soft/60 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-xl font-semibold"><ShieldAlert size={22} className="text-clay" /> {L(lang, "Cuida tu dinero", "Protect your money")}</h3>
+          <h3 className="flex items-center gap-2 text-xl font-semibold"><ShieldAlert size={22} className="text-clay" /> {tx(lang, TXT.cuidaTuDinero)}</h3>
           <ListenButton compact text={safe} />
         </div>
         <p className="mt-2 text-lg">{safe}</p>

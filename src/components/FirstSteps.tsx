@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowRight, Check, X } from "lucide-react";
 import { Card, ListenButton, cx } from "./ui";
 import { useLang, useMe, useStore } from "@/lib/store";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/FirstSteps";
 
 type Step = { done: boolean; label: string; href: string };
 
@@ -20,38 +22,36 @@ export function FirstSteps({ where }: { where: "casita" | "negocio" }) {
   let steps: Step[];
   if (where === "casita") {
     steps = [
-      { done: me.work.length > 0 || me.entries.some((e) => e.kind === "in"), label: en ? "Add your salary" : "Anota tu salario", href: "/casita/anotar?tipo=gane" },
-      { done: me.entries.some((e) => e.kind === "out" && e.repeat !== "once"), label: en ? "Add your rent and fixed payments" : "Anota tu renta y tus pagos fijos", href: "/casita/anotar?tipo=gaste" },
-      { done: me.goals.length > 0, label: en ? "Create your first goal" : "Crea tu primera meta", href: "/casita/metas?nueva=1" },
-      { done: Object.keys(me.learn?.stars ?? {}).length > 0 || (me.learn?.read.length ?? 0) > 0, label: en ? "Play a game to learn" : "Juega un juego para aprender", href: "/aprender" },
+      { done: me.work.length > 0 || me.entries.some((e) => e.kind === "in"), label: tx(en, TXT.anotaTuSalario), href: "/casita/anotar?tipo=gane" },
+      { done: me.entries.some((e) => e.kind === "out" && e.repeat !== "once"), label: tx(en, TXT.anotaTuRentaYTus), href: "/casita/anotar?tipo=gaste" },
+      { done: me.goals.length > 0, label: tx(en, TXT.creaTuPrimeraMeta), href: "/casita/metas?nueva=1" },
+      { done: Object.keys(me.learn?.stars ?? {}).length > 0 || (me.learn?.read.length ?? 0) > 0, label: tx(en, TXT.juegaUnJuegoParaAprender), href: "/aprender" },
     ];
   } else {
     const b = me.business;
     if (!b) return null;
     steps = [
-      { done: b.entries.some((e) => e.kind === "in"), label: en ? "Add what you sold today" : "Anota lo que vendiste hoy", href: "/negocio/anotar?tipo=venta" },
-      { done: b.entries.some((e) => e.kind === "out" && e.repeat !== "once"), label: en ? "Add your fixed costs (rent, permits)" : "Anota tus gastos fijos (renta, permisos)", href: "/negocio/anotar?tipo=gasto" },
-      { done: b.products.length > 0, label: en ? "Add what you sell and what it costs you" : "Agrega lo que vendes y cuánto te cuesta", href: "/negocio/dinero?tab=costos" },
-      { done: !!b.pay || b.entries.some((e) => e.category === "mi_sueldo"), label: en ? "Set your salary" : "Ponte un sueldo", href: "/negocio?sueldo=1" },
+      { done: b.entries.some((e) => e.kind === "in"), label: tx(en, TXT.anotaLoQueVendisteHoy), href: "/negocio/anotar?tipo=venta" },
+      { done: b.entries.some((e) => e.kind === "out" && e.repeat !== "once"), label: tx(en, TXT.anotaTusGastosFijosRenta), href: "/negocio/anotar?tipo=gasto" },
+      { done: b.products.length > 0, label: tx(en, TXT.agregaLoQueVendesY), href: "/negocio/dinero?tab=costos" },
+      { done: !!b.pay || b.entries.some((e) => e.category === "mi_sueldo"), label: tx(en, TXT.ponteUnSueldo), href: "/negocio?sueldo=1" },
     ];
   }
   const doneCount = steps.filter((s) => s.done).length;
   if (doneCount === steps.length) return null;
   const next = steps.find((s) => !s.done)!;
-  const say = en
-    ? `Your first steps. You've done ${doneCount} of ${steps.length}. Next: ${next.label}.`
-    : `Tus primeros pasos. Llevas ${doneCount} de ${steps.length}. Lo que sigue: ${next.label}.`;
+  const say = txf(en, TXT.tusPrimerosPasosLlevasDe, [doneCount, steps.length, next.label]);
 
   return (
     <Card className="mb-5 border-2 border-clay/40">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">{en ? "Your first steps" : "Tus primeros pasos"}</h2>
-          <p className="text-lg text-muted">{en ? `${doneCount} of ${steps.length} done` : `Llevas ${doneCount} de ${steps.length}`}</p>
+          <h2 className="text-2xl font-semibold">{tx(en, TXT.tusPrimerosPasos)}</h2>
+          <p className="text-lg text-muted">{txf(en, TXT.llevasDe, [doneCount, steps.length])}</p>
         </div>
         <div className="flex items-center gap-1">
           <ListenButton compact text={say} />
-          <button onClick={() => updateProfile({ [hiddenKey]: true })} aria-label={en ? "Hide" : "Ocultar"} className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-sand/60"><X size={20} /></button>
+          <button onClick={() => updateProfile({ [hiddenKey]: true })} aria-label={tx(en, TXT.ocultar)} className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-sand/60"><X size={20} /></button>
         </div>
       </div>
       <ol className="mt-4 space-y-2">
@@ -68,7 +68,7 @@ export function FirstSteps({ where }: { where: "casita" | "negocio" }) {
         ))}
       </ol>
       <Link href={next.href} className="mt-4 flex min-h-16 items-center justify-center gap-2 rounded-2xl bg-clay px-4 text-center text-xl font-extrabold text-paper shadow-[0_4px_0_#8f3a20] active:translate-y-0.5">
-        {en ? "Next:" : "Sigue:"} {next.label} <ArrowRight size={24} />
+        {tx(en, TXT.sigue)} {next.label} <ArrowRight size={24} />
       </Link>
     </Card>
   );

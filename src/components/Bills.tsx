@@ -9,9 +9,11 @@ import { isPaidNow, useLang, useMe, useStore, type Entry } from "@/lib/store";
 import { money, moneySpoken } from "@/lib/money";
 import { categoryById, pick } from "@/lib/catalog";
 import { playSaved } from "@/lib/sound";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/Bills";
 
 const when = (e: Entry, en: boolean) =>
-  e.repeat === "month" ? (en ? "this month" : "este mes") : e.repeat === "2weeks" ? (en ? "this pay period" : "esta quincena") : (en ? "this week" : "esta semana");
+  e.repeat === "month" ? (tx(en, TXT.esteMes)) : e.repeat === "2weeks" ? (tx(en, TXT.estaQuincena)) : (tx(en, TXT.estaSemana));
 
 export function BillsCard({ compact, keep }: { compact?: boolean; keep?: number }) {
   const lang = useLang();
@@ -23,9 +25,9 @@ export function BillsCard({ compact, keep }: { compact?: boolean; keep?: number 
   if (!bills.length) {
     return compact ? null : (
       <Card>
-        <p className="text-xl font-semibold">{en ? "Your fixed payments" : "Tus pagos fijos"}</p>
-        <p className="mt-2 text-lg text-muted">{en ? "Add your rent, light or phone once and we'll remind you each month." : "Anota una vez tu renta, luz o teléfono y aquí te los recordamos cada mes."}</p>
-        <Link href="/casita/anotar?tipo=gaste" className="mt-3 inline-flex h-12 items-center rounded-2xl bg-clay px-5 font-bold text-paper">{en ? "Add a payment" : "Anotar un pago"}</Link>
+        <p className="text-xl font-semibold">{tx(en, TXT.tusPagosFijos)}</p>
+        <p className="mt-2 text-lg text-muted">{tx(en, TXT.anotaUnaVezTuRenta)}</p>
+        <Link href="/casita/anotar?tipo=gaste" className="mt-3 inline-flex h-12 items-center rounded-2xl bg-clay px-5 font-bold text-paper">{tx(en, TXT.anotarUnPago)}</Link>
       </Card>
     );
   }
@@ -37,16 +39,14 @@ export function BillsCard({ compact, keep }: { compact?: boolean; keep?: number 
   const list = compact ? pending : [...pending, ...paid];
   if (compact && !pending.length) return null;
 
-  const say = en
-    ? `You've paid ${moneySpoken(paidTotal, lang)} of ${moneySpoken(total, lang)}. ${left > 0 ? `${moneySpoken(left, lang)} left to pay: ${pending.map((e) => pick(categoryById(e.category).label, lang)).join(", ")}.` : "Everything is paid."}`
-    : `Has pagado ${moneySpoken(paidTotal, lang)} de ${moneySpoken(total, lang)}. ${left > 0 ? `Te falta pagar ${moneySpoken(left, lang)}: ${pending.map((e) => pick(categoryById(e.category).label, lang)).join(", ")}.` : "Ya pagaste todo."}`;
+  const say = txf(en, TXT.hasPagadoDe, [moneySpoken(paidTotal, lang), moneySpoken(total, lang), left > 0 ? `Te falta pagar ${moneySpoken(left, lang)}: ${pending.map((e) => pick(categoryById(e.category).label, lang)).join(", ")}.` : "Ya pagaste todo.", left > 0 ? `${moneySpoken(left, lang)} left to pay: ${pending.map((e) => pick(categoryById(e.category).label, lang)).join(", ")}.` : "Everything is paid."]);
 
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-xl font-semibold"><CalendarCheck size={24} className="text-clay" /> {compact ? (en ? "Still to pay" : "Te falta pagar") : (en ? "Your payments this month" : "Tus pagos de este mes")}</h2>
-          {!compact && <p className="text-base text-muted">{en ? "Tap “I paid it” when you pay each one." : "Toca “Ya lo pagué” cuando pagues cada uno."}</p>}
+          <h2 className="flex items-center gap-2 text-xl font-semibold"><CalendarCheck size={24} className="text-clay" /> {compact ? (tx(en, TXT.teFaltaPagar)) : (tx(en, TXT.tusPagosDeEsteMes))}</h2>
+          {!compact && <p className="text-base text-muted">{tx(en, TXT.tocaYaLoPagueCuando)}</p>}
         </div>
         <ListenButton compact text={say} />
       </div>
@@ -58,11 +58,11 @@ export function BillsCard({ compact, keep }: { compact?: boolean; keep?: number 
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-leaf-soft p-3">
-              <p className="text-base font-bold text-leaf">{en ? "Already paid" : "Ya pagaste"}</p>
+              <p className="text-base font-bold text-leaf">{tx(en, TXT.yaPagaste)}</p>
               <p className="font-serif text-3xl font-semibold">{money(paidTotal, lang)}</p>
             </div>
             <div className={cx("rounded-2xl p-3", left > 0 ? "bg-sun-soft" : "bg-leaf-soft")}>
-              <p className="text-base font-bold">{en ? "Still to pay" : "Te falta pagar"}</p>
+              <p className="text-base font-bold">{tx(en, TXT.teFaltaPagar)}</p>
               <p className="font-serif text-3xl font-semibold">{money(left, lang)}</p>
             </div>
           </div>
@@ -91,11 +91,11 @@ export function BillsCard({ compact, keep }: { compact?: boolean; keep?: number 
               </span>
               {done ? (
                 <button onClick={() => togglePaid(e.id)} className="ml-auto inline-flex h-12 items-center gap-1.5 rounded-2xl px-3 text-base font-bold text-muted hover:bg-sand/60">
-                  <RotateCcw size={16} /> {en ? "Undo" : "Deshacer"}
+                  <RotateCcw size={16} /> {tx(en, TXT.deshacer)}
                 </button>
               ) : (
                 <button onClick={() => { togglePaid(e.id); playSaved(); }} className="ml-auto inline-flex h-12 items-center gap-2 rounded-2xl bg-leaf px-4 text-base font-extrabold text-paper shadow-[0_3px_0_#2d5c3a] active:translate-y-0.5">
-                  <Check size={20} /> {en ? "I paid it" : "Ya lo pagué"}
+                  <Check size={20} /> {tx(en, TXT.yaLoPague)}
                 </button>
               )}
             </li>

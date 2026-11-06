@@ -6,7 +6,7 @@ import { hasVoice } from "@/lib/server/ai";
 // multilingual model, slightly slower and steadier for older listeners.
 // To change it for everyone, set ELEVENLABS_VOICE_ID in Vercel.
 export async function POST(req: Request) {
-  const refused = guard(req, "hablar");
+  const refused = await guard(req, "hablar");
   if (refused) return refused;
   if (!hasVoice()) return new Response("voice not configured", { status: 501 });
   const { text, locale } = ((await req.json().catch(() => ({}))) ?? {}) as { text?: string; locale?: string };

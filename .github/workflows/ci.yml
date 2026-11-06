@@ -1,0 +1,62 @@
+# Runs on every push and pull request. A red check means: don't merge or deploy yet.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Types, lint, tests, build, browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # The rate limiter counts in memory during CI (no calls to the real database)
+      RATE_LIMIT_LOCAL_ONLY: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Security audit of dependencies
+        run: npm audit --audit-level=moderate
+
+      - name: Types, lint and unit tests
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: Browser for end-to-end tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the app
+        run: |
+          npx next start -p 3100 &
+          for i in $(seq 1 60); do curl -sf http://localhost:3100 >/dev/null && exit 0; sleep 1; done
+          echo "app did not start" && exit 1
+
+      - name: End-to-end smoke test
+        run: npm run e2e
+        env:
+          BASE_URL: http://localhost:3100
+
+      - name: Accessibility check
+        run: npm run a11y
+        env:
+          BASE_URL: http://localhost:3100

@@ -25,7 +25,7 @@ export type Repeat = "once" | "week" | "2weeks" | "month";
 export const GROUPS: CategoryGroup[] = [
   { id: "casa", label: { es: "Casa", en: "Home" }, icon: "house", color: "#b34a2a" },
   { id: "comida", label: { es: "Comida", en: "Food" }, icon: "utensils", color: "#e0a33a" },
-  { id: "transporte", label: { es: "Transporte", en: "Getting around" }, icon: "bus", color: "#3e7d4f" },
+  { id: "transporte", label: { es: "Transporte", en: "Getting around" }, icon: "bus", color: "#316a42" },
   { id: "familia", label: { es: "Familia", en: "Family" }, icon: "users", color: "#7a5c3e" },
   { id: "salud", label: { es: "Salud", en: "Health" }, icon: "heart-pulse", color: "#c0563a" },
   { id: "personal", label: { es: "Personal", en: "Personal" }, icon: "shirt", color: "#5f7a8a" },

@@ -20,7 +20,7 @@ export const BIZ_GAMES: Game[] = [
     title: { es: "¿Del negocio o de la casa?", en: "Business or home?" },
     sub: { es: "Aprende a separar tu dinero", en: "Learn to keep money apart" },
     icon: "store",
-    color: "#3e7d4f",
+    color: "#316a42",
     questions: [
       homeOrBiz({ es: "Comprar masa y carne para los tamales", en: "Buying dough and meat for the tamales" }, "shopping-cart", true, { es: "Es lo que usas para vender: es del negocio.", en: "You use it to sell: it's a business cost." }),
       homeOrBiz({ es: "Pagar la renta de tu departamento", en: "Paying rent for your apartment" }, "key-round", false, { es: "Tu casa no es el negocio. Págala con tu sueldo.", en: "Your home isn't the business. Pay it with your salary." }),
@@ -176,6 +176,7 @@ export const BIZ_LESSONS: Lesson[] = [
   },
   {
     id: "biz_formal",
+    places: ["us"],
     title: { es: "Permisos, impuestos y tu negocio", en: "Permits, taxes and your business" },
     icon: "file-text",
     minutes: 3,
@@ -212,6 +213,26 @@ export const BIZ_LESSONS: Lesson[] = [
     },
     keys: { es: ["Primero que el negocio deje ganancia", "Pregunta el total a pagar", "Compara opciones"], en: ["First, profit", "Ask the total cost", "Compare options"] },
   },
+  {
+    id: "biz_formal_mx",
+    places: ["mx"],
+    title: { es: "Tu negocio en regla en México", en: "Your business in order in Mexico" },
+    icon: "file-text",
+    minutes: 3,
+    body: {
+      es: [
+        "Darte de alta en el SAT te deja dar facturas, vender a empresas y pedir préstamos más fácil.",
+        "Si vendes poco, el RESICO es un régimen sencillo: pagas del 1% al 2.5% de lo que cobras cada mes. Necesitas tu RFC y tu e.firma.",
+        "Si contratas a alguien, regístralo en el IMSS. Y revisa con tu municipio qué licencia necesitas para vender. Pide orientación gratis antes de pagarle a un gestor.",
+      ],
+      en: [
+        "Registering with the SAT lets you issue invoices, sell to companies and get loans more easily.",
+        "If you sell little, RESICO is a simple regime: you pay 1% to 2.5% of what you charge each month. You need your RFC and e.firma.",
+        "If you hire someone, register them with IMSS. And check with your municipality which license you need to sell. Get free guidance before paying a middleman.",
+      ],
+    },
+    keys: { es: ["Alta en el SAT", "RESICO: del 1% al 2.5%", "Registra a tus trabajadores en el IMSS"], en: ["Register with the SAT", "RESICO: 1% to 2.5%", "Register workers with IMSS"] },
+  },
 ];
 
 export const BIZ_NEEDS: NeedItem[] = [
@@ -226,6 +247,7 @@ export const BIZ_NEEDS: NeedItem[] = [
 export const BIZ_RESOURCES: Resource[] = [
   {
     id: "sbs", icon: "store", free: true,
+    places: ["nyc"],
     name: { es: "Servicios para Pequeños Negocios de NYC (SBS)", en: "NYC Small Business Services (SBS)" },
     what: { es: "La ciudad te ayuda gratis: cómo abrir tu negocio, permisos, ayuda legal gratis, cursos y cómo conseguir financiamiento. Pide atención en español.", en: "Free help from the city: opening your business, permits, free legal help, courses and financing. Ask for help in Spanish." },
     needs: ["empezar", "permisos", "prestamos", "asesoria"],
@@ -234,6 +256,7 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "bizexpress", icon: "file-text", free: true,
+    places: ["nyc"],
     name: { es: "NYC Business Express", en: "NYC Business Express" },
     what: { es: "Página de la ciudad para saber qué permisos y licencias necesita tu tipo de negocio.", en: "City website to find which permits and licenses your type of business needs." },
     needs: ["permisos", "empezar"],
@@ -241,6 +264,7 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "score", icon: "users", free: true,
+    places: ["nyc"],
     name: { es: "SCORE Nueva York (mentores)", en: "SCORE New York City (mentors)" },
     what: { es: "Mentores voluntarios con experiencia en negocios te asesoran gratis, uno a uno.", en: "Volunteer mentors with business experience advise you for free, one-on-one." },
     needs: ["asesoria", "empezar"],
@@ -248,6 +272,7 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "svp", icon: "shopping-cart", free: true,
+    places: ["nyc"],
     name: { es: "Street Vendor Project (vendedores ambulantes)", en: "Street Vendor Project (street vendors)" },
     what: { es: "Organización de vendedores ambulantes de Nueva York: te orienta sobre permisos, multas y tus derechos para vender en la calle.", en: "New York street vendors' organization: guidance on permits, tickets and your rights to sell on the street." },
     needs: ["permisos", "asesoria"],
@@ -255,6 +280,7 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "grameen", icon: "landmark", free: false,
+    places: ["us"],
     name: { es: "Grameen America (préstamos pequeños)", en: "Grameen America (small loans)" },
     what: { es: "Préstamos pequeños para emprendedoras en grupo, sin necesitar historial de crédito. Primer préstamo de $500 a $2,500, a pagar cada semana. Tiene interés.", en: "Small group loans for entrepreneurs, no credit history needed. First loan $500 to $2,500, paid weekly. It has interest." },
     needs: ["prestamos"],
@@ -263,6 +289,7 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "taxprep_biz", icon: "scale", free: true,
+    places: ["nyc"],
     name: { es: "Preparación de impuestos gratis (NYC Free Tax Prep)", en: "NYC Free Tax Prep" },
     what: { es: "Te ayudan gratis con tus impuestos si ganas hasta $68,000 al año (o $97,000 con dependientes). Pregunta si pueden incluir lo de tu negocio.", en: "Free tax help if you earn up to $68,000 a year ($97,000 with dependents). Ask if they can include your business." },
     needs: ["impuestos"],
@@ -271,10 +298,66 @@ export const BIZ_RESOURCES: Resource[] = [
   },
   {
     id: "consulado_biz", icon: "building-2", free: true,
+    places: ["nyc", "ny"],
     name: { es: "Consulado General de México en Nueva York", en: "Consulate General of Mexico in New York" },
     what: { es: "Orientación para mexicanos y conexión con programas para emprendedores.", en: "Guidance for Mexicans and connections to entrepreneur programs." },
     needs: ["asesoria", "empezar"],
     phone: { tel: "+12122176400", show: "(212) 217-6400" },
     web: { href: "https://consulmex.sre.gob.mx/nuevayork/", show: "consulmex.sre.gob.mx/nuevayork" },
+  },
+  // ----- Anywhere in the US -----
+  {
+    id: "sba", icon: "store", free: true, places: ["usother"],
+    name: { es: "Administración de Pequeños Negocios (SBA)", en: "Small Business Administration (SBA)" },
+    what: { es: "La agencia federal para pequeños negocios: cómo empezar, centros de ayuda gratis cerca de ti y préstamos respaldados por el gobierno. Tiene información en español.", en: "The federal agency for small businesses: how to start, free help centers near you and government-backed loans. Information in Spanish." },
+    needs: ["empezar", "prestamos", "asesoria", "permisos"],
+    web: { href: "https://www.sba.gov/es", show: "sba.gov/es" },
+  },
+  {
+    id: "score_us", icon: "users", free: true, places: ["usother"],
+    name: { es: "SCORE (mentores gratis)", en: "SCORE (free mentors)" },
+    what: { es: "Mentores voluntarios con experiencia en negocios te asesoran gratis, uno a uno, en todo el país.", en: "Volunteer mentors with business experience advise you for free, one-on-one, nationwide." },
+    needs: ["asesoria", "empezar"],
+    web: { href: "https://www.score.org", show: "score.org" },
+  },
+  {
+    id: "vita_biz", icon: "scale", free: true, places: ["usother"],
+    name: { es: "Ayuda gratis con impuestos (VITA del IRS)", en: "Free tax help (IRS VITA)" },
+    what: { es: "Voluntarios certificados te ayudan gratis con tus impuestos. Pregunta si pueden incluir lo de tu negocio.", en: "Certified volunteers help with your taxes for free. Ask whether they can include your business." },
+    needs: ["impuestos"],
+    phone: { tel: "+18009069887", show: "1-800-906-9887" },
+    web: { href: "https://www.irs.gov/vita", show: "irs.gov/vita" },
+  },
+  // ----- México -----
+  {
+    id: "sat_resico", icon: "scale", free: true, places: ["mx"],
+    name: { es: "SAT: régimen RESICO", en: "SAT: RESICO tax regime" },
+    what: { es: "Si trabajas por tu cuenta y vendes poco, el RESICO te deja pagar del 1% al 2.5% de lo que cobras. Te orientan gratis para darte de alta, sacar tu RFC y hacer facturas.", en: "If you work for yourself and sell little, RESICO lets you pay 1% to 2.5% of what you charge. Free guidance to register, get your RFC and issue invoices." },
+    needs: ["impuestos", "permisos", "empezar"],
+    phone: { tel: "+525562722728", show: "MarcaSAT 55 627 22 728" },
+    web: { href: "https://www.sat.gob.mx", show: "sat.gob.mx" },
+  },
+  {
+    id: "nafin", icon: "landmark", free: true, places: ["mx"],
+    name: { es: "Nacional Financiera (Nafin)", en: "Nacional Financiera (Nafin)" },
+    what: { es: "Banco del gobierno para negocios: programas de crédito a través de bancos e intermediarios, y cursos gratis para emprendedores.", en: "Government development bank for businesses: credit programs through banks and lenders, and free courses for entrepreneurs." },
+    needs: ["prestamos", "asesoria", "empezar"],
+    web: { href: "https://www.nafin.com", show: "nafin.com" },
+  },
+  {
+    id: "imss_patron", icon: "users", free: true, places: ["mx"],
+    name: { es: "IMSS: si contratas a alguien", en: "IMSS: if you hire someone" },
+    what: { es: "Si tienes trabajadores, regístralos en el IMSS. Te orientan gratis sobre cómo darlos de alta y cuánto pagar.", en: "If you have workers, register them with IMSS. Free guidance on how to register them and what to pay." },
+    needs: ["permisos", "asesoria"],
+    phone: { tel: "+528006232323", show: "800 623 2323" },
+    web: { href: "https://www.imss.gob.mx", show: "imss.gob.mx" },
+  },
+  {
+    id: "condusef_biz", icon: "shield-alert", free: true, places: ["mx"],
+    name: { es: "Condusef: antes de pedir un préstamo", en: "Condusef: before taking a loan" },
+    what: { es: "Revisa que la financiera esté registrada y compara el costo total (CAT) antes de firmar. También recibe quejas.", en: "Check that the lender is registered and compare the total cost (CAT) before signing. They also take complaints." },
+    needs: ["prestamos"],
+    phone: { tel: "+525553400999", show: "55 5340 0999" },
+    web: { href: "https://www.condusef.gob.mx", show: "condusef.gob.mx" },
   },
 ];

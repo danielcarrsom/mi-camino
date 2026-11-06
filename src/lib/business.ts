@@ -7,6 +7,8 @@ import type { Lang } from "./i18n";
 import { toMonthly, money, localAmount, unitWord } from "./money";
 import { numbersIn, repeatIn, strip } from "./understand";
 import { cashSetAsideWeekly, resicoRate, taxHelp, type Region } from "./taxes";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/business";
 
 // ---------- Types (stored in UserData.business) ----------
 export type BizEntry = {
@@ -155,10 +157,9 @@ export type Health = { light: Light; title: string; reasons: string[]; say: stri
 const pct = (x: number) => Math.round(x * 100);
 
 export function bizHealth(n: BizNumbers, products: Product[], lang: Lang): Health {
-  const L = (es: string, en: string) => (lang === "en" ? en : es);
   if (!n.hasData) {
-    const title = L("Anota tus ventas y gastos para ver tu semáforo", "Add your sales and costs to see your traffic light");
-    return { light: "gris", title, reasons: [L("Con una semana de datos ya te puedo decir cómo va tu negocio.", "With one week of data I can tell you how your business is doing.")], say: title };
+    const title = tx(lang, TXT.anotaTusVentasYGastos);
+    return { light: "gris", title, reasons: [tx(lang, TXT.conUnaSemanaDeDatos)], say: title };
   }
   let light: Light = "verde";
   if (n.profit < 0) light = "rojo";
@@ -167,26 +168,26 @@ export function bizHealth(n: BizNumbers, products: Product[], lang: Lang): Healt
   const reasons: string[] = [];
   if (n.sales > 0) {
     reasons.push(n.profit >= 0
-      ? L(`De cada $100 que vendes, te quedan $${pct(n.margin)}.`, `Out of every $100 you sell, you keep $${pct(n.margin)}.`)
-      : L(`Gastaste ${money(-n.profit, lang)} más de lo que vendiste.`, `You spent ${money(-n.profit, lang)} more than you sold.`));
+      ? txf(lang, TXT.deCada100QueVendes, [pct(n.margin)])
+      : txf(lang, TXT.gastasteMasDeLoQue, [money(-n.profit, lang)]));
   } else {
-    reasons.push(L("Este mes no has anotado ventas.", "You haven't added any sales this month."));
+    reasons.push(tx(lang, TXT.esteMesNoHasAnotado));
   }
   if (n.trend !== null && Math.abs(n.trend) >= 0.05) {
     reasons.push(n.trend > 0
-      ? L(`Vendiste ${pct(n.trend)}% más que el mes anterior.`, `You sold ${pct(n.trend)}% more than the month before.`)
-      : L(`Vendiste ${pct(-n.trend)}% menos que el mes anterior.`, `You sold ${pct(-n.trend)}% less than the month before.`));
+      ? txf(lang, TXT.vendisteMasQueElMes, [pct(n.trend)])
+      : txf(lang, TXT.vendisteMenosQueElMes, [pct(-n.trend)]));
   }
   if (n.fixed > 0 && n.sales > 0) {
-    reasons.push(L(`Tus gastos fijos se llevan $${pct(n.fixed / n.sales)} de cada $100.`, `Fixed costs take $${pct(n.fixed / n.sales)} of every $100.`));
+    reasons.push(txf(lang, TXT.tusGastosFijosSeLlevan, [pct(n.fixed / n.sales)]));
   }
   const weak = products.filter((p) => p.price > 0 && (p.price - p.cost) / p.price < 0.2);
-  if (weak.length) reasons.push(L(`${weak.map((p) => p.name).join(", ")} te deja${weak.length > 1 ? "n" : ""} muy poca ganancia.`, `${weak.map((p) => p.name).join(", ")} leave${weak.length > 1 ? "" : "s"} very little profit.`));
-  if (n.daysOfData < 14) reasons.push(L("Todavía hay pocos días anotados: el semáforo se afina con el tiempo.", "Only a few days so far: the light gets more accurate with time."));
+  if (weak.length) reasons.push(txf(lang, TXT.teDejaMuyPocaGanancia, [weak.map((p) => p.name).join(", "), weak.length > 1 ? "n" : "", weak.length > 1 ? "" : "s"]));
+  if (n.daysOfData < 14) reasons.push(tx(lang, TXT.todaviaHayPocosDiasAnotados));
 
-  const title = light === "verde" ? L("Tu negocio va bien", "Your business is doing well")
-    : light === "amarillo" ? L("Tu negocio va, pero con cuidado", "Your business is OK, but be careful")
-    : L("Tu negocio está en rojo", "Your business is in the red");
+  const title = light === "verde" ? tx(lang, TXT.tuNegocioVaBien)
+    : light === "amarillo" ? tx(lang, TXT.tuNegocioVaPeroCon)
+    : tx(lang, TXT.tuNegocioEstaEnRojo);
   return { light, title, reasons, say: `${title}. ${reasons.join(" ")}` };
 }
 
@@ -246,40 +247,31 @@ const INDUSTRY_TIPS: Record<string, Label> = {
 };
 
 export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[], goals: { preset: string }[], lang: Lang, extra: { type?: string; stock?: StockItem[]; hasPay?: boolean; region?: Region } = {}): Tip[] {
-  const L = (es: string, en: string) => (lang === "en" ? en : es);
   const tips: Tip[] = [];
   const lastSale = entries.filter((e) => e.kind === "in").map((e) => new Date(e.date).getTime()).sort((a, b) => b - a)[0];
 
   if (!n.hasData) {
-    tips.push({ id: "start", tone: "tip", icon: "coins", text: L("Empieza anotando lo que vendiste hoy. Puedes decirlo con tu voz.", "Start by adding what you sold today. You can say it out loud."), action: { href: "/negocio/anotar?tipo=venta", label: L("Anotar venta", "Add sale") } });
+    tips.push({ id: "start", tone: "tip", icon: "coins", text: tx(lang, TXT.empiezaAnotandoLoQueVendiste), action: { href: "/negocio/anotar?tipo=venta", label: tx(lang, TXT.anotarVenta) } });
   }
   if (n.profit < 0 && n.hasData) {
     const top = topCost(entries, lang);
-    tips.push({ id: "red", tone: "bad", icon: "shield-alert", text: L(
-      `Este mes salió más dinero del que entró.${top ? ` Tu gasto más grande es ${top}: revisa si puedes pagar menos.` : ""}`,
-      `More money went out than came in this month.${top ? ` Your biggest cost is ${top}: see if you can pay less.` : ""}`) });
+    tips.push({ id: "red", tone: "bad", icon: "shield-alert", text: txf(lang, TXT.esteMesSalioMasDinero, [top ? ` Tu gasto más grande es ${top}: revisa si puedes pagar menos.` : "", top ? ` Your biggest cost is ${top}: see if you can pay less.` : ""]) });
   }
   // Stock running out
   for (const i of extra.stock ?? []) {
     const d = i.perWeek > 0 ? (i.have / i.perWeek) * 7 : Infinity;
-    if (d < 3) tips.push({ id: "stock-" + i.id, tone: "bad", icon: "package", text: L(
-      `Se te acaba ${i.name} ${d < 1 ? "hoy" : `en ${Math.floor(d)} días`}. Cómpralo antes para no dejar de vender.`,
-      `You're running out of ${i.name} ${d < 1 ? "today" : `in ${Math.floor(d)} days`}. Buy more so you don't stop selling.`), action: { href: "/negocio/dinero?tab=costos", label: L("Ver mi inventario", "See my inventory") } });
+    if (d < 3) tips.push({ id: "stock-" + i.id, tone: "bad", icon: "package", text: txf(lang, TXT.seTeAcabaCompraloAntes, [i.name, d < 1 ? "hoy" : `en ${Math.floor(d)} días`, d < 1 ? "today" : `in ${Math.floor(d)} days`]), action: { href: "/negocio/dinero?tab=costos", label: tx(lang, TXT.verMiInventario) } });
   }
   for (const p of products) {
     if (productLight(p) === "rojo" || productLight(p) === "amarillo") {
       const sp = suggestedPrice(p.cost);
-      if (sp > p.price) tips.push({ id: "price-" + p.id, tone: "warn", icon: "coins", text: L(
-        `Tu ${p.name} te cuesta ${money(p.cost, lang, true)} y lo vendes a ${money(p.price, lang, true)}. Si lo cobras a ${money(sp, lang, true)}, ganas 40 centavos de cada ${unitWord(lang, false)}.`,
-        `Your ${p.name} costs ${money(p.cost, lang, true)} and sells for ${money(p.price, lang, true)}. At ${money(sp, lang, true)} you'd keep 40 cents of every ${unitWord(lang, false)}.`), action: { href: "/negocio/dinero?tab=costos", label: L("Ver mis costos", "See my costs") } });
+      if (sp > p.price) tips.push({ id: "price-" + p.id, tone: "warn", icon: "coins", text: txf(lang, TXT.tuTeCuestaYLo, [p.name, money(p.cost, lang, true), money(p.price, lang, true), money(sp, lang, true), unitWord(lang, false)]), action: { href: "/negocio/dinero?tab=costos", label: tx(lang, TXT.verMisCostos) } });
     }
   }
   // What earns the most
   const best = [...products].filter((p) => p.price > p.cost && p.perWeek > 0).sort((a, b) => (b.price - b.cost) * b.perWeek - (a.price - a.cost) * a.perWeek)[0];
   if (best && products.length > 1) {
-    tips.push({ id: "best", tone: "good", icon: "star", text: L(
-      `Tu ${best.name} es lo que más te deja: unos ${money((best.price - best.cost) * best.perWeek, lang)} a la semana. Ofrécelo primero o en combo con lo que menos se vende.`,
-      `Your ${best.name} earns you the most: about ${money((best.price - best.cost) * best.perWeek, lang)} a week. Offer it first or in a combo with slower items.`) });
+    tips.push({ id: "best", tone: "good", icon: "star", text: txf(lang, TXT.tuEsLoQueMas, [best.name, money((best.price - best.cost) * best.perWeek, lang)]) });
   }
   // Best days of the week
   const DAYS = lang === "en" ? ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] : ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
@@ -290,55 +282,45 @@ export function bizTips(n: BizNumbers, products: Product[], entries: BizEntry[],
     const tot = byDay.reduce((a, b) => a + b, 0);
     const top = byDay.map((v, d) => ({ v, d })).sort((a, b) => b.v - a.v).slice(0, 2).filter((x) => x.v > 0);
     if (tot > 0 && top.reduce((a, x) => a + x.v, 0) / tot >= 0.45) {
-      const names = top.map((x) => DAYS[x.d]).join(L(" y ", " and "));
-      tips.push({ id: "days", tone: "tip", icon: "calendar-days", text: L(
-        `Tus mejores días son ${names}: ahí vendes ${Math.round((top.reduce((a, x) => a + x.v, 0) / tot) * 100)} de cada 100 ${unitWord(lang)}. Prepara más esos días y descansa o surte los días flojos.`,
-        `Your best days are ${names}: ${Math.round((top.reduce((a, x) => a + x.v, 0) / tot) * 100)} of every 100 ${unitWord(lang)} come then. Prepare more on those days and restock on slow ones.`) });
+      const names = top.map((x) => DAYS[x.d]).join(tx(lang, TXT.y));
+      tips.push({ id: "days", tone: "tip", icon: "calendar-days", text: txf(lang, TXT.tusMejoresDiasSonAhi, [names, Math.round((top.reduce((a, x) => a + x.v, 0) / tot) * 100), unitWord(lang)]) });
     }
   }
   if (n.hasData && n.fixed === 0) {
-    tips.push({ id: "fixed", tone: "tip", icon: "key-round", text: L("¿Pagas renta de local, cocina o permisos? Anótalos como gasto fijo para ver tu ganancia real.", "Do you pay rent, a kitchen or permits? Add them as fixed costs to see your real profit."), action: { href: "/negocio/anotar?tipo=gasto", label: L("Anotar gasto fijo", "Add fixed cost") } });
+    tips.push({ id: "fixed", tone: "tip", icon: "key-round", text: tx(lang, TXT.pagasRentaDeLocalCocina), action: { href: "/negocio/anotar?tipo=gasto", label: tx(lang, TXT.anotarGastoFijo) } });
   }
   if (n.fixed > 0 && n.sales > 0 && n.fixed / n.sales > 0.4) {
-    tips.push({ id: "heavy", tone: "warn", icon: "key-round", text: L("Tus gastos fijos pesan mucho. Vender un poco más cada semana o compartir el local te ayudaría.", "Fixed costs weigh a lot. Selling a bit more each week or sharing the space would help.") });
+    tips.push({ id: "heavy", tone: "warn", icon: "key-round", text: tx(lang, TXT.tusGastosFijosPesanMucho) });
   }
   if (n.trend !== null && n.trend < -0.15) {
-    tips.push({ id: "down", tone: "warn", icon: "megaphone", text: L("Tus ventas bajaron. Prueba vender en otro lugar, ofrecer un combo o avisar en tus redes y grupos de WhatsApp.", "Sales went down. Try another spot, a combo deal, or posting in your WhatsApp groups.") });
+    tips.push({ id: "down", tone: "warn", icon: "megaphone", text: tx(lang, TXT.tusVentasBajaronPruebaVender) });
   }
   if (n.trend !== null && n.trend > 0.1 && n.profit > 0) {
-    tips.push({ id: "up", tone: "good", icon: "sprout", text: L("¡Vas creciendo! Aparta una parte de la ganancia para tus metas del negocio.", "You're growing! Set part of the profit aside for your business goals."), action: { href: "/negocio/metas", label: L("Mis metas", "My goals") } });
+    tips.push({ id: "up", tone: "good", icon: "sprout", text: tx(lang, TXT.vasCreciendoApartaUnaParte), action: { href: "/negocio/metas", label: tx(lang, TXT.misMetas) } });
   }
   if (lastSale && Date.now() - lastSale > 4 * DAY) {
-    tips.push({ id: "log", tone: "tip", icon: "smartphone", text: L("Hace días no anotas ventas. Anótalas aunque sean pocas: así el semáforo dice la verdad.", "You haven't added sales in a few days. Add them even if small, so the light tells the truth.") });
+    tips.push({ id: "log", tone: "tip", icon: "smartphone", text: tx(lang, TXT.haceDiasNoAnotasVentas) });
   }
   if (n.profit > 0 && n.paidMe < n.profit * 0.2 && !extra.hasPay) {
-    tips.push({ id: "pay", tone: "tip", icon: "hand-coins", text: L(
-      `Este mes te quedaron ${money(n.profit, lang)}. Págate un sueldo fijo y deja el resto para el negocio.`,
-      `You kept ${money(n.profit, lang)} this month. Pay yourself a set amount and leave the rest in the business.`), action: { href: "/negocio?sueldo=1", label: L("Pagarme", "Pay myself") } });
+    tips.push({ id: "pay", tone: "tip", icon: "hand-coins", text: txf(lang, TXT.esteMesTeQuedaronPagate, [money(n.profit, lang)]), action: { href: "/negocio?sueldo=1", label: tx(lang, TXT.pagarme) } });
   }
   if (extra.region?.country === "mx" && n.sales > 0) {
     const aside = (n.sales / WEEKS_PER_MONTH) * resicoRate(n.sales);
-    tips.push({ id: "taxes", tone: "warn", icon: "landmark", text: L(
-      `En el RESICO del SAT pagas del 1% al 2.5% de lo que vendes. Aparta unos ${money(aside, lang)} a la semana para eso. ${taxHelp(extra.region, lang)}`,
-      `In the SAT's RESICO you pay 1% to 2.5% of what you sell. Set aside about ${money(aside, lang)} a week for that. ${taxHelp(extra.region, lang)}`), action: { href: "/negocio/aprender", label: L("Aprender más", "Learn more") } });
+    tips.push({ id: "taxes", tone: "warn", icon: "landmark", text: txf(lang, TXT.enElResicoDelSat, [money(aside, lang), taxHelp(extra.region, lang)]), action: { href: "/negocio/aprender", label: tx(lang, TXT.aprenderMas) } });
   } else if (n.profit > 0) {
     const aside = cashSetAsideWeekly(n.profit / WEEKS_PER_MONTH, extra.region);
-    tips.push({ id: "taxes", tone: "warn", icon: "landmark", text: L(
-      `A tu negocio nadie le descuenta impuestos: al declarar podrías deberlos. Aparta unos ${money(aside, lang)} a la semana para eso.`,
-      `Nobody takes taxes out of your business: you may owe them when you file. Set aside about ${money(aside, lang)} a week for that.`), action: { href: "/negocio/aprender", label: L("Ayuda gratis con impuestos", "Free tax help") } });
+    tips.push({ id: "taxes", tone: "warn", icon: "landmark", text: txf(lang, TXT.aTuNegocioNadieLe, [money(aside, lang)]), action: { href: "/negocio/aprender", label: tx(lang, TXT.ayudaGratisConImpuestos) } });
   }
   if (n.hasData && !goals.some((g) => g.preset === "colchon")) {
     const need = Math.max(localAmount(500), Math.round((n.varCosts + n.fixed) / 100) * 100);
-    tips.push({ id: "cushion", tone: "tip", icon: "shield-check", text: L(
-      `Junta un colchón para el negocio: lo de 1 mes de gastos, unos ${money(need, lang)}. Así una semana mala no te tumba.`,
-      `Build a business cushion: one month of costs, about ${money(need, lang)}. Then a bad week won't knock you down.`), action: { href: "/negocio/metas?nueva=colchon", label: L("Crear meta", "Create goal") } });
+    tips.push({ id: "cushion", tone: "tip", icon: "shield-check", text: txf(lang, TXT.juntaUnColchonParaEl, [money(need, lang)]), action: { href: "/negocio/metas?nueva=colchon", label: tx(lang, TXT.crearMeta) } });
   }
   if (extra.type && INDUSTRY_TIPS[extra.type]) tips.push({ id: "industry", tone: "tip", icon: "lightbulb", text: pick(INDUSTRY_TIPS[extra.type], lang) });
   const m = new Date().getMonth();
   if (m === 9 || m === 10) {
-    tips.push({ id: "season", tone: "tip", icon: "gift", text: L("Se acerca diciembre: compra tu mercancía con tiempo y al mayoreo, y avisa a tus clientes de los encargos.", "December is coming: buy stock early and in bulk, and tell customers to order ahead.") });
+    tips.push({ id: "season", tone: "tip", icon: "gift", text: tx(lang, TXT.seAcercaDiciembreCompraTu) });
   }
-  tips.push({ id: "separate", tone: "tip", icon: "wallet", text: L("Separa el dinero de tu casa y el de tu negocio, aunque sea en dos sobres.", "Keep home and business money apart, even in two envelopes."), action: { href: "/negocio/aprender", label: L("Aprender cómo", "Learn how") } });
+  tips.push({ id: "separate", tone: "tip", icon: "wallet", text: tx(lang, TXT.separaElDineroDeTu), action: { href: "/negocio/aprender", label: tx(lang, TXT.aprenderComo) } });
   return tips;
 }
 

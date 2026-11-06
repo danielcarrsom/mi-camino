@@ -12,6 +12,8 @@ import { recoveryQuestion as questionById } from "@/lib/recovery";
 import { recoveryQuestion, recoveryReset } from "@/lib/cloud";
 import { playGoal } from "@/lib/sound";
 import { speak } from "@/lib/voice";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/recuperar";
 
 type Stage = "phone" | "proof" | "pin" | "pin2" | "busy";
 
@@ -31,7 +33,6 @@ function Recuperar() {
   const login = useStore((s) => s.login);
   const resetLocalPin = useStore((s) => s.resetLocalPin);
   const voiceOn = useStore((s) => s.voiceOn);
-  const L = (es: string, en: string) => (lang === "en" ? en : es);
 
   const [stage, setStage] = useState<Stage>("phone");
   const [phone, setPhone] = useState("");
@@ -54,13 +55,13 @@ function Recuperar() {
 
   const key = phoneKey(phone, country);
   const say: Record<Stage, string> = {
-    phone: L("Escribe tu número de teléfono para recuperar tu clave.", "Type your phone number to recover your PIN."),
+    phone: tx(lang, TXT.escribeTuNumeroDeTelefono),
     proof: useCode || !question
-      ? L("Escribe el código de recuperación que te dieron.", "Type the recovery code you were given.")
-      : L(`Contesta tu pregunta: ${pick(questionById(question).label, "es")}`, `Answer your question: ${pick(questionById(question).label, "en")}`),
-    pin: L("Elige tu clave nueva de 6 números.", "Choose your new 6-digit PIN."),
-    pin2: L("Escribe tu clave nueva otra vez.", "Type your new PIN again."),
-    busy: L("Un momento…", "One moment…"),
+      ? tx(lang, TXT.escribeElCodigoDeRecuperacion)
+      : txf(lang, TXT.contestaTuPregunta, [pick(questionById(question).label, "es"), pick(questionById(question).label, "en")]),
+    pin: tx(lang, TXT.eligeTuClaveNuevaDe),
+    pin2: tx(lang, TXT.escribeTuClaveNuevaOtra),
+    busy: tx(lang, TXT.unMomento),
   };
   useEffect(() => { if (voiceOn && hydrated) speak(say[stage], lang); }, [stage, hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -75,7 +76,7 @@ function Recuperar() {
       const q2 = await recoveryQuestion(alt);
       if (q2 !== "offline" && q2.exists) { q = q2; k = alt; }
     }
-    if (q === "offline") { setMsg(L("No hay conexión. Revisa tu internet e intenta otra vez.", "No connection. Check your internet and try again.")); setStage("phone"); return; }
+    if (q === "offline") { setMsg(tx(lang, TXT.noHayConexionRevisaTu)); setStage("phone"); return; }
     setFoundKey(k); setQuestion(q.question); setUseCode(!q.question); setStage("proof");
   };
 
@@ -88,15 +89,15 @@ function Recuperar() {
       await resetLocalPin(k, newPin);
       const ok = await login(k, newPin);
       playGoal();
-      if (voiceOn) speak(L("¡Listo! Ya tienes tu clave nueva.", "Done! You have your new PIN."), lang);
+      if (voiceOn) speak(tx(lang, TXT.listoYaTienesTuClave), lang);
       router.replace(ok ? "/inicio" : "/entrar");
       return;
     }
-    if (r.reason === "locked") setMsg(L("Por tu seguridad, ya no se puede intentar por una hora. Si necesitas ayuda, llama al Consulado.", "For your safety, no more tries for one hour. If you need help, call the Consulate."));
+    if (r.reason === "locked") setMsg(tx(lang, TXT.porTuSeguridadYaNo));
     else if (r.reason === "wrong") setMsg(useCode || !question
-      ? L(`Ese código no sirve o ya se usó. Te quedan ${r.left ?? 0} intentos.`, `That code doesn't work or was used. ${r.left ?? 0} tries left.`)
-      : L(`Esa respuesta no es la que guardaste. Te quedan ${r.left ?? 0} intentos.`, `That's not the answer you saved. ${r.left ?? 0} tries left.`));
-    else setMsg(L("No hay conexión. Revisa tu internet e intenta otra vez.", "No connection. Check your internet and try again."));
+      ? txf(lang, TXT.eseCodigoNoSirveO, [r.left ?? 0])
+      : txf(lang, TXT.esaRespuestaNoEsLa, [r.left ?? 0]));
+    else setMsg(tx(lang, TXT.noHayConexionRevisaTu));
     setStage("proof");
   };
 
@@ -109,7 +110,7 @@ function Recuperar() {
     setPin2(v);
     if (v.length !== 6) return;
     if (v === pin) { setPinOk(true); void submit(pin); }
-    else { setMsg(L("Las claves no son iguales. Intenta otra vez.", "The PINs don't match. Try again.")); setPin(""); setPin2(""); setTimeout(() => setStage("pin"), 900); }
+    else { setMsg(tx(lang, TXT.lasClavesNoSonIguales)); setPin(""); setPin2(""); setTimeout(() => setStage("pin"), 900); }
   };
 
   if (!hydrated) return <div className="min-h-dvh bg-cream" />;
@@ -127,7 +128,7 @@ function Recuperar() {
     <div className="flex min-h-dvh flex-col bg-cream">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 py-4">
         <button onClick={back} className="flex h-12 items-center gap-2 rounded-full pr-3 font-bold text-muted hover:text-ink">
-          <ArrowLeft size={24} /> {L("Regresar", "Back")}
+          <ArrowLeft size={24} /> {tx(lang, TXT.regresar)}
         </button>
         <Logo />
       </header>
@@ -135,7 +136,7 @@ function Recuperar() {
       <main className="mx-auto w-full max-w-md flex-1 px-5 pt-6 pb-12">
         <div className="mb-6 flex items-start justify-between gap-4">
           <h1 className="text-[2rem] leading-tight font-semibold">
-            {stage === "pin" || stage === "pin2" ? (stage === "pin" ? L("Tu clave nueva", "Your new PIN") : L("Otra vez tu clave nueva", "New PIN again")) : L("Recuperar mi clave", "Recover my PIN")}
+            {stage === "pin" || stage === "pin2" ? (stage === "pin" ? tx(lang, TXT.tuClaveNueva) : tx(lang, TXT.otraVezTuClaveNueva)) : tx(lang, TXT.recuperarMiClave)}
           </h1>
           <ListenButton text={say[stage]} compact />
         </div>
@@ -146,8 +147,8 @@ function Recuperar() {
 
         {stage === "phone" && (
           <>
-            <PhoneInput value={phone} onChange={setPhone} country={country} onCountry={setCountry} label={L("Tu número de teléfono", "Your phone number")} />
-            <Button onClick={findAccount} disabled={!key} className="mt-6 w-full">{L("Siguiente", "Next")}</Button>
+            <PhoneInput value={phone} onChange={setPhone} country={country} onCountry={setCountry} label={tx(lang, TXT.tuNumeroDeTelefono)} />
+            <Button onClick={findAccount} disabled={!key} className="mt-6 w-full">{tx(lang, TXT.siguiente)}</Button>
           </>
         )}
 
@@ -157,21 +158,21 @@ function Recuperar() {
               <>
                 <p className="flex items-start gap-2 text-lg"><ShieldCheck size={24} className="mt-0.5 shrink-0 text-leaf" /> <b>{pick(questionById(question).label, lang)}</b></p>
                 <div className="flex items-center gap-3">
-                  <input value={answer} onChange={(e) => setAnswer(e.target.value)} autoFocus placeholder={L("Tu respuesta", "Your answer")}
-                    className="h-16 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-xl outline-none focus:border-clay" aria-label={L("Tu respuesta", "Your answer")} />
+                  <input value={answer} onChange={(e) => setAnswer(e.target.value)} autoFocus placeholder={tx(lang, TXT.tuRespuesta)}
+                    className="h-16 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-xl outline-none focus:border-clay" aria-label={tx(lang, TXT.tuRespuesta)} />
                   <div className="shrink-0 [&_p]:hidden"><MicButton size="md" onText={(t) => setAnswer(t.replace(/[.,!¡¿?]+$/g, ""))} /></div>
                 </div>
-                <p className="text-base text-muted">{L("No importa si usas acentos o mayúsculas.", "Accents and capitals don't matter.")}</p>
+                <p className="text-base text-muted">{tx(lang, TXT.noImportaSiUsasAcentos)}</p>
               </>
             ) : (
               <>
                 {!question && (
                   <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">
-                    {L("Tu cuenta todavía no tiene pregunta de seguridad. Pide un código de recuperación al equipo de Mi Camino: revisan que seas tú y te lo dan.", "Your account doesn't have a security question yet. Ask the Mi Camino team for a recovery code: they check it's you and give it to you.")}
+                    {tx(lang, TXT.tuCuentaTodaviaNoTiene)}
                   </p>
                 )}
                 <label className="block">
-                  <span className="mb-2 flex items-center gap-2 text-lg font-bold"><KeyRound size={22} /> {L("Código de recuperación", "Recovery code")}</span>
+                  <span className="mb-2 flex items-center gap-2 text-lg font-bold"><KeyRound size={22} /> {tx(lang, TXT.codigoDeRecuperacion)}</span>
                   <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoFocus autoCapitalize="characters" autoComplete="one-time-code" placeholder="MC-XXXX-XXXX"
                     className="h-16 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-center font-mono text-2xl font-bold tracking-widest outline-none focus:border-clay" />
                 </label>
@@ -179,19 +180,19 @@ function Recuperar() {
             )}
 
             <Button className="w-full" disabled={!proofReady} onClick={() => { setMsg(null); if (pinOk) void submit(pin); else { setPin(""); setPin2(""); setStage("pin"); } }}>
-              {pinOk ? L("Intentar otra vez", "Try again") : L("Siguiente", "Next")}
+              {pinOk ? tx(lang, TXT.intentarOtraVez) : tx(lang, TXT.siguiente)}
             </Button>
 
             {question && (
               <button onClick={() => { setUseCode(!useCode); setMsg(null); }} className="w-full text-center text-base font-bold text-clay underline underline-offset-4">
-                {useCode ? L("Mejor contesto mi pregunta", "I'll answer my question instead") : L("No me acuerdo · tengo un código de recuperación", "I don't remember · I have a recovery code")}
+                {useCode ? tx(lang, TXT.mejorContestoMiPregunta) : tx(lang, TXT.noMeAcuerdoTengoUn)}
               </button>
             )}
 
             <a href="tel:+12122176400" className="mt-2 flex items-center gap-3 rounded-2xl border border-sand bg-paper px-4 py-3">
               <Phone size={22} className="shrink-0 text-leaf" />
               <span className="min-w-0 text-base">
-                <b>{L("¿Necesitas ayuda?", "Need help?")}</b> {L("Consulado de México en Nueva York:", "Mexican Consulate in New York:")} <span className="font-bold whitespace-nowrap">(212) 217-6400</span>
+                <b>{tx(lang, TXT.necesitasAyuda)}</b> {tx(lang, TXT.consuladoDeMexicoEnNueva)} <span className="font-bold whitespace-nowrap">(212) 217-6400</span>
               </span>
             </a>
           </div>

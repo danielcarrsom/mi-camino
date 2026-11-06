@@ -13,6 +13,8 @@ import { useSummary } from "@/lib/useSummary";
 import { money, moneySpoken, shortDate, toMonthly } from "@/lib/money";
 import { GROUPS, categoryById, incomeCategoryById, pick } from "@/lib/catalog";
 import type { TKey } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/casita-dinero";
 
 const REPEAT_KEY: Record<string, TKey> = { once: "once", week: "weekly", "2weeks": "biweekly", month: "monthly" };
 
@@ -150,7 +152,7 @@ export default function MoneyPage() {
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sand/70 text-clay"><Users size={22} /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{t("myTanda")}: {tn.name}</span>
-                      <span className="block text-sm text-muted">{t(REPEAT_KEY[tn.every])} · {lang === "en" ? "you receive" : "recibes"} {money(tandaPot(tn), lang)}</span>
+                      <span className="block text-sm text-muted">{t(REPEAT_KEY[tn.every])} · {tx(lang, TXT.recibes)} {money(tandaPot(tn), lang)}</span>
                     </span>
                     <span className="font-serif text-xl font-semibold">−{money(tn.amount, lang)}</span>
                     <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={19} /></span>
@@ -169,7 +171,7 @@ export default function MoneyPage() {
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sun-soft text-clay"><PiggyBank size={22} /></span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{t("savingFor")} {g.name}</span>
-                      <span className="block text-sm text-muted">{t(REPEAT_KEY[g.plan!.every])} · {lang === "en" ? "set apart automatically" : "se aparta solo"}</span>
+                      <span className="block text-sm text-muted">{t(REPEAT_KEY[g.plan!.every])} · {tx(lang, TXT.seApartaSolo)}</span>
                     </span>
                     <span className="font-serif text-xl font-semibold">−{money(g.plan!.amount, lang)}</span>
                     <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sand/60"><Pencil size={19} /></span>
@@ -269,7 +271,7 @@ function EntryList({ items, onEdit, total, empty }: { items: Entry[]; onEdit: (e
       </ul>
       {total != null && (
         <div className="flex items-center justify-between border-t-2 border-sand px-3 pt-3 pb-2">
-          <span className="text-lg font-extrabold">{lang === "en" ? "Total" : "En total"}</span>
+          <span className="text-lg font-extrabold">{tx(lang, TXT.enTotal)}</span>
           <span className="font-serif text-2xl font-semibold">{money(total, lang)} <span className="text-base text-muted">{t("perMonthShort")}</span></span>
         </div>
       )}
@@ -283,7 +285,7 @@ function WorkTakeHome({ weekly, tax }: { weekly: number; tax?: WorkTax }) {
   const region = useRegion();
   const en = lang === "en";
   const t = tax ?? DEFAULT_TAX;
-  if (t.mode === "net") return <p className="mt-3 text-base text-muted">{en ? "This is what reaches you (after taxes)." : "Esto es lo que te llega (ya sin impuestos)."}</p>;
+  if (t.mode === "net") return <p className="mt-3 text-base text-muted">{tx(en, TXT.estoEsLoQueTe)}</p>;
   if (t.mode === "cash") {
     return (
       <p className="mt-3 rounded-2xl bg-sun-soft px-4 py-3 text-base">
@@ -294,9 +296,9 @@ function WorkTakeHome({ weekly, tax }: { weekly: number; tax?: WorkTax }) {
   const x = weeklyTaxes(weekly, region);
   return (
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-leaf-soft px-4 py-3">
-      <span className="text-base">{en ? "After taxes, reaches you approx." : "Después de impuestos te llegan aprox."}</span>
-      <span className="text-xl font-extrabold text-leaf">{money(x.net, lang)} <span className="text-base font-bold">{en ? "a week" : "a la semana"}</span></span>
-      <span className="w-full text-sm text-muted">{en ? `Before taxes ${money(weekly, lang)} · about ${money(x.total, lang)} in taxes · ${regionLabel(region, lang)}` : `Antes de impuestos ${money(weekly, lang)} · unos ${money(x.total, lang)} de impuestos · ${regionLabel(region, lang)}`}</span>
+      <span className="text-base">{tx(en, TXT.despuesDeImpuestosTeLlegan)}</span>
+      <span className="text-xl font-extrabold text-leaf">{money(x.net, lang)} <span className="text-base font-bold">{tx(en, TXT.aLaSemana)}</span></span>
+      <span className="w-full text-sm text-muted">{txf(en, TXT.antesDeImpuestosUnosDe, [money(weekly, lang), money(x.total, lang), regionLabel(region, lang)])}</span>
     </div>
   );
 }

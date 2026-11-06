@@ -6,6 +6,8 @@ import { Check } from "lucide-react";
 import { cx } from "./ui";
 import type { Lang } from "@/lib/i18n";
 import { STATES_FIRST, US_STATES } from "@/lib/taxes";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/RegionPicker";
 
 export type RegionValue = { country?: "us" | "mx"; usState?: string; nyc?: boolean };
 
@@ -38,22 +40,22 @@ export function RegionPicker({ value, onChange, lang }: { value: RegionValue; on
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2">
         <Choice big on={value.country === "us"} onClick={() => onChange({ country: "us", usState: value.usState, nyc: value.nyc })}>
-          <span className="mr-1" aria-hidden>🇺🇸</span> {en ? "I live in the United States" : "Vivo en Estados Unidos"}
+          <span className="mr-1" aria-hidden>🇺🇸</span> {tx(en, TXT.vivoEnEstadosUnidos)}
         </Choice>
         <Choice big on={value.country === "mx"} onClick={() => onChange({ country: "mx" })}>
-          <span className="mr-1" aria-hidden>🇲🇽</span> {en ? "I live in Mexico" : "Vivo en México"}
+          <span className="mr-1" aria-hidden>🇲🇽</span> {tx(en, TXT.vivoEnMexico)}
         </Choice>
       </div>
 
       {value.country === "mx" && (
         <p className="rounded-2xl bg-leaf-soft px-4 py-3 text-lg">
-          {en ? "Your money will show in Mexican pesos, with Mexico's taxes (ISR and IMSS)." : "Tu dinero se verá en pesos mexicanos, con los impuestos de México (ISR e IMSS)."}
+          {tx(en, TXT.tuDineroSeVeraEn)}
         </p>
       )}
 
       {value.country === "us" && (
         <div>
-          <p className="mb-3 text-xl font-bold">{en ? "Which state?" : "¿En qué estado?"}</p>
+          <p className="mb-3 text-xl font-bold">{tx(en, TXT.enQueEstado)}</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {STATES_FIRST.map((s) => (
               <button key={s} type="button" onClick={() => pickState(s)} aria-pressed={value.usState === s}
@@ -64,24 +66,24 @@ export function RegionPicker({ value, onChange, lang }: { value: RegionValue; on
           </div>
           {!showAll ? (
             <button type="button" onClick={() => setShowAll(true)} className="mt-3 text-lg font-bold text-clay underline underline-offset-4">
-              {en ? "Another state" : "Otro estado"}
+              {tx(en, TXT.otroEstado)}
             </button>
           ) : (
             <label className="mt-3 block">
-              <span className="mb-1 block text-base font-bold text-muted">{en ? "All states" : "Todos los estados"}</span>
+              <span className="mb-1 block text-base font-bold text-muted">{tx(en, TXT.todosLosEstados)}</span>
               <select
                 value={value.usState ?? ""}
                 onChange={(e) => e.target.value && pickState(e.target.value)}
                 className="h-14 w-full rounded-2xl border-2 border-sand bg-paper px-4 text-lg font-bold outline-none focus:border-clay"
               >
-                <option value="">{en ? "Choose your state" : "Elige tu estado"}</option>
+                <option value="">{tx(en, TXT.eligeTuEstado)}</option>
                 {sorted.map(([code, s]) => <option key={code} value={code}>{s.name}</option>)}
               </select>
             </label>
           )}
           {value.usState && !US_STATES[value.usState]?.s && (
             <p className="mt-3 rounded-2xl bg-leaf-soft px-4 py-3 text-base">
-              {en ? `${US_STATES[value.usState].name} has no state tax on pay. Good news!` : `${US_STATES[value.usState].name} no cobra impuesto estatal al salario. ¡Buena noticia!`}
+              {txf(en, TXT.noCobraImpuestoEstatalAl, [US_STATES[value.usState].name])}
             </p>
           )}
         </div>
@@ -89,11 +91,11 @@ export function RegionPicker({ value, onChange, lang }: { value: RegionValue; on
 
       {value.country === "us" && value.usState === "NY" && (
         <div>
-          <p className="mb-1 text-xl font-bold">{en ? "Do you live in New York City?" : "¿Vives en la Ciudad de Nueva York?"}</p>
+          <p className="mb-1 text-xl font-bold">{tx(en, TXT.vivesEnLaCiudadDe)}</p>
           <p className="mb-3 text-base text-muted">Manhattan, Bronx, Brooklyn, Queens {en ? "or" : "o"} Staten Island</p>
           <div className="grid grid-cols-2 gap-3">
-            <Choice on={value.nyc === true} onClick={() => onChange({ ...value, nyc: true })}>{en ? "Yes" : "Sí"}</Choice>
-            <Choice on={value.nyc === false} onClick={() => onChange({ ...value, nyc: false })}>{en ? "No, elsewhere in NY" : "No, otra parte de NY"}</Choice>
+            <Choice on={value.nyc === true} onClick={() => onChange({ ...value, nyc: true })}>{tx(en, TXT.si)}</Choice>
+            <Choice on={value.nyc === false} onClick={() => onChange({ ...value, nyc: false })}>{tx(en, TXT.noOtraParteDeNy)}</Choice>
           </div>
         </div>
       )}

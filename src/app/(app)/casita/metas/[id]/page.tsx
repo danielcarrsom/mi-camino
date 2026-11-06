@@ -13,6 +13,8 @@ import { money, moneySpoken, shortDate, toWeekly } from "@/lib/money";
 import { goalPresetById } from "@/lib/catalog";
 import { speak } from "@/lib/voice";
 import { playBrick, playGoal } from "@/lib/sound";
+import { tx, txf, type Lang } from "@/lib/i18n";
+import TXT from "@/messages/casita-metas-id";
 
 export default function GoalDetail() {
   const { id } = useParams<{ id: string }>();
@@ -69,10 +71,10 @@ export default function GoalDetail() {
     } else if (after > before) {
       setCelebrate("brick"); playBrick();
       const added = after - before;
-      speak(lang === "en" ? `You added ${added} ${added === 1 ? "brick" : "bricks"}! ${t("missing")} ${moneySpoken(newSaved >= goal.target ? 0 : goal.target - newSaved, lang)}.` : `¡Pusiste ${added} ${added === 1 ? "ladrillo" : "ladrillos"} más! ${t("missing")} ${moneySpoken(goal.target - newSaved, lang)}.`, lang, "brickAdded");
+      speak(txf(lang, TXT.pusisteMas, [added, added === 1 ? "ladrillo" : "ladrillos", t("missing"), moneySpoken(goal.target - newSaved, lang), added === 1 ? "brick" : "bricks", moneySpoken(newSaved >= goal.target ? 0 : goal.target - newSaved, lang)]), lang, "brickAdded");
     } else {
       setCelebrate("brick"); playBrick();
-      speak(lang === "en" ? `Saved. ${money(perUnit - ((newSaved) % perUnit), lang)} more for the next one.` : `Guardado. Te faltan ${moneySpoken(perUnit - (newSaved % perUnit), lang)} para el siguiente.`, lang);
+      speak(txf(lang, TXT.guardadoTeFaltanParaEl, [moneySpoken(perUnit - (newSaved % perUnit), lang), money(perUnit - ((newSaved) % perUnit), lang)]), lang);
     }
     setTimeout(() => setCelebrate(null), 3500);
   };
@@ -101,13 +103,11 @@ export default function GoalDetail() {
             <div className="h-full rounded-full bg-clay transition-all duration-700" style={{ width: `${progress * 100}%` }} />
           </div>
           <p className="mt-3 text-base text-muted">
-            {lang === "en" ? `Each ${preset.visual === "house" ? "brick" : "coin"} = ${money(perUnit, lang)}` : `Cada ${preset.visual === "house" ? "ladrillo" : "moneda"} = ${money(perUnit, lang)}`}
+            {txf(lang, TXT.cada, [preset.visual === "house" ? "ladrillo" : "moneda", money(perUnit, lang), preset.visual === "house" ? "brick" : "coin"])}
           </p>
           {missing > 0 && saved % perUnit > 0.01 && (
             <p className="mt-1 text-base font-bold text-clay">
-              {lang === "en"
-                ? `${money(perUnit - (saved % perUnit), lang)} more for the next ${preset.visual === "house" ? "brick" : "coin"}`
-                : `Te faltan ${money(perUnit - (saved % perUnit), lang)} para ${preset.visual === "house" ? "el siguiente ladrillo" : "la siguiente moneda"}`}
+              {txf(lang, TXT.teFaltanPara, [money(perUnit - (saved % perUnit), lang), preset.visual === "house" ? "el siguiente ladrillo" : "la siguiente moneda", preset.visual === "house" ? "brick" : "coin"])}
             </p>
           )}
           <div className="mt-6 flex w-full max-w-sm flex-col gap-3">
@@ -120,14 +120,14 @@ export default function GoalDetail() {
           {missing > 0 && <PlanCard goalId={goal.id} plan={goal.plan ?? null} missing={missing} />}
 
           <Card>
-            <h2 className="text-2xl font-semibold">{lang === "en" ? "What you've saved" : "Lo que has apartado"}</h2>
+            <h2 className="text-2xl font-semibold">{tx(lang, TXT.loQueHasApartado)}</h2>
             {goal.deposits.length === 0 ? (
-              <p className="mt-3 text-lg text-muted">{lang === "en" ? "Nothing yet. Your first brick is waiting!" : "Todavía nada. ¡Tu primer ladrillo te espera!"}</p>
+              <p className="mt-3 text-lg text-muted">{tx(lang, TXT.todaviaNadaTuPrimerLadrillo)}</p>
             ) : (
               <ul className="mt-3 divide-y divide-sand">
                 {[...goal.deposits].reverse().slice(0, 8).map((d) => (
                   <li key={d.id} className="flex items-center justify-between py-3 text-lg">
-                    <span className="flex items-center gap-2 text-muted">{shortDate(d.date, lang)}{d.from === "tanda" && <span className="inline-flex items-center gap-1 rounded-full bg-sun-soft px-2 py-0.5 text-sm font-bold text-ink">{lang === "en" ? "tanda" : "tanda"}</span>}{d.auto && <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-sm font-bold text-leaf"><RepeatIcon size={14} /> {lang === "en" ? "plan" : "plan"}</span>}</span>
+                    <span className="flex items-center gap-2 text-muted">{shortDate(d.date, lang)}{d.from === "tanda" && <span className="inline-flex items-center gap-1 rounded-full bg-sun-soft px-2 py-0.5 text-sm font-bold text-ink">{tx(lang, TXT.tanda)}</span>}{d.auto && <span className="inline-flex items-center gap-1 rounded-full bg-leaf-soft px-2 py-0.5 text-sm font-bold text-leaf"><RepeatIcon size={14} /> {tx(lang, TXT.plan)}</span>}</span>
                     <span className={`font-serif text-xl font-semibold ${d.amount < 0 ? "text-clay" : "text-leaf"}`}>{d.amount < 0 ? "−" : "+"}{money(Math.abs(d.amount), lang)}</span>
                   </li>
                 ))}
@@ -157,8 +157,8 @@ export default function GoalDetail() {
   );
 }
 
-function confirm_(lang: string) {
-  return window.confirm(lang === "en" ? "Delete this goal?" : "¿Borrar esta meta?");
+function confirm_(lang: Lang) {
+  return window.confirm(tx(lang, TXT.borrarEstaMeta));
 }
 
 /** The savings plan: fixed amount set apart every week/2 weeks/month. */

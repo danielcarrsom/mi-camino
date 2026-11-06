@@ -3,7 +3,7 @@ import { hasVoice } from "@/lib/server/ai";
 
 // Voice → text with ElevenLabs speech-to-text. Audio is not stored.
 export async function POST(req: Request) {
-  const refused = guard(req, "escuchar");
+  const refused = await guard(req, "escuchar");
   if (refused) return refused;
   if (!hasVoice()) return Response.json({ error: "voice not configured" }, { status: 501 });
   const form = await req.formData();

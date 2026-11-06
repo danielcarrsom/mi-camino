@@ -4,6 +4,8 @@ import { AmountInput, QuickAmounts, cx } from "./ui";
 import { useT } from "@/lib/hooks";
 import { useLang, type Plan } from "@/lib/store";
 import type { TKey } from "@/lib/i18n";
+import { tx, txf } from "@/lib/i18n";
+import TXT from "@/messages/PlanEditor";
 
 export type PlanDraft = { amount: string; every: Plan["every"] };
 
@@ -45,23 +47,21 @@ export function PlanEditor({ value, onChange, missing, tight, freeWeekly }: { va
   const lang = useLang();
   const finish = finishText(missing, Number(value.amount), value.every, lang);
   const rec = recommendedAmount(freeWeekly, missing, value.every);
-  const per = value.every === "week" ? (lang === "en" ? "a week" : "a la semana") : value.every === "2weeks" ? (lang === "en" ? "every 2 weeks" : "cada quincena") : (lang === "en" ? "a month" : "al mes");
+  const per = value.every === "week" ? (tx(lang, TXT.aLaSemana)) : value.every === "2weeks" ? (tx(lang, TXT.cadaQuincena)) : (tx(lang, TXT.alMes));
   return (
     <div className="space-y-4">
       {rec != null ? (
         <div className="rounded-2xl border-2 border-sun bg-sun-soft p-4">
-          <p className="text-lg font-extrabold">💡 {lang === "en" ? `We suggest ${rec ? "$" + rec.toLocaleString("en-US") : ""} ${per}` : `Te sugerimos $${rec.toLocaleString("es-MX")} ${per}`}</p>
+          <p className="text-lg font-extrabold">💡 {txf(lang, TXT.teSugerimos, [rec.toLocaleString("es-MX"), per, rec ? "$" + rec.toLocaleString("en-US") : ""])}</p>
           <p className="mt-1 text-base">
-            {lang === "en"
-              ? `After your expenses you have about $${Math.round(freeWeekly!).toLocaleString("en-US")} left each week. Saving half still leaves you money to live on. You can change it.`
-              : `Después de tus gastos te sobran como $${Math.round(freeWeekly!).toLocaleString("es-MX")} a la semana. Apartar la mitad te deja dinero para vivir. Puedes cambiarlo.`}
+            {txf(lang, TXT.despuesDeTusGastosTe, [Math.round(freeWeekly!).toLocaleString("es-MX"), Math.round(freeWeekly!).toLocaleString("en-US")])}
           </p>
           {Number(value.amount) !== rec && (
-            <button onClick={() => onChange({ ...value, amount: String(rec) })} className="mt-2 inline-flex h-11 items-center rounded-xl bg-ink px-4 font-bold text-paper">{lang === "en" ? "Use this amount" : "Usar esta cantidad"}</button>
+            <button onClick={() => onChange({ ...value, amount: String(rec) })} className="mt-2 inline-flex h-11 items-center rounded-xl bg-ink px-4 font-bold text-paper">{tx(lang, TXT.usarEstaCantidad)}</button>
           )}
         </div>
       ) : freeWeekly != null && freeWeekly <= 0 ? (
-        <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">{lang === "en" ? "Right now your expenses use up what you earn. Start with a little, even $5 a week, and review your expenses in My money." : "Ahora tus gastos se llevan lo que ganas. Empieza con poquito, aunque sean $5 a la semana, y revisa tus gastos en Mi dinero."}</p>
+        <p className="rounded-2xl bg-sun-soft px-4 py-3 text-base">{tx(lang, TXT.ahoraTusGastosSeLlevan)}</p>
       ) : null}
       <div className="grid grid-cols-3 gap-2">
         {EVERY.map((e) => (

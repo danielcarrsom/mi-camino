@@ -8,18 +8,19 @@ import { useLang, useMe, useStore, DEMO_PHONE } from "@/lib/store";
 import { pick } from "@/lib/catalog";
 import { RECOVERY_QUESTIONS } from "@/lib/recovery";
 import { playSaved } from "@/lib/sound";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/RecoverySetup";
 
 export function RecoveryForm({ onDone, saveLabel, busy }: { onDone: (question: string, answer: string) => void; saveLabel?: string; busy?: boolean }) {
   const lang = useLang();
   const [q, setQ] = useState(RECOVERY_QUESTIONS[0].id);
   const [answer, setAnswer] = useState("");
-  const L = (es: string, en: string) => (lang === "en" ? en : es);
   const ok = answer.replace(/[^\p{L}\p{N}]/gu, "").length >= 2;
   return (
     <div className="space-y-4">
       <p className="flex items-start gap-2 rounded-2xl bg-leaf-soft px-4 py-3 text-base">
         <ShieldCheck size={22} className="mt-0.5 shrink-0 text-leaf" />
-        {L("Si un día olvidas tu clave, te haremos esta pregunta para que puedas entrar otra vez. Elige una que solo tú sepas.", "If you ever forget your PIN, we'll ask this question so you can get back in. Pick one only you know.")}
+        {tx(lang, TXT.siUnDiaOlvidasTu)}
       </p>
       <div className="grid grid-cols-1 gap-2" role="radiogroup">
         {RECOVERY_QUESTIONS.map((x) => (
@@ -32,12 +33,12 @@ export function RecoveryForm({ onDone, saveLabel, busy }: { onDone: (question: s
       </div>
       <div className="flex items-center gap-3">
         <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder={pick(RECOVERY_QUESTIONS.find((x) => x.id === q)!.example, lang)}
-          className="h-16 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-xl outline-none focus:border-clay" aria-label={L("Tu respuesta", "Your answer")} />
+          className="h-16 w-full min-w-0 rounded-2xl border-2 border-sand bg-paper px-4 text-xl outline-none focus:border-clay" aria-label={tx(lang, TXT.tuRespuesta)} />
         <div className="shrink-0 [&_p]:hidden"><MicButton size="md" onText={(t) => setAnswer(t.replace(/[.,!¡¿?]+$/g, ""))} /></div>
       </div>
-      <p className="text-base text-muted">{L("No importa si usas acentos o mayúsculas.", "Accents and capital letters don't matter.")}</p>
+      <p className="text-base text-muted">{tx(lang, TXT.noImportaSiUsasAcentos)}</p>
       <Button variant="green" className="w-full" disabled={!ok || busy} onClick={() => onDone(q, answer.trim())}>
-        <Check size={22} /> {saveLabel ?? L("Guardar mi pregunta", "Save my question")}
+        <Check size={22} /> {saveLabel ?? tx(lang, TXT.guardarMiPregunta)}
       </Button>
     </div>
   );
@@ -54,26 +55,25 @@ export function RecoveryNudge() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [hidden, setHidden] = useState(() => { try { return sessionStorage.getItem("mc-nudge") === "1"; } catch { return false; } });
-  const L = (es: string, en: string) => (lang === "en" ? en : es);
   if (!me || me.profile.recoveryQ || current === DEMO_PHONE || cloud !== "saved" || hidden) return null;
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border-2 border-leaf/30 bg-leaf-soft px-4 py-3">
         <ShieldCheck size={26} className="shrink-0 text-leaf" />
-        <p className="min-w-0 flex-1 text-base"><b>{L("Protege tu cuenta.", "Protect your account.")}</b> {L("Elige una pregunta para recuperar tu clave si la olvidas.", "Pick a question to recover your PIN if you forget it.")}</p>
+        <p className="min-w-0 flex-1 text-base"><b>{tx(lang, TXT.protegeTuCuenta)}</b> {tx(lang, TXT.eligeUnaPreguntaParaRecuperar)}</p>
         <div className="flex gap-2">
-          <Button variant="green" className="min-h-12 px-4 text-base" onClick={() => setOpen(true)}>{L("Elegir", "Choose")}</Button>
-          <button onClick={() => { setHidden(true); try { sessionStorage.setItem("mc-nudge", "1"); } catch { /* fine */ } }} className="h-12 rounded-2xl px-3 text-base font-bold text-muted">{L("Después", "Later")}</button>
+          <Button variant="green" className="min-h-12 px-4 text-base" onClick={() => setOpen(true)}>{tx(lang, TXT.elegir)}</Button>
+          <button onClick={() => { setHidden(true); try { sessionStorage.setItem("mc-nudge", "1"); } catch { /* fine */ } }} className="h-12 rounded-2xl px-3 text-base font-bold text-muted">{tx(lang, TXT.despues)}</button>
         </div>
       </div>
-      <Sheet open={open} onClose={() => setOpen(false)} title={L("Tu pregunta de seguridad", "Your security question")}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={tx(lang, TXT.tuPreguntaDeSeguridad)}>
         <RecoveryForm busy={busy} onDone={async (q, a) => {
           setBusy(true); setFailed(false);
           const ok = await setRecovery(q, a);
           setBusy(false);
           if (ok) { playSaved(); setOpen(false); } else setFailed(true);
         }} />
-        {failed && <p className="mt-3 text-base font-bold text-clay">{L("No se pudo guardar. Revisa tu internet e intenta otra vez.", "Couldn't save. Check your internet and try again.")}</p>}
+        {failed && <p className="mt-3 text-base font-bold text-clay">{tx(lang, TXT.noSePudoGuardarRevisa)}</p>}
       </Sheet>
     </>
   );

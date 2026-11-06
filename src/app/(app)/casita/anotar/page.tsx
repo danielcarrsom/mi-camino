@@ -12,6 +12,8 @@ import { CategorySheet, RepeatPicker, WorkEditor, toSavedWork } from "@/componen
 import type { Parsed, ParsedEntry, ParsedWork } from "@/lib/understand";
 import { speak } from "@/lib/voice";
 import { playSaved } from "@/lib/sound";
+import { tx } from "@/lib/i18n";
+import TXT from "@/messages/casita-anotar";
 
 type Kind = "in" | "out";
 type Method = "voz" | "texto" | "foto" | "manual";
@@ -104,7 +106,7 @@ function Add() {
       <>
         <PageHeader title={t("quickActions")} say={say} back="/casita" />
         <div className="mx-auto grid max-w-3xl gap-4 md:grid-cols-2">
-          <Tile className="min-h-36" icon={<ArrowDownCircle size={34} />} label={t("addEarned")} sub={t("addSayIn").split("?")[0] + "?"} color="#3e7d4f" onClick={() => router.push("/casita/anotar?tipo=gane")} />
+          <Tile className="min-h-36" icon={<ArrowDownCircle size={34} />} label={t("addEarned")} sub={t("addSayIn").split("?")[0] + "?"} color="#316a42" onClick={() => router.push("/casita/anotar?tipo=gane")} />
           <Tile className="min-h-36" icon={<ArrowUpCircle size={34} />} label={t("addSpent")} sub={t("addSayOut").split("?")[0] + "?"} color="#b34a2a" onClick={() => router.push("/casita/anotar?tipo=gaste")} />
         </div>
       </>
@@ -157,7 +159,7 @@ function Add() {
       <PageHeader title={title} say={say} back="/casita/anotar" />
       <div className="mx-auto max-w-3xl">
         {kind === "in" && <ManualPick top kind={kind} onPicked={(e, w) => save(e, w, "manual")} />}
-        {kind === "in" && <h2 className="mb-3 text-xl font-semibold">{lang === "en" ? "Or tell me how much you earned" : "O dime cuánto ganaste"}</h2>}
+        {kind === "in" && <h2 className="mb-3 text-xl font-semibold">{tx(lang, TXT.oDimeCuantoGanaste)}</h2>}
         <div className="grid grid-cols-3 gap-2 rounded-3xl bg-sand/50 p-2" role="tablist">
           {methods.map((m) => {
             const I = m.icon;
@@ -339,17 +341,17 @@ function ManualPick({ kind, onPicked, top }: { kind: Kind; onPicked: (e: ParsedE
 
   return (
     <section className={top ? "mb-6" : "mt-6"} data-tour={top ? "salario" : undefined}>
-      <h2 className="mb-3 text-xl font-semibold">{top ? (lang === "en" ? "What money came in? Tap one" : "¿Qué dinero te llegó? Toca uno") : t("orChoose")}</h2>
+      <h2 className="mb-3 text-xl font-semibold">{top ? (tx(lang, TXT.queDineroTeLlegoToca)) : t("orChoose")}</h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {kind === "in" ? (
           <>
             <button onClick={() => { reset(); setWorkMode(true); setOpen(true); }} className="col-span-2 flex min-h-24 items-center gap-4 rounded-3xl border-2 border-leaf/40 bg-paper px-5 text-left text-xl font-extrabold shadow-[0_4px_0_#d9cfbd] hover:border-leaf active:translate-y-0.5">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-leaf text-paper"><Hammer size={30} /></span>
-              <span>{t("incomeKindWork")}<span className="block text-base font-bold text-muted">{lang === "en" ? "What you earn at your job" : "Lo que ganas en tu trabajo"}</span></span>
+              <span>{t("incomeKindWork")}<span className="block text-base font-bold text-muted">{tx(lang, TXT.loQueGanasEnTu)}</span></span>
             </button>
             <button onClick={() => { reset(); setCat("otro_ingreso"); setOpen(true); }} className="col-span-2 flex min-h-24 items-center gap-4 rounded-3xl border-2 border-leaf/40 bg-paper px-5 text-left text-xl font-extrabold shadow-[0_4px_0_#d9cfbd] hover:border-leaf active:translate-y-0.5">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-leaf-soft text-leaf"><Icon name="coins" size={30} /></span>
-              <span>{t("incomeKindOther")}<span className="block text-base font-bold text-muted">{lang === "en" ? "A gift, a side job, a refund…" : "Un regalo, un trabajito, un reembolso…"}</span></span>
+              <span>{t("incomeKindOther")}<span className="block text-base font-bold text-muted">{tx(lang, TXT.unRegaloUnTrabajitoUn)}</span></span>
             </button>
           </>
         ) : (

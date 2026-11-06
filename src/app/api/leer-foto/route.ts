@@ -6,7 +6,7 @@ const TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImgType = (typeof TYPES)[number];
 
 export async function POST(req: Request) {
-  const refused = guard(req, "foto");
+  const refused = await guard(req, "foto");
   if (refused) return refused;
   if (!hasAI()) return Response.json({ error: "ai not configured" }, { status: 501 });
   const { image, mediaType, kind, currency } = ((await req.json().catch(() => ({}))) ?? {}) as { image?: string; mediaType?: string; kind?: "in" | "out"; currency?: string };

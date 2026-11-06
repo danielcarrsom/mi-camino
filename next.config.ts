@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
+import { SUPABASE_URL as SUPABASE } from "./src/lib/supabaseConfig";
 
 // Security headers on every page (see SECURITY.md).
 // The browser may only talk to this site and our Supabase project; the site
 // can't be shown inside another site's frame; camera and microphone only for us.
-const SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hfdnzasqblxjdsenmpfc.supabase.co";
 const dev = process.env.NODE_ENV !== "production";
 const csp = [
   "default-src 'self'",

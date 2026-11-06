@@ -47,7 +47,7 @@ function HouseBricks({ progress, highlightFrom, size }: { progress: number; high
 
   return (
     <svg viewBox="0 0 200 200" width={size} height={size} role="img" aria-label={`${filled} de ${HOUSE_BRICKS} ladrillos`}>
-      <ellipse cx="100" cy="186" rx="88" ry="7" fill="#3e7d4f" opacity="0.9" />
+      <ellipse cx="100" cy="186" rx="88" ry="7" fill="#316a42" opacity="0.9" />
       {/* roof: outline while building, filled when complete */}
       <path
         d={`M${x0 - 14} ${roofY} L100 ${roofY - 58} L${x0 + wallW + 14} ${roofY} Z`}
