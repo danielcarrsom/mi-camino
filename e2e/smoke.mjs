@@ -55,6 +55,29 @@ async function finishTour(p) {
   await p.getByRole("button", { name: /Ver el recorrido otra vez/ }).click(); await p.waitForTimeout(900);
   const others = await p.locator('[role="dialog"]:not([aria-label="Recorrido guiado"])').count();
   check(others === 0, "restarting the tour from the menu closes the menu");
+  // Every step lights up the part it explains, and the card doesn't cover it
+  const missed = [];
+  for (let k = 1; k <= 40; k++) {
+    await p.waitForTimeout(600);
+    const step = await p.evaluate(() => {
+      const ring = document.querySelector(".ring-sun.pointer-events-none")?.getBoundingClientRect();
+      if (!ring) return { ok: true };
+      const hit = (a, x, y) => x > a.left && x < a.right && y > a.top && y < a.bottom;
+      const lit = [...document.querySelectorAll("[data-tour], main h1")].some((e) => {
+        const t = e.getBoundingClientRect();
+        return t.width > 0 && hit(ring, t.left + t.width / 2, Math.min(t.top + t.height / 2, t.top + 30));
+      });
+      const c = document.querySelector('[aria-label="Recorrido guiado"] .shadow-2xl').getBoundingClientRect();
+      const covered = !(c.bottom <= ring.top + 8 || c.top >= ring.bottom - 8 || c.right <= ring.left + 8 || c.left >= ring.right - 8);
+      return { ok: lit && !covered };
+    });
+    if (!step.ok) missed.push(k);
+    const next = p.getByRole("button", { name: /Siguiente|Empezar a usar/ });
+    if (!(await next.count())) break;
+    if (/Empezar a usar/.test(await next.textContent())) { await next.click(); break; }
+    await next.click();
+  }
+  check(missed.length === 0, `each tour step lights up what it explains ${missed.join(",")}`);
   check(problems.length === 0, `demo has no page errors or blocked content ${problems.join(" | ")}`);
   await ctx.close();
 }

@@ -6,6 +6,7 @@
 import { useResetOn } from "@/lib/hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Check, Volume2, VolumeX } from "lucide-react";
 import { DEMO_PHONE, useLang, useMe, useStore } from "@/lib/store";
 import { speak, stopSpeaking } from "@/lib/voice";
@@ -101,15 +102,19 @@ export function GuidedTour() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     const vh = window.innerHeight;
-    const header = window.innerWidth < 768 ? 72 : 16;
+    const fixedPart = pinned(el);
+    const header = fixedPart ? 0 : window.innerWidth < 768 ? 72 : 16;
     const cardH = cardRef.current?.offsetHeight ?? 320;
-    const onTop = (pinned(el) && r.top + r.height / 2 > vh / 2) || (!pinned(el) && r.top > vh - cardH - 64);
+    const onTop = fixedPart ? r.top + r.height / 2 > vh / 2 : r.top > vh - cardH - 64;
     const freeTop = onTop ? cardH + 24 : header;
     const freeBottom = onTop ? vh - 8 : vh - cardH - 24;
     const top = Math.max(r.top, freeTop);
     const bottom = Math.min(r.bottom, freeBottom);
     setCardOnTop(onTop);
-    setRect({ top, left: r.left, width: r.width, height: Math.max(bottom - top, Math.min(r.height, 56)) });
+    // The light is drawn in page coordinates, in the same layer as the page itself.
+    // On iPhones (Safari 26) fixed layers can be drawn lower than where the page
+    // says they are, by about the status-bar height; that put the light under the button.
+    setRect({ top: top + window.scrollY, left: r.left + window.scrollX, width: r.width, height: Math.max(bottom - top, Math.min(r.height, 56)) });
   }, []);
 
   useResetOn(i, () => setRect(null));
@@ -123,7 +128,10 @@ export function GuidedTour() {
         const el = Array.from(document.querySelectorAll(sel)).find(visible);
         if (el) {
           targetRef.current = el;
-          if (!pinned(el)) {
+          if (pinned(el)) {
+            // e.g. a sidebar that was scrolled down to reach "See the tour again"
+            el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" as ScrollBehavior });
+          } else {
             // Put the part in the free space above the card: centered if it fits, else from its top
             const r = el.getBoundingClientRect();
             const header = window.innerWidth < 768 ? 72 : 16;
@@ -142,9 +150,18 @@ export function GuidedTour() {
   }, [i, path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // The phone's browser bars grow and shrink while scrolling; follow them too
+    const vv = window.visualViewport;
     window.addEventListener("resize", layout);
     window.addEventListener("scroll", layout, true);
-    return () => { window.removeEventListener("resize", layout); window.removeEventListener("scroll", layout, true); };
+    vv?.addEventListener("resize", layout);
+    vv?.addEventListener("scroll", layout);
+    return () => {
+      window.removeEventListener("resize", layout);
+      window.removeEventListener("scroll", layout, true);
+      vv?.removeEventListener("resize", layout);
+      vv?.removeEventListener("scroll", layout);
+    };
   }, [layout]);
 
   const sayStep = useCallback(() => {
@@ -173,19 +190,22 @@ export function GuidedTour() {
 
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label={en ? "Guided tour" : "Recorrido guiado"}>
-      {/* dim everything except the lit-up part */}
+      {/* dim everything except the lit-up part (drawn on the page itself, see layout) */}
       {rect ? (
-        <div
-          className="pointer-events-none fixed rounded-3xl ring-4 ring-sun transition-all duration-300"
-          style={{ top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: "0 0 0 9999px rgba(20,28,25,0.72)" }}
-        />
+        createPortal(
+          <div
+            className="pointer-events-none absolute z-[79] rounded-3xl ring-4 ring-sun transition-all duration-300"
+            style={{ top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: "0 0 0 9999px rgba(20,28,25,0.72)" }}
+          />,
+          document.body,
+        )
       ) : (
-        <div className="fixed inset-0 bg-[rgba(20,28,25,0.72)]" />
+        <div className="absolute inset-0 bg-[rgba(20,28,25,0.72)]" />
       )}
       {/* block taps on the app while touring */}
-      <div className="fixed inset-0" />
+      <div className="absolute inset-0" />
 
-      <div className={cx("fixed inset-x-0 mx-auto w-full max-w-xl px-3", rect && cardOnTop ? "top-3" : "bottom-3")}>
+      <div className={cx("absolute inset-x-0 mx-auto w-full max-w-xl px-3", rect && cardOnTop ? "top-3" : "bottom-3")}>
         <div ref={cardRef} className="max-h-[62dvh] overflow-y-auto rounded-[2rem] bg-paper p-4 shadow-2xl sm:p-5 md:p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-base font-extrabold text-clay">{en ? `Step ${i + 1} of ${steps.length}` : `Paso ${i + 1} de ${steps.length}`}</p>
