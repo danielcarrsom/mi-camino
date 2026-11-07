@@ -10,7 +10,7 @@ import { RecoveryNudge } from "./RecoverySetup";
 import { Avatar } from "./Avatars";
 import { BetaBadge } from "./LegalPage";
 import { useLang, useMe, useStore } from "@/lib/store";
-import { useT } from "@/lib/hooks";
+import { useResetOn, useT } from "@/lib/hooks";
 import { LANGS, langInfo } from "@/lib/i18n";
 import { stopSpeaking } from "@/lib/voice";
 import type { TKey } from "@/lib/i18n";
@@ -51,6 +51,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const inNegocio = path.startsWith("/negocio");
+  // While the guided tour runs, no menu may cover the parts it points at.
+  const touring = !!me && !me.profile.tourDone;
+  useResetOn(touring, () => { if (touring) { setMore(false); setLangOpen(false); } });
 
   return (
     <div className="min-h-dvh md:flex">
@@ -142,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      <Sheet open={more} onClose={() => setMore(false)} title={t("menu")}>
+      <Sheet open={more && !touring} onClose={() => setMore(false)} title={t("menu")}>
         {me && (
           <Link href="/perfil" onClick={() => setMore(false)} className="mb-4 flex items-center gap-3 rounded-3xl border-2 border-sand bg-paper p-3 font-extrabold">
             <Avatar id={me.profile.avatar} name={me.profile.name} size={52} />
@@ -162,11 +165,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="mt-4"><CloudBadge /></div>
         <div className="mt-3 space-y-1">
-          <SettingsButtons onLang={() => { setMore(false); setLangOpen(true); }} />
+          <SettingsButtons onLang={() => { setMore(false); setLangOpen(true); }} onLeave={() => setMore(false)} />
         </div>
       </Sheet>
 
-      <LanguageSheet open={langOpen} onClose={() => setLangOpen(false)} />
+      <LanguageSheet open={langOpen && !touring} onClose={() => setLangOpen(false)} />
     </div>
   );
 }
@@ -223,7 +226,7 @@ function VoiceToggle({ dark }: { dark?: boolean }) {
   );
 }
 
-function SettingsButtons({ onLang, dark }: { onLang: () => void; dark?: boolean }) {
+function SettingsButtons({ onLang, onLeave, dark }: { onLang: () => void; onLeave?: () => void; dark?: boolean }) {
   const t = useT();
   const lang = useLang();
   const voiceOn = useStore((s) => s.voiceOn);
@@ -232,7 +235,8 @@ function SettingsButtons({ onLang, dark }: { onLang: () => void; dark?: boolean 
   const textBig = useStore((s) => s.textBig);
   const setTextBig = useStore((s) => s.setTextBig);
   const updateProfile = useStore((s) => s.updateProfile);
-  const setTour = (v: boolean) => { if (v) updateProfile({ tourDone: false }); };
+  // Close the menu first, then start the tour from the beginning
+  const restartTour = () => { onLeave?.(); updateProfile({ tourDone: false }); };
   const router = useRouter();
   const row = cx("flex h-12 w-full items-center gap-3 rounded-2xl px-4 font-bold", dark ? "text-paper/80 hover:bg-paper/10" : "hover:bg-sand/60");
   return (
@@ -246,11 +250,11 @@ function SettingsButtons({ onLang, dark }: { onLang: () => void; dark?: boolean 
         <span className="flex h-[22px] w-[22px] items-center justify-center text-lg font-extrabold">A</span>
         {lang === "en" ? (textBig ? "Big letters: on" : "Big letters: off") : textBig ? "Letra grande: sí" : "Letra grande: no"}
       </button>
-      <button className={row} onClick={() => setTour(true)}>
+      <button className={row} onClick={restartTour}>
         <span className="flex h-[22px] w-[22px] items-center justify-center text-lg">🧭</span>
         {tx(lang, TXT.verElRecorridoOtraVez)}
       </button>
-      <Link className={row} href="/privacidad"><ShieldCheck size={22} /> {tx(lang, TXT.privacidadYTerminos)}</Link>
+      <Link className={row} href="/privacidad" onClick={onLeave}><ShieldCheck size={22} /> {tx(lang, TXT.privacidadYTerminos)}</Link>
       <button className={row} onClick={() => { logout(); router.push("/"); }}><LogOut size={22} /> {t("logout")}</button>
     </>
   );

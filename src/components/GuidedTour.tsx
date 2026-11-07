@@ -42,6 +42,17 @@ const STEPS: Step[] = [
   { path: "/casita", title: ["¡Listo! Ya sabes usar Mi Camino", "Done! You know how to use Mi Camino"], text: ["Ahora empieza con tu primer paso: anota tu salario. Te esperan tus primeros pasos en la pantalla de inicio.", "Now start with your first step: add your salary. Your first steps are waiting on the home screen."] },
 ];
 
+/** True when the element can't be scrolled into place (bottom bar, sidebar, sticky headers). */
+function pinned(el: Element) {
+  for (let n: Element | null = el; n && n !== document.body; n = n.parentElement) {
+    const p = getComputedStyle(n).position;
+    if (p === "fixed" || p === "sticky") return true;
+  }
+  return false;
+}
+
+type Box = { top: number; left: number; width: number; height: number };
+
 function visible(el: Element) {
   const r = el.getBoundingClientRect();
   const st = getComputedStyle(el);
@@ -63,8 +74,10 @@ export function GuidedTour() {
   const current = useStore((s) => s.current);
   const [steps] = useState(() => STEPS.filter((st) => !st.when || (st.when === "biz") === !!me?.business));
   const [i, setI] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
+  const [rect, setRect] = useState<Box | null>(null);
+  const [cardOnTop, setCardOnTop] = useState(false);
   const targetRef = useRef<Element | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const step = steps[i];
   const L = (p: [string, string]) => (en ? p[1] : p[0]);
   const name = me?.profile.name.split(" ")[0];
@@ -78,7 +91,27 @@ export function GuidedTour() {
     if (path !== want || step.path.includes("?")) router.push(step.path);
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Find and light up the part being explained
+  // Find and light up the part being explained.
+  // The card and the lit-up part never cover each other: the card sits at the bottom
+  // and the part is scrolled into the free space above it; parts that can't scroll
+  // (the bottom bar, the sidebar) get the card on the opposite side. Parts taller than
+  // the free space are lit from their top down to the card.
+  const layout = useCallback(() => {
+    const el = targetRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const header = window.innerWidth < 768 ? 72 : 16;
+    const cardH = cardRef.current?.offsetHeight ?? 320;
+    const onTop = (pinned(el) && r.top + r.height / 2 > vh / 2) || (!pinned(el) && r.top > vh - cardH - 64);
+    const freeTop = onTop ? cardH + 24 : header;
+    const freeBottom = onTop ? vh - 8 : vh - cardH - 24;
+    const top = Math.max(r.top, freeTop);
+    const bottom = Math.min(r.bottom, freeBottom);
+    setCardOnTop(onTop);
+    setRect({ top, left: r.left, width: r.width, height: Math.max(bottom - top, Math.min(r.height, 56)) });
+  }, []);
+
   useResetOn(i, () => setRect(null));
   useEffect(() => {
     targetRef.current = null;
@@ -90,10 +123,15 @@ export function GuidedTour() {
         const el = Array.from(document.querySelectorAll(sel)).find(visible);
         if (el) {
           targetRef.current = el;
-          const tall = el.getBoundingClientRect().height > window.innerHeight * 0.45;
-          el.scrollIntoView({ block: tall ? "start" : "center", behavior: "instant" as ScrollBehavior });
-          if (tall) window.scrollBy({ top: -90, behavior: "instant" as ScrollBehavior });
-          setTimeout(() => !stop && setRect(el.getBoundingClientRect()), 60);
+          if (!pinned(el)) {
+            // Put the part in the free space above the card: centered if it fits, else from its top
+            const r = el.getBoundingClientRect();
+            const header = window.innerWidth < 768 ? 72 : 16;
+            const free = window.innerHeight - (cardRef.current?.offsetHeight ?? 320) - 24 - header;
+            const want = header + Math.max(12, (free - r.height) / 2);
+            window.scrollBy({ top: r.top - want, behavior: "instant" as ScrollBehavior });
+          }
+          setTimeout(() => !stop && layout(), 60);
           return;
         }
       }
@@ -104,11 +142,10 @@ export function GuidedTour() {
   }, [i, path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const update = () => { if (targetRef.current) setRect(targetRef.current.getBoundingClientRect()); };
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => { window.removeEventListener("resize", update); window.removeEventListener("scroll", update, true); };
-  }, []);
+    window.addEventListener("resize", layout);
+    window.addEventListener("scroll", layout, true);
+    return () => { window.removeEventListener("resize", layout); window.removeEventListener("scroll", layout, true); };
+  }, [layout]);
 
   const sayStep = useCallback(() => {
     const t = step.setup === "welcome" ? `${L(step.title)}${name ? `, ${name}` : ""}. ${L(step.text)}` : `${L(step.title)}. ${L(step.text)}`;
@@ -131,9 +168,7 @@ export function GuidedTour() {
   const next = () => (i < steps.length - 1 ? setI(i + 1) : finish());
   const back = () => i > 0 && setI(i - 1);
 
-  // Where the card goes: away from the lit-up part
-  const pad = 10;
-  const below = rect ? Math.max(0, rect.top) + Math.min(rect.height, window.innerHeight) / 2 < window.innerHeight / 2 || rect.height > window.innerHeight * 0.45 : true;
+  const pad = 8;
   const isDemo = current === DEMO_PHONE;
 
   return (
@@ -150,8 +185,8 @@ export function GuidedTour() {
       {/* block taps on the app while touring */}
       <div className="fixed inset-0" />
 
-      <div className={cx("fixed inset-x-0 mx-auto w-full max-w-xl px-3", rect && !below ? "top-3" : "bottom-3")}>
-        <div className="rounded-[2rem] bg-paper p-5 shadow-2xl md:p-6">
+      <div className={cx("fixed inset-x-0 mx-auto w-full max-w-xl px-3", rect && cardOnTop ? "top-3" : "bottom-3")}>
+        <div ref={cardRef} className="max-h-[62dvh] overflow-y-auto rounded-[2rem] bg-paper p-4 shadow-2xl sm:p-5 md:p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-base font-extrabold text-clay">{en ? `Step ${i + 1} of ${steps.length}` : `Paso ${i + 1} de ${steps.length}`}</p>
             <ListenButton compact text={step.setup === "welcome" ? `${L(step.title)}. ${L(step.text)}` : `${L(step.title)}. ${L(step.text)}`} />
@@ -159,8 +194,8 @@ export function GuidedTour() {
           <div className="mt-2 flex gap-1" aria-hidden>
             {steps.map((_, k) => <span key={k} className={cx("h-2 flex-1 rounded-full", k <= i ? "bg-clay" : "bg-sand")} />)}
           </div>
-          <h2 className="mt-3 text-[1.6rem] leading-tight font-semibold">{L(step.title)}{step.setup === "welcome" && name ? <><br />{name} 👋</> : null}</h2>
-          <p className="mt-2 text-xl leading-snug">{L(step.text)}</p>
+          <h2 className="mt-2 text-[1.4rem] leading-tight font-semibold sm:mt-3 sm:text-[1.6rem]">{L(step.title)}{step.setup === "welcome" && name ? <><br />{name} 👋</> : null}</h2>
+          <p className="mt-1.5 text-lg leading-snug sm:mt-2 sm:text-xl">{L(step.text)}</p>
 
           {step.setup === "welcome" && (
             <div className="mt-4 space-y-3">
@@ -177,16 +212,16 @@ export function GuidedTour() {
             </div>
           )}
 
-          <div className="mt-5 flex gap-3">
+          <div className="mt-4 flex gap-3 sm:mt-5">
             {i > 0 && (
-              <button onClick={back} className="flex min-h-16 items-center justify-center gap-2 rounded-2xl border-2 border-sand px-5 text-lg font-bold"><ArrowLeft size={22} /> {en ? "Back" : "Atrás"}</button>
+              <button onClick={back} className="flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-sand px-5 text-lg font-bold"><ArrowLeft size={22} /> {en ? "Back" : "Atrás"}</button>
             )}
-            <button onClick={next} className="flex min-h-16 flex-1 items-center justify-center gap-2 rounded-2xl bg-clay text-xl font-extrabold text-paper shadow-[0_4px_0_#8f3a20] active:translate-y-0.5">
+            <button onClick={next} className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-clay text-xl font-extrabold text-paper shadow-[0_4px_0_#8f3a20] active:translate-y-0.5">
               {i < steps.length - 1 ? <>{en ? "Next" : "Siguiente"} <ArrowRight size={24} /></> : <><Check size={24} /> {en ? "Start using Mi Camino" : "Empezar a usar Mi Camino"}</>}
             </button>
           </div>
           {isDemo && i < steps.length - 1 && (
-            <button onClick={finish} className="mt-3 w-full text-center text-base font-bold text-muted underline underline-offset-4">{en ? "Skip tour (example account only)" : "Saltar recorrido (solo en la cuenta de ejemplo)"}</button>
+            <button onClick={finish} className="mt-2 w-full text-center text-sm font-bold text-muted underline underline-offset-4">{en ? "Skip tour (example account only)" : "Saltar recorrido (solo en la cuenta de ejemplo)"}</button>
           )}
         </div>
       </div>

@@ -49,6 +49,12 @@ async function finishTour(p) {
     await p.goto(BASE + path); await p.waitForTimeout(500);
     check((await p.locator("h1").count()) > 0, `demo opens ${path}`);
   }
+  // Restarting the tour from the phone menu must close the menu, so the tour can point at things
+  await p.goto(BASE + "/casita"); await p.waitForTimeout(400);
+  await p.locator('[data-tour="menu"]').click(); await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /Ver el recorrido otra vez/ }).click(); await p.waitForTimeout(900);
+  const others = await p.locator('[role="dialog"]:not([aria-label="Recorrido guiado"])').count();
+  check(others === 0, "restarting the tour from the menu closes the menu");
   check(problems.length === 0, `demo has no page errors or blocked content ${problems.join(" | ")}`);
   await ctx.close();
 }
